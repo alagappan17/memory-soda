@@ -2,20 +2,58 @@
   "name": "@memory-soda/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "dev": "make serve-all",
+    "build": "nx run-many --target=build --all",
+    "lint": "nx run-many --target=lint --all",
+    "test": "nx run-many --target=test --all",
+    "typecheck": "nx run-many --target=typecheck --all",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
   "private": true,
-  "dependencies": {},
   "devDependencies": {
+    "@nx/devkit": "22.6.4",
+    "@nx/esbuild": "22.6.4",
     "@nx/js": "22.6.4",
+    "@nx/next": "^22.6.4",
+    "@nx/node": "^22.6.4",
+    "@nx/playwright": "22.6.4",
+    "@playwright/test": "^1.36.0",
     "@swc-node/register": "~1.11.1",
+    "@swc/cli": "~0.8.0",
     "@swc/core": "~1.15.5",
     "@swc/helpers": "~0.5.18",
+    "@types/express": "^4.17.21",
+    "@types/node": "20.19.9",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "10.4.13",
+    "drizzle-kit": "^0.31.10",
+    "esbuild": "^0.19.2",
     "nx": "22.6.4",
+    "postcss": "8.4.38",
     "prettier": "~3.6.2",
+    "tailwindcss": "3.4.3",
     "tslib": "^2.3.0",
     "typescript": "~5.9.2"
   },
   "workspaces": [
-    "packages/*"
-  ]
+    "packages/*",
+    "apps/*"
+  ],
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "express": "^4.21.2",
+    "ioredis": "^5.10.1",
+    "neo4j-driver": "^6.0.1",
+    "next": "~16.1.6",
+    "openai": "^6.33.0",
+    "pg": "^8.20.0",
+    "pgvector": "^0.2.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^4.3.6"
+  }
 }
