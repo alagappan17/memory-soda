@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import healthRouter from './routes/health.js';
 import graphRouter from './routes/graph.js';
@@ -10,9 +9,6 @@ import { requireApiKey } from './middleware/auth.js';
 import { initNeo4j } from './db/neo4j-init.js';
 import { db, checkPostgres } from './db/postgres.js';
 import { listApiKeys, createApiKey } from './services/api-key.service.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // In compiled output (dist/apps/api/src/), drizzle/ is at dist/drizzle/
 const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle');
