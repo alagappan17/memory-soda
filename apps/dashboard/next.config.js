@@ -11,10 +11,9 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
  * @type {import('@nx/next/plugins/with-nx').WithNxOptions}
  **/
 const nextConfig = {
-  // Use this to set Nx-specific options
-  // See: https://nx.dev/recipes/next/next-config-setup
   nx: {},
-  output: 'standalone',
+  // 'standalone' is for production Docker builds only — never in dev
+  ...(process.env.NODE_ENV === 'production' ? { output: 'standalone' } : {}),
 };
 
 const plugins = [
