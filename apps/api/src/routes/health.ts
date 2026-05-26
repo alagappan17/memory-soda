@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { Pool } from 'pg';
 import Redis from 'ioredis';
+import { pool } from '../db/postgres.js';
 import neo4j from 'neo4j-driver';
 import type { HealthResponse, ServiceStatus } from '@memory-soda/types';
 
@@ -21,14 +21,11 @@ router.get('/', async (_req, res) => {
 });
 
 async function checkPostgres(): Promise<ServiceStatus> {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   try {
     await pool.query('SELECT 1');
     return 'ok';
   } catch {
     return 'error';
-  } finally {
-    await pool.end();
   }
 }
 

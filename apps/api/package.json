@@ -2,6 +2,12 @@
   "name": "@memory-soda/api",
   "version": "0.0.1",
   "private": true,
+  "scripts": {
+    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
+    "db:push": "drizzle-kit push --config=drizzle.config.ts",
+    "db:studio": "drizzle-kit studio --config=drizzle.config.ts"
+  },
   "nx": {
     "targets": {
       "build": {
@@ -20,7 +26,12 @@
           "main": "apps/api/src/main.ts",
           "tsConfig": "apps/api/tsconfig.app.json",
           "assets": [
-            "apps/api/src/assets"
+            "apps/api/src/assets",
+            {
+              "input": "apps/api/drizzle",
+              "glob": "**/*",
+              "output": "drizzle"
+            }
           ],
           "esbuildOptions": {
             "sourcemap": true,
@@ -100,11 +111,14 @@
   "dependencies": {
     "@memory-soda/types": "^0.0.1",
     "cors": "^2.8.6",
+    "drizzle-orm": "^0.45.2",
     "express": "^4.21.2",
     "ioredis": "^5.10.1",
     "neo4j-driver": "^6.0.1",
+    "@ai-sdk/google": "^1.0.0",
+    "ai": "^4.0.0",
     "pg": "^8.20.0",
-    "zod": "^4.3.6"
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
