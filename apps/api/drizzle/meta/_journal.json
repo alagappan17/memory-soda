@@ -6,21 +6,7 @@
       "idx": 0,
       "version": "7",
       "when": 1775383262405,
-      "tag": "0000_dazzling_firestar",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1775383262406,
-      "tag": "0001_api_keys",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1775804456808,
-      "tag": "0002_powerful_ezekiel",
+      "tag": "0000_init",
       "breakpoints": true
     }
   ]

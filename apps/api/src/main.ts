@@ -1,17 +1,20 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import healthRouter from './routes/health.js';
 import graphRouter from './routes/graph.js';
 import apiKeysRouter from './routes/api-keys.js';
 import { requireApiKey } from './middleware/auth.js';
 import { initNeo4j } from './db/neo4j-init.js';
-import { db } from './db/postgres.js';
+import { db, checkPostgres } from './db/postgres.js';
 import { listApiKeys, createApiKey } from './services/api-key.service.js';
 
-// __dirname in compiled output: dist/apps/api/src/
-// migrations copied to:         dist/drizzle/
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// In compiled output (dist/apps/api/src/), drizzle/ is at dist/drizzle/
 const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle');
 
 const host = process.env.HOST ?? 'localhost';
@@ -22,7 +25,6 @@ const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000' }));
 app.use(express.json({ limit: '1mb' }));
 
-// Public routes (no API key required)
 app.use('/health', healthRouter);
 app.use('/api-keys', apiKeysRouter);
 app.use('/graph', graphRouter);
@@ -31,6 +33,9 @@ app.use('/graph', graphRouter);
 app.use(requireApiKey);
 
 async function bootstrap(): Promise<void> {
+  await checkPostgres();
+  console.log('[ postgres ] connected');
+
   if (process.env.MIGRATE_ON_START === 'true') {
     await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
     console.log('[ db ] migrations applied');
