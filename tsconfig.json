@@ -4,16 +4,19 @@
   "files": [],
   "references": [
     {
-      "path": "./apps/web-e2e"
+      "path": "./apps/dashboard-e2e"
     },
     {
-      "path": "./apps/web"
+      "path": "./apps/dashboard"
     },
     {
       "path": "./apps/api"
     },
 {
       "path": "./packages/types"
+    },
+    {
+      "path": "./packages/sdk"
     }
   ]
 }

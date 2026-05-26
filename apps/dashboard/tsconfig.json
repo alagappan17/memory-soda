@@ -30,8 +30,8 @@
     "src/**/*.tsx",
     "src/**/*.js",
     "src/**/*.jsx",
-    "../../apps/web/.next/types/**/*.ts",
-    "../../dist/apps/web/.next/types/**/*.ts",
+    "../../apps/dashboard/.next/types/**/*.ts",
+    "../../dist/apps/dashboard/.next/types/**/*.ts",
     "next-env.d.ts"
   ],
   "exclude": [

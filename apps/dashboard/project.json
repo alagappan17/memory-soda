@@ -1,0 +1,11 @@
+{
+  "name": "@memory-soda/dashboard",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "targets": {
+    "dev": {
+      "options": {
+        "port": 3000
+      }
+    }
+  }
+}

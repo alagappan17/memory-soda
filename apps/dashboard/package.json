@@ -1,5 +1,5 @@
 {
-  "name": "@memory-soda/web",
+  "name": "@memory-soda/dashboard",
   "version": "0.0.1",
   "private": true,
   "dependencies": {
