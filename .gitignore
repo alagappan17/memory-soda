@@ -51,5 +51,9 @@ out
 .env
 .env.local
 .env*.local
+.env.prod
 
 test-output
+
+wiki
+docs
