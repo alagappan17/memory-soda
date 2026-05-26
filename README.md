@@ -1,109 +1,193 @@
-# MemorySoda
+# memory-soda
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Semantic memory layer for AI agents. Extract facts from conversations, store them in a knowledge graph, and retrieve relevant context for future LLM calls. Graph-native (Neo4j + vector search). Self-hostable.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+---
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+## Self-host (Docker)
 
-## Generate a library
-
-```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
+```bash
+git clone https://github.com/your-org/memory-soda
+cd memory-soda
+cp .env.example .env
+# Fill in GOOGLE_GENERATIVE_AI_API_KEY in .env
+docker compose up -d
 ```
 
-## Run tasks
-
-To build the library use:
-
-```sh
-npx nx build pkg1
-```
-
-To run any task with Nx use:
-
-```sh
-npx nx <target> <project-name>
-```
-
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
-
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Versioning and releasing
-
-To version and release the library use
+On first boot the API prints a key to its logs — copy it before it scrolls away:
 
 ```
-npx nx release
+┌─────────────────────────────────────────────────┐
+│  Memory Soda — First-time setup                 │
+│                                                 │
+│  API Key: ms_xxxxxxxxxxxxxxxxxxxxxxxxxxxx       │
+│                                                 │
+│  Save this — it will not be shown again.        │
+└─────────────────────────────────────────────────┘
 ```
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
-
-[Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Keep TypeScript project references up to date
-
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
-
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
-
-```sh
-npx nx sync
+```bash
+docker compose logs api   # retrieve it again if you missed it
 ```
 
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
+| Service | URL |
+|---|---|
+| Dashboard | http://localhost:3000 |
+| API | http://localhost:3004 |
+| Status page | http://localhost:3000/status |
+| Neo4j browser | http://localhost:7474 |
 
-```sh
-npx nx sync:check
+Open the **Status page** first to confirm all services (Postgres, Redis, Neo4j) are green before integrating the SDK.
+
+---
+
+## Use the SDK
+
+### Install from npm
+
+```bash
+npm install @memory-soda/sdk
 ```
 
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
+```ts
+import { MemorySodaClient } from '@memory-soda/sdk';
 
-## Set up CI!
+const memory = new MemorySodaClient({
+  baseUrl: 'http://localhost:3004',   // your self-hosted API URL
+  apiKey: 'ms_xxxx',                  // key from first-boot output
+});
 
-### Step 1
+// Verify connectivity
+const { ok, services } = await memory.ping();
 
-To connect to Nx Cloud, run the following command:
+// Store facts from a conversation turn
+await memory.add(userId, messages);
 
-```sh
-npx nx connect
+// Retrieve relevant context before an LLM call
+const { contextText } = await memory.retrieve(userId, userMessage);
+
+// Or let memory-soda handle the full agent turn end-to-end
+const response = await memory.chat(userId, messages);
 ```
 
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+Or use environment variables:
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Step 2
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
+```bash
+MEMORY_SODA_BASE_URL=http://localhost:3004
+MEMORY_SODA_API_KEY=ms_xxxx
 ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```ts
+const memory = MemorySodaClient.fromEnv();
+```
 
-## Install Nx Console
+### Install locally (pre-publish / contributors)
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+**Option A — npm link** (recommended while actively developing the SDK)
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```bash
+# In this repo — build and register globally
+cd packages/sdk && npm run build && cd ../..
+npm link --workspace=packages/sdk
 
-## Useful links
+# In your app
+npm link @memory-soda/sdk
 
-Learn more:
+# When you change SDK code, just rebuild — the link picks up the new dist:
+npm run sdk:build
+```
 
-- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+**Option B — file path** (stable snapshot, no global symlink)
 
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```bash
+# In your app's package.json:
+"@memory-soda/sdk": "file:../memory-soda/packages/sdk"
+
+npm install
+
+# After SDK changes: rebuild then reinstall in your app
+npm run sdk:build          # in this repo
+npm install                # in your app
+```
+
+---
+
+## Local development
+
+```bash
+# Start infra (Postgres, Neo4j, Redis) — no app containers
+docker compose -f docker-compose.dev.yml up -d
+
+cp .env.example .env
+# Fill in GOOGLE_GENERATIVE_AI_API_KEY
+
+# Run API + Dashboard natively (hot reload)
+npm install
+npm run dev
+```
+
+---
+
+## Project structure
+
+```
+apps/
+  api/          ← self-hostable Express/Fastify backend (Neo4j + Postgres + Gemini)
+  dashboard/    ← memory management dashboard (Next.js)
+
+packages/
+  sdk/          ← @memory-soda/sdk — install this in your app
+  types/        ← shared TypeScript types (internal)
+
+docker/
+  Dockerfile.api
+  Dockerfile.dashboard
+  docker-compose.prod.yml   ← production stack (no exposed DB ports)
+
+docker-compose.yml          ← self-hosting entrypoint (all ports exposed)
+docker-compose.dev.yml      ← infra only, for local development
+```
+
+---
+
+## Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `GOOGLE_GENERATIVE_AI_API_KEY` | **Yes** | Gemini API key — [get one at aistudio.google.com](https://aistudio.google.com) |
+| `HOST` | No | API bind address. Default: `localhost` (use `0.0.0.0` in Docker) |
+| `PORT` | No | API port. Default: `3004` |
+| `CORS_ORIGIN` | No | Dashboard URL for CORS. Default: `http://localhost:3000` |
+| `MIGRATE_ON_START` | No | Run DB migrations on startup. Default: `true` |
+| `DATABASE_URL` | No | Postgres connection string. Default: matches docker-compose |
+| `REDIS_URL` | No | Redis connection string. Default: `redis://localhost:6379` |
+| `NEO4J_URI` | No | Neo4j bolt URI. Default: `bolt://localhost:7687` |
+| `NEO4J_USERNAME` | No | Neo4j username. Default: `neo4j` |
+| `NEO4J_PASSWORD` | No | Neo4j password. Default: `memory_pass` |
+| `NEXT_PUBLIC_API_URL` | No | API URL as seen from the browser. Default: `http://localhost:3004` |
+
+Copy `.env.example` for local development. See `.env.prod.example` for production variables.
+
+---
+
+## Development commands
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start API + Dashboard in watch mode |
+| `npm run build` | Build all projects |
+| `npm run typecheck` | Type-check all projects |
+| `npm run sdk:build` | Build the SDK package |
+| `npm run docker:up` | `docker compose up -d` |
+| `npm run docker:down` | `docker compose down` |
+
+---
+
+## Publishing the SDK
+
+The SDK publishes to npm automatically when a `v*` tag is pushed. Requires `NPM_TOKEN` set as a GitHub Actions secret.
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```

@@ -1,0 +1,56 @@
+# Infrastructure only — for memory-soda contributors running API + Web natively.
+# Usage: docker compose -f docker-compose.dev.yml up -d
+# Then: npm run dev
+
+name: memory-soda-dev
+
+volumes:
+  pg_data_dev:
+  neo4j_data_dev:
+  redis_data_dev:
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: memory_db
+      POSTGRES_USER: memory_user
+      POSTGRES_PASSWORD: memory_pass
+    volumes:
+      - pg_data_dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U memory_user -d memory_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  neo4j:
+    image: neo4j:5.18-community
+    environment:
+      NEO4J_AUTH: neo4j/memory_pass
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j_data_dev:/data
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data_dev:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
