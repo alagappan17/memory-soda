@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import type { ApiKey } from '@memory-soda/types';
+import { useProject } from '@/providers/project-provider';
 
 const api = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3004' });
 
 export default function ApiKeysPage() {
-  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const { selectedProject } = useProject();
+  const [allKeys, setAllKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
@@ -16,10 +18,14 @@ export default function ApiKeysPage() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const keys = selectedProject
+    ? allKeys.filter((k) => k.projectId === selectedProject.id)
+    : allKeys;
+
   async function fetchKeys() {
     try {
       const res = await api.get('/api-keys');
-      setKeys(res.data.apiKeys);
+      setAllKeys(res.data.apiKeys);
     } catch {
       setError('Failed to load API keys');
     } finally {
@@ -34,9 +40,11 @@ export default function ApiKeysPage() {
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      const res = await api.post('/api-keys', { name: newName.trim() });
+      const body: Record<string, string> = { name: newName.trim() };
+      if (selectedProject) body['projectId'] = selectedProject.id;
+      const res = await api.post('/api-keys', body);
       setCreatedKey(res.data.key);
-      setKeys((prev) => [...prev, res.data.apiKey]);
+      setAllKeys((prev) => [...prev, res.data.apiKey]);
       setNewName('');
       setShowCreate(false);
     } catch {
@@ -50,7 +58,7 @@ export default function ApiKeysPage() {
     if (!confirm('Revoke this API key? This cannot be undone.')) return;
     try {
       await api.delete(`/api-keys/${id}`);
-      setKeys((prev) => prev.map((k) => k.id === id ? { ...k, revokedAt: new Date().toISOString() } : k));
+      setAllKeys((prev) => prev.map((k) => k.id === id ? { ...k, revokedAt: new Date().toISOString() } : k));
     } catch {
       setError('Failed to revoke API key');
     }
@@ -62,13 +70,21 @@ export default function ApiKeysPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  if (!selectedProject) {
+    return (
+      <div className="max-w-3xl mx-auto px-6 py-20 text-center">
+        <p className="text-muted-foreground text-sm">Select or create a project to manage API keys.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-10">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-xl font-semibold">API Keys</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Keys authenticate SDK and API requests. Store them securely — they are shown only once.
+            Keys for <span className="font-medium text-foreground">{selectedProject.name}</span>. Store them securely — they are shown only once.
           </p>
         </div>
         <button

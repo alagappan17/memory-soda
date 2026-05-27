@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import type { MemoryOperationStep, ContextFact, GraphChatUsage } from '@memory-soda/types';
+import { useProject } from '@/providers/project-provider';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3004';
 
@@ -22,6 +23,7 @@ interface TurnMeta {
 type RightTab = 'memory' | 'context' | 'metrics';
 
 export default function PlaygroundPage() {
+  const { selectedProject } = useProject();
   const [userId, setUserId] = useState('demo-user');
   const [systemPromptTemplate, setSystemPromptTemplate] = useState('');
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
@@ -96,10 +98,21 @@ export default function PlaygroundPage() {
     setLastMeta(null);
   }
 
+  if (!selectedProject) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-49px)] text-sm text-muted-foreground">
+        Select or create a project to use the playground.
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-49px)]">
       {/* Config bar */}
       <div className="border-b border-border px-4 py-2 bg-card flex items-center gap-4 flex-wrap text-sm">
+        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+          {selectedProject.name}
+        </span>
         <div className="flex items-center gap-2">
           <label className="text-muted-foreground whitespace-nowrap">User ID</label>
           <input
