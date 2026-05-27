@@ -45,19 +45,22 @@ async function queryExistingFacts(
   userId: string,
   subjectName: string,
   predicate: string,
+  projectId?: string,
 ): Promise<MemoryFact[]> {
   const session = neo4jDriver.session();
   try {
+    const projectFilter = projectId ? 'AND f.projectId = $projectId' : '';
     const result = await session.run(
       `MATCH (f:MemoryFact)
        WHERE f.userId = $userId
          AND f.subjectName = $subjectName
          AND f.predicate = $predicate
          AND f.invalidAt IS NULL
+         ${projectFilter}
        RETURN f
        ORDER BY f.validAt DESC
        LIMIT 5`,
-      { userId, subjectName, predicate },
+      { userId, subjectName, predicate, projectId: projectId ?? null },
     );
     return result.records.map((r) => neo4jToMemoryFact(r.get('f').properties));
   } finally {
@@ -71,6 +74,7 @@ async function createFact(
   userId: string,
   fact: ExtractedFact,
   subjectName: string,
+  projectId?: string,
 ): Promise<MemoryFact> {
   const factId = randomUUID();
   const now = new Date().toISOString();
@@ -84,12 +88,13 @@ async function createFact(
   try {
     await session.run(
       `MERGE (s:Entity {id: $subId})
-         ON CREATE SET s.name = $subjectName, s.type = $subjectType, s.userId = $userId
+         ON CREATE SET s.name = $subjectName, s.type = $subjectType, s.userId = $userId, s.projectId = $projectId
        MERGE (o:Entity {id: $objId})
-         ON CREATE SET o.name = $objectName, o.type = $objectType, o.userId = $userId
+         ON CREATE SET o.name = $objectName, o.type = $objectType, o.userId = $userId, o.projectId = $projectId
        CREATE (f:MemoryFact {
          id: $factId,
          userId: $userId,
+         projectId: $projectId,
          text: $text,
          predicate: $predicate,
          subjectName: $subjectName,
@@ -111,6 +116,7 @@ async function createFact(
         objId,
         factId,
         userId,
+        projectId: projectId ?? null,
         text,
         predicate: fact.predicate,
         subjectName,
@@ -178,7 +184,11 @@ async function reinforceFact(factId: string, _newConfidence: number): Promise<vo
 
 // ── Public: add memory ────────────────────────────────────────────────────────
 
-export async function addMemory(userId: string, messages: Message[]): Promise<AddMemoryResult> {
+export async function addMemory(
+  userId: string,
+  messages: Message[],
+  projectId?: string,
+): Promise<AddMemoryResult> {
   const log: MemoryOperationStep[] = [];
 
   // Step 1: extract facts
@@ -204,10 +214,10 @@ export async function addMemory(userId: string, messages: Message[]): Promise<Ad
         : fact.subject;
 
     // Step 2: resolve nodes + query existing
-    const existing = await queryExistingFacts(userId, subjectName, fact.predicate);
+    const existing = await queryExistingFacts(userId, subjectName, fact.predicate, projectId);
 
     if (existing.length === 0) {
-      await createFact(userId, { ...fact, subject: subjectName }, subjectName);
+      await createFact(userId, { ...fact, subject: subjectName }, subjectName, projectId);
       factsCreated++;
       log.push({
         type: 'create',
@@ -235,7 +245,7 @@ export async function addMemory(userId: string, messages: Message[]): Promise<Ad
             message: `Invalidated old fact: "${old.text}"`,
           });
         }
-        await createFact(userId, { ...fact, subject: subjectName }, subjectName);
+        await createFact(userId, { ...fact, subject: subjectName }, subjectName, projectId);
         factsCreated++;
         log.push({
           type: 'create',
@@ -252,7 +262,7 @@ export async function addMemory(userId: string, messages: Message[]): Promise<Ad
         });
       } else {
         // NEW — different object despite same predicate (e.g. multiple INTERESTED_IN)
-        await createFact(userId, { ...fact, subject: subjectName }, subjectName);
+        await createFact(userId, { ...fact, subject: subjectName }, subjectName, projectId);
         factsCreated++;
         log.push({
           type: 'create',
@@ -272,22 +282,25 @@ export async function retrieveMemory(
   userId: string,
   query: string,
   limit = 10,
+  projectId?: string,
 ): Promise<RetrieveMemoryResult> {
   const embedding = await generateEmbedding(query);
 
   const session = neo4jDriver.session();
   let vectorFacts: ContextFact[] = [];
 
+  const projectFilter = projectId ? 'AND fact.projectId = $projectId' : '';
+
   try {
     // Vector search on MemoryFact nodes
     const vectorResult = await session.run(
       `CALL db.index.vector.queryNodes('memory_facts_embedding', 20, $embedding)
        YIELD node AS fact, score
-       WHERE fact.userId = $userId AND fact.invalidAt IS NULL
+       WHERE fact.userId = $userId AND fact.invalidAt IS NULL ${projectFilter}
        RETURN fact, score
        ORDER BY score DESC
        LIMIT $limit`,
-      { embedding, userId, limit: neo4j.int(limit) },
+      { embedding, userId, limit: neo4j.int(limit), projectId: projectId ?? null },
     );
 
     vectorFacts = vectorResult.records.map((r) => {
@@ -306,14 +319,16 @@ export async function retrieveMemory(
     // Graph expand: get all active facts connected to matched entity nodes
     if (vectorFacts.length > 0) {
       const subjectNames = [...new Set(vectorFacts.map((f) => f.subject))];
+      const expandProjectFilter = projectId ? 'AND f.projectId = $projectId' : '';
       const expandResult = await session.run(
         `UNWIND $subjectNames AS name
          MATCH (f:MemoryFact)
          WHERE f.userId = $userId
            AND f.subjectName = name
            AND f.invalidAt IS NULL
+           ${expandProjectFilter}
          RETURN f`,
-        { subjectNames, userId },
+        { subjectNames, userId, projectId: projectId ?? null },
       );
 
       const expanded: ContextFact[] = expandResult.records.map((r) => {

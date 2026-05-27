@@ -104,12 +104,33 @@ export interface GraphChatResponse {
   latencyMs: number;
 }
 
+// Project types
+
+export interface Project {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface CreateProjectRequest {
+  name: string;
+}
+
+export interface CreateProjectResponse {
+  project: Project;
+}
+
+export interface ListProjectsResponse {
+  projects: Project[];
+}
+
 // API key types
 
 export interface ApiKey {
   id: string;
   name: string;
   keyPreview: string;
+  projectId: string | null;
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
@@ -117,6 +138,7 @@ export interface ApiKey {
 
 export interface CreateApiKeyRequest {
   name: string;
+  projectId: string;
 }
 
 export interface CreateApiKeyResponse {

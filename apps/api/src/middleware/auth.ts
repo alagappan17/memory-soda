@@ -6,6 +6,7 @@ declare global {
   namespace Express {
     interface Request {
       apiKey?: ApiKeyPayload;
+      projectId?: string | null;
     }
   }
 }
@@ -36,6 +37,7 @@ export async function requireApiKey(req: Request, res: Response, next: NextFunct
     touchApiKey(row.id).catch(() => {});
 
     req.apiKey = { keyId: row.id, name: row.name };
+    req.projectId = row.projectId ?? null;
     next();
   } catch (err) {
     console.error('[auth] error checking API key:', err);

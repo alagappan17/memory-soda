@@ -13,19 +13,23 @@ function rowToApiKey(row: typeof apiKeys.$inferSelect): ApiKey {
     id: row.id,
     name: row.name,
     keyPreview: row.keyPreview,
+    projectId: row.projectId ?? null,
     createdAt: row.createdAt.toISOString(),
     lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
     revokedAt: row.revokedAt?.toISOString() ?? null,
   };
 }
 
-export async function createApiKey(name: string): Promise<{ apiKey: ApiKey; key: string }> {
+export async function createApiKey(
+  name: string,
+  projectId?: string,
+): Promise<{ apiKey: ApiKey; key: string }> {
   const key = generateKey();
   const keyPreview = key.slice(0, 10) + '...' + key.slice(-4);
 
   const [row] = await db
     .insert(apiKeys)
-    .values({ name, key, keyPreview })
+    .values({ name, key, keyPreview, projectId: projectId ?? null })
     .returning();
 
   return { apiKey: rowToApiKey(row!), key };

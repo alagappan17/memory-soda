@@ -7,6 +7,7 @@ const router = Router();
 
 const createBodySchema = z.object({
   name: z.string().min(1).max(100),
+  projectId: z.string().uuid().optional(),
 });
 
 router.get('/', async (_req, res) => {
@@ -21,8 +22,8 @@ router.get('/', async (_req, res) => {
 
 router.post('/', validateBody(createBodySchema), async (req, res) => {
   try {
-    const { name } = req.body as z.infer<typeof createBodySchema>;
-    const result = await createApiKey(name);
+    const { name, projectId } = req.body as z.infer<typeof createBodySchema>;
+    const result = await createApiKey(name, projectId);
     res.status(201).json(result);
   } catch (err) {
     console.error(err);

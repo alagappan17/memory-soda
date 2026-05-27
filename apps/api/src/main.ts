@@ -5,6 +5,7 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import healthRouter from './routes/health.js';
 import graphRouter from './routes/graph.js';
 import apiKeysRouter from './routes/api-keys.js';
+import projectsRouter from './routes/projects.js';
 import { requireApiKey } from './middleware/auth.js';
 import { initNeo4j } from './db/neo4j-init.js';
 import { db, checkPostgres } from './db/postgres.js';
@@ -18,11 +19,13 @@ const port = process.env.PORT ? Number(process.env.PORT) : 3004;
 
 const app = express();
 
-app.use(cors({ origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000' }));
+const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000').split(',').map(s => s.trim());
+app.use(cors({ origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins }));
 app.use(express.json({ limit: '1mb' }));
 
 app.use('/health', healthRouter);
 app.use('/api-keys', apiKeysRouter);
+app.use('/projects', projectsRouter);
 app.use('/graph', graphRouter);
 
 // Protected routes (SDK usage — require API key)

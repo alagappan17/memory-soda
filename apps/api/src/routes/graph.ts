@@ -20,7 +20,8 @@ const addBodySchema = z.object({
 router.post('/add', validateBody(addBodySchema), async (req, res) => {
   try {
     const { userId, messages } = req.body as z.infer<typeof addBodySchema>;
-    const result = await addMemory(userId, messages);
+    const projectId = req.projectId ?? undefined;
+    const result = await addMemory(userId, messages, projectId);
     res.json({ result });
   } catch (err) {
     console.error(err);
@@ -38,7 +39,8 @@ const retrieveBodySchema = z.object({
 router.post('/retrieve', validateBody(retrieveBodySchema), async (req, res) => {
   try {
     const { userId, query, limit } = req.body as z.infer<typeof retrieveBodySchema>;
-    const result = await retrieveMemory(userId, query, limit);
+    const projectId = req.projectId ?? undefined;
+    const result = await retrieveMemory(userId, query, limit, projectId);
     res.json({ result });
   } catch (err) {
     console.error(err);
@@ -56,6 +58,7 @@ const chatBodySchema = z.object({
 router.post('/chat', validateBody(chatBodySchema), async (req, res) => {
   try {
     const { userId, messages, systemPromptTemplate } = req.body as z.infer<typeof chatBodySchema>;
+    const projectId = req.projectId ?? undefined;
 
     const start = Date.now();
 
@@ -67,7 +70,7 @@ router.post('/chat', validateBody(chatBodySchema), async (req, res) => {
     }
 
     // Step 2: retrieve relevant memories
-    const memoryResult = await retrieveMemory(userId, lastUserMsg.content);
+    const memoryResult = await retrieveMemory(userId, lastUserMsg.content, undefined, projectId);
 
     // Step 3: build system prompt
     const basePrompt = systemPromptTemplate?.trim() ||
@@ -86,7 +89,7 @@ router.post('/chat', validateBody(chatBodySchema), async (req, res) => {
       lastUserMsg,
       { role: 'assistant' as const, content: chatResult.text },
     ];
-    const memoryLog = await addMemory(userId, newTurn);
+    const memoryLog = await addMemory(userId, newTurn, projectId);
 
     res.json({
       message: chatResult.text,
