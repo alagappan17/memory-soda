@@ -15,6 +15,13 @@
       "when": 1748319600000,
       "tag": "0001_add_projects",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779952341818,
+      "tag": "0002_last_dormammu",
+      "breakpoints": true
     }
   ]
 }

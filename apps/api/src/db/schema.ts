@@ -40,6 +40,7 @@ export type NewMemoryRow = typeof memories.$inferInsert;
 export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
+  description: text('description'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 

@@ -7,6 +7,7 @@ function rowToProject(row: typeof projects.$inferSelect): Project {
   return {
     id: row.id,
     name: row.name,
+    description: row.description,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -16,11 +17,17 @@ export async function listProjects(): Promise<Project[]> {
   return rows.map(rowToProject);
 }
 
-export async function createProject(name: string): Promise<Project> {
-  const [row] = await db.insert(projects).values({ name }).returning();
+export async function createProject(name: string, description?: string): Promise<Project> {
+  const [row] = await db.insert(projects).values({ name, description }).returning();
   return rowToProject(row!);
 }
 
 export async function deleteProject(id: string): Promise<void> {
   await db.delete(projects).where(eq(projects.id, id));
+}
+
+export async function updateProject(id: string, name: string, description?: string): Promise<Project> {
+  const [row] = await db.update(projects).set({ name, description }).where(eq(projects.id, id)).returning();
+  if (!row) throw new Error('Project not found');
+  return rowToProject(row);
 }
