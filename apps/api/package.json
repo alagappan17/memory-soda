@@ -109,19 +109,21 @@
     }
   },
   "dependencies": {
+    "@ai-sdk/google": "^1.0.0",
     "@memory-soda/types": "^0.0.1",
+    "ai": "^4.0.0",
     "cors": "^2.8.6",
     "drizzle-orm": "^0.45.2",
     "express": "^4.21.2",
     "ioredis": "^5.10.1",
+    "morgan": "^1.10.1",
     "neo4j-driver": "^6.0.1",
-    "@ai-sdk/google": "^1.0.0",
-    "ai": "^4.0.0",
     "pg": "^8.20.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
+    "@types/morgan": "^1.9.10",
     "@types/pg": "^8.20.0"
   }
 }

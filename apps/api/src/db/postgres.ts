@@ -16,7 +16,6 @@ pool.on('error', (err) => {
 
 export const db = drizzle(pool, {
   schema,
-  logger: process.env.NODE_ENV === 'development',
 });
 
 export async function checkPostgres(): Promise<void> {

@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import morgan from 'morgan';
 import path from 'node:path';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import healthRouter from './routes/health.js';
@@ -22,6 +23,7 @@ const app = express();
 const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000').split(',').map(s => s.trim());
 app.use(cors({ origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins }));
 app.use(express.json({ limit: '1mb' }));
+app.use(morgan('dev'));
 
 app.use('/health', healthRouter);
 app.use('/api-keys', apiKeysRouter);
