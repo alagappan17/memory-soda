@@ -1,16 +1,13 @@
-'use client';
-
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
+import api from '@/lib/api';
 import type { Project } from '@memory-soda/types';
-
-const api = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3004' });
 
 interface ProjectContextValue {
   projects: Project[];
   selectedProject: Project | null;
   setSelectedProject: (p: Project) => void;
-  createProject: (name: string) => Promise<Project>;
+  createProject: (name: string, description?: string) => Promise<Project>;
+  updateProject: (id: string, name: string, description?: string) => Promise<Project>;
   deleteProject: (id: string) => Promise<void>;
   loading: boolean;
 }
@@ -28,9 +25,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const list: Project[] = res.data.projects;
       setProjects(list);
 
-      const savedId = typeof window !== 'undefined'
-        ? localStorage.getItem('selectedProjectId')
-        : null;
+      const savedId = localStorage.getItem('selectedProjectId');
 
       setSelectedProjectState((prev) => {
         if (prev && list.find((p) => p.id === prev.id)) return prev;
@@ -46,16 +41,25 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   function setSelectedProject(p: Project) {
     setSelectedProjectState(p);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('selectedProjectId', p.id);
-    }
+    localStorage.setItem('selectedProjectId', p.id);
   }
 
-  async function createProject(name: string): Promise<Project> {
-    const res = await api.post('/projects', { name });
+  async function createProject(name: string, description?: string): Promise<Project> {
+    const res = await api.post('/projects', { name, description });
     const project: Project = res.data.project;
     setProjects((prev) => [...prev, project]);
     setSelectedProject(project);
+    return project;
+  }
+
+  async function updateProject(id: string, name: string, description?: string): Promise<Project> {
+    const res = await api.patch(`/projects/${id}`, { name, description });
+    const project: Project = res.data.project;
+    setProjects((prev) => prev.map((p) => (p.id === id ? project : p)));
+    setSelectedProjectState((sel) => {
+      if (sel?.id === id) return project;
+      return sel;
+    });
     return project;
   }
 
@@ -77,6 +81,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       selectedProject,
       setSelectedProject,
       createProject,
+      updateProject,
       deleteProject,
       loading,
     }}>

@@ -3,8 +3,24 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "targets": {
     "dev": {
+      "executor": "nx:run-commands",
       "options": {
-        "port": 3000
+        "command": "vite",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vite build",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vite preview",
+        "cwd": "{projectRoot}"
       }
     }
   }
