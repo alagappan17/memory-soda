@@ -5,6 +5,7 @@ import {
   jsonb,
   uuid,
   index,
+  uniqueIndex,
   integer,
   pgEnum,
 } from 'drizzle-orm/pg-core';
@@ -138,7 +139,7 @@ export const messages = pgTable(
       .defaultNow(),
   },
   (t) => [
-    index('messages_thread_seq_idx').on(t.threadId, t.sequenceNumber),
+    uniqueIndex('messages_thread_seq_idx').on(t.threadId, t.sequenceNumber),
     index('messages_thread_time_idx').on(t.threadId, sql`${t.createdAt} DESC`),
   ],
 );
