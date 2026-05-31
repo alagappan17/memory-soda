@@ -1,29 +1,39 @@
 import { request } from './http.js';
-import type {
-  HealthResponse,
-  GraphAddRequest,
-  GraphAddResponse,
-  GraphRetrieveRequest,
-  GraphRetrieveResponse,
-  GraphChatRequest,
-  GraphChatResponse,
-  AddMemoryResult,
-  RetrieveMemoryResult,
-  Message,
-} from './types.js';
-import type { MemorySodaConfig } from './types.js';
+import { WorkingMemoryClient } from './working-memory.js';
+import type { MemorySodaConfig, HealthResponse } from './types.js';
 
+/**
+ * Root client for the Memory Soda API.
+ *
+ * @example
+ * ```ts
+ * const client = new MemorySodaClient({ baseUrl: 'http://localhost:3004', apiKey: 'ms_...' });
+ * const { threadId, prepare } = await client.workingMemory.startConversation({ firstMessage: { role: 'user', content: 'Hello' } });
+ * ```
+ */
 export class MemorySodaClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly timeout: number;
 
+  /** Working Memory — conversation history layer. */
+  readonly workingMemory: WorkingMemoryClient;
+
   constructor(config: MemorySodaConfig) {
     this.baseUrl = config.baseUrl;
     this.apiKey = config.apiKey;
     this.timeout = config.timeout ?? 60_000;
+    this.workingMemory = new WorkingMemoryClient(
+      this.baseUrl,
+      this.apiKey,
+      () => this.signal(),
+    );
   }
 
+  /**
+   * Construct a client from `MEMORY_SODA_BASE_URL` and `MEMORY_SODA_API_KEY` environment variables.
+   * @throws If either environment variable is missing.
+   */
   static fromEnv(): MemorySodaClient {
     const baseUrl = process.env['MEMORY_SODA_BASE_URL'];
     const apiKey = process.env['MEMORY_SODA_API_KEY'];
@@ -36,46 +46,20 @@ export class MemorySodaClient {
     return AbortSignal.timeout(this.timeout);
   }
 
-  /** Extract facts from a conversation turn and store in the memory graph. */
-  async add(userId: string, messages: Message[]): Promise<AddMemoryResult> {
-    const res = await request<GraphAddResponse>(this.baseUrl, this.apiKey, '/graph/add', {
-      method: 'POST',
-      body: { userId, messages } satisfies GraphAddRequest,
-      signal: this.signal(),
-    });
-    return res.result;
-  }
-
-  /** Retrieve relevant memories for a query and return a structured context block. */
-  async retrieve(userId: string, query: string, limit?: number): Promise<RetrieveMemoryResult> {
-    const res = await request<GraphRetrieveResponse>(this.baseUrl, this.apiKey, '/graph/retrieve', {
-      method: 'POST',
-      body: { userId, query, limit } satisfies GraphRetrieveRequest,
-      signal: this.signal(),
-    });
-    return res.result;
-  }
-
-  /** Full agent turn: retrieve context → LLM call → store new memories. */
-  async chat(
-    userId: string,
-    messages: Message[],
-    systemPromptTemplate?: string,
-  ): Promise<GraphChatResponse> {
-    return request<GraphChatResponse>(this.baseUrl, this.apiKey, '/graph/chat', {
-      method: 'POST',
-      body: { userId, messages, systemPromptTemplate } satisfies GraphChatRequest,
-      signal: this.signal(),
-    });
-  }
-
+  /**
+   * Check the health of the API and its backing services (Postgres, Redis, Neo4j).
+   * @returns Health status per service.
+   */
   async health(): Promise<HealthResponse> {
     return request<HealthResponse>(this.baseUrl, this.apiKey, '/health', {
       signal: this.signal(),
     });
   }
 
-  /** Quick connectivity check. Resolves true if the API and all services are reachable. */
+  /**
+   * Simplified health check. Returns `ok: true` only if all services are healthy.
+   * @returns `{ ok, services }` where `services` maps each service name to its status string.
+   */
   async ping(): Promise<{ ok: boolean; services: Record<string, string> }> {
     const h = await this.health();
     return {
