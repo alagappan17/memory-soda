@@ -22,7 +22,7 @@ export default function ApiKeysPage() {
 
   async function fetchKeys() {
     try {
-      const res = await api.get('/api-keys');
+      const res = await api.get('/dashboard/api-keys');
       setAllKeys(res.data.apiKeys);
     } catch {
       setError('Failed to load API keys');
@@ -40,7 +40,7 @@ export default function ApiKeysPage() {
     try {
       const body: Record<string, string> = { name: newName.trim() };
       if (selectedProject) body['projectId'] = selectedProject.id;
-      const res = await api.post('/api-keys', body);
+      const res = await api.post('/dashboard/api-keys', body);
       setCreatedKey(res.data.key);
       setAllKeys((prev) => [...prev, res.data.apiKey]);
       setNewName('');
@@ -55,7 +55,7 @@ export default function ApiKeysPage() {
   async function handleRevoke(id: string) {
     if (!confirm('Revoke this API key? This cannot be undone.')) return;
     try {
-      await api.delete(`/api-keys/${id}`);
+      await api.delete(`/dashboard/api-keys/${id}`);
       setAllKeys((prev) => prev.map((k) => k.id === id ? { ...k, revokedAt: new Date().toISOString() } : k));
     } catch {
       setError('Failed to revoke API key');

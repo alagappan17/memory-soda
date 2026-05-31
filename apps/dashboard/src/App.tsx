@@ -5,10 +5,10 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from './components/ui/s
 import { TooltipProvider } from './components/ui/tooltip';
 import AppSidebar from './components/app-sidebar';
 import HomePage from './pages/home';
-import PlaygroundPage from './pages/playground';
 import ApiKeysPage from './pages/api-keys';
 import StatusPage from './pages/status';
 import ProjectsPage from './pages/projects';
+import ConversationsPage from './pages/conversations';
 
 function DashboardHeader() {
   const location = useLocation();
@@ -16,7 +16,7 @@ function DashboardHeader() {
   const pathMap: Record<string, string> = {
     '/': 'Home',
     '/projects': 'Projects',
-    '/playground': 'Playground',
+    '/conversations': 'Conversations',
     '/api-keys': 'API Keys',
     '/status': 'Status',
   };
@@ -45,7 +45,7 @@ export default function App() {
                   <Routes>
                     <Route path="/" element={<div className="flex-1 overflow-y-auto"><HomePage /></div>} />
                     <Route path="/projects" element={<div className="flex-1 overflow-y-auto"><ProjectsPage /></div>} />
-                    <Route path="/playground" element={<PlaygroundPage />} />
+                    <Route path="/conversations" element={<ConversationsPage />} />
                     <Route path="/api-keys" element={<div className="flex-1 overflow-y-auto"><ApiKeysPage /></div>} />
                     <Route path="/status" element={<div className="flex-1 overflow-y-auto"><StatusPage /></div>} />
                   </Routes>

@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Home,
   Folder,
-  MessageSquare,
+  MessagesSquare,
   KeyRound,
   Activity,
   ChevronsUpDown,
@@ -44,7 +44,7 @@ import { useProject } from '@/providers/project-provider';
 const navItems = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/projects', label: 'Projects', icon: Folder },
-  { to: '/playground', label: 'Playground', icon: MessageSquare },
+  { to: '/conversations', label: 'Conversations', icon: MessagesSquare },
   { to: '/api-keys', label: 'API Keys', icon: KeyRound },
   { to: '/status', label: 'Status', icon: Activity },
 ];
