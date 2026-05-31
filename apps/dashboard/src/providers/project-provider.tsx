@@ -21,7 +21,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProjects = useCallback(async () => {
     try {
-      const res = await api.get('/projects');
+      const res = await api.get('/dashboard/projects');
       const list: Project[] = res.data.projects;
       setProjects(list);
 
@@ -45,7 +45,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function createProject(name: string, description?: string): Promise<Project> {
-    const res = await api.post('/projects', { name, description });
+    const res = await api.post('/dashboard/projects', { name, description });
     const project: Project = res.data.project;
     setProjects((prev) => [...prev, project]);
     setSelectedProject(project);
@@ -53,7 +53,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function updateProject(id: string, name: string, description?: string): Promise<Project> {
-    const res = await api.patch(`/projects/${id}`, { name, description });
+    const res = await api.patch(`/dashboard/projects/${id}`, { name, description });
     const project: Project = res.data.project;
     setProjects((prev) => prev.map((p) => (p.id === id ? project : p)));
     setSelectedProjectState((sel) => {
@@ -64,7 +64,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function deleteProject(id: string): Promise<void> {
-    await api.delete(`/projects/${id}`);
+    await api.delete(`/dashboard/projects/${id}`);
     setProjects((prev) => {
       const next = prev.filter((p) => p.id !== id);
       setSelectedProjectState((sel) => {
