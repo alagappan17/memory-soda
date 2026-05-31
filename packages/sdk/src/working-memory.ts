@@ -162,7 +162,7 @@ export class WorkingMemoryClient {
    * @returns The new `threadId` and the `prepare` result ready for the first LLM call.
    */
   async startConversation(opts: {
-    userId: string;
+    userId?: string;
     firstMessage: WMAddMessageRequest;
     tags?: string[];
     metadata?: Record<string, unknown>;

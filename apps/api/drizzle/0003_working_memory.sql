@@ -26,6 +26,6 @@ CREATE TABLE IF NOT EXISTS "messages" (
   "archived_at"     timestamptz
 );
 
-CREATE INDEX IF NOT EXISTS "messages_thread_seq_idx"      ON "messages" ("thread_id", "sequence_number");
+CREATE UNIQUE INDEX IF NOT EXISTS "messages_thread_seq_idx" ON "messages" ("thread_id", "sequence_number");
 CREATE INDEX IF NOT EXISTS "messages_thread_time_idx"     ON "messages" ("thread_id", "created_at" DESC);
 CREATE INDEX IF NOT EXISTS "threads_status_activity_idx"  ON "threads"  ("status", "last_activity_at");

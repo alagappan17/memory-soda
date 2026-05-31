@@ -1,6 +1,7 @@
 import { eq, and, lt, desc, asc, sql, max } from 'drizzle-orm';
 import { generateUserId } from '../lib/generate-user-id.js';
 import { db } from '../db/postgres.js';
+import { redis } from '../db/redis.js';
 import { threads, messages } from '../db/schema.js';
 import {
   memoryEvents,
@@ -249,6 +250,10 @@ export async function prepareThread(
   apiKeyId: string,
   messageLimit: number,
 ): Promise<PrepareResult | null> {
+  const cacheKey = `prepare:${threadId}:${messageLimit}`;
+  const cached = await redis.get(cacheKey);
+  if (cached) return JSON.parse(cached) as PrepareResult;
+
   const [threadRow] = await db
     .select({ id: threads.id, messageCount: threads.messageCount })
     .from(threads)
@@ -270,12 +275,15 @@ export async function prepareThread(
 
   rows.reverse();
 
-  return {
+  const result: PrepareResult = {
     threadId,
     messages: rows,
     messageCount: totalCount,
     truncated: totalCount > messageLimit,
   };
+
+  await redis.set(cacheKey, JSON.stringify(result), 'EX', 5);
+  return result;
 }
 
 // ── Stats ────────────────────────────────────────────────────────────────────
