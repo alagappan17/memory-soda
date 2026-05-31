@@ -10,6 +10,11 @@ const createBodySchema = z.object({
   projectId: z.string().uuid().optional(),
 });
 
+/**
+ * @route GET /dashboard/api-keys
+ * @description List all API keys (name, preview, projectId). Full key values are never returned.
+ * @returns {{ apiKeys: ApiKey[] }}
+ */
 router.get('/', async (_req, res) => {
   try {
     const keys = await listApiKeys();
@@ -20,6 +25,12 @@ router.get('/', async (_req, res) => {
   }
 });
 
+/**
+ * @route POST /dashboard/api-keys
+ * @description Create a new API key. The full key is returned once and never stored in plaintext.
+ * @body {{ name: string, projectId?: string }}
+ * @returns {{ key: string, keyId: string, preview: string, name: string, projectId?: string, createdAt: string }}
+ */
 router.post('/', validateBody(createBodySchema), async (req, res) => {
   try {
     const { name, projectId } = req.body as z.infer<typeof createBodySchema>;
@@ -31,6 +42,12 @@ router.post('/', validateBody(createBodySchema), async (req, res) => {
   }
 });
 
+/**
+ * @route DELETE /dashboard/api-keys/:id
+ * @description Permanently revoke an API key. Any in-flight requests using the key will fail immediately.
+ * @param {string} id - The key ID (not the key value).
+ * @returns 204 No Content
+ */
 router.delete('/:id', async (req, res) => {
   try {
     await revokeApiKey(req.params['id']!);

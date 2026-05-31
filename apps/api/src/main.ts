@@ -4,10 +4,11 @@ import morgan from 'morgan';
 import path from 'node:path';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import healthRouter from './routes/health.js';
-import graphRouter from './routes/graph.js';
 import apiKeysRouter from './routes/api-keys.js';
 import projectsRouter from './routes/projects.js';
 import { requireApiKey } from './middleware/auth.js';
+import workingMemoryRouter from './routes/working-memory.js';
+import threadsRouter from './routes/threads.js';
 import { initNeo4j } from './db/neo4j-init.js';
 import { db, checkPostgres } from './db/postgres.js';
 import { listApiKeys, createApiKey } from './services/api-key.service.js';
@@ -20,18 +21,25 @@ const port = process.env.PORT ? Number(process.env.PORT) : 3004;
 
 const app = express();
 
-const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000').split(',').map(s => s.trim());
-app.use(cors({ origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins }));
+const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
+  .split(',')
+  .map((s) => s.trim());
+app.use(
+  cors({ origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins }),
+);
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
 
 app.use('/health', healthRouter);
-app.use('/api-keys', apiKeysRouter);
-app.use('/projects', projectsRouter);
-app.use('/graph', graphRouter);
+
+// Dashboard Routes
+app.use('/dashboard/api-keys', apiKeysRouter);
+app.use('/dashboard/projects', projectsRouter);
+app.use('/dashboard/threads', threadsRouter);
 
 // Protected routes (SDK usage — require API key)
 app.use(requireApiKey);
+app.use('/v1/memory/working', workingMemoryRouter);
 
 async function bootstrap(): Promise<void> {
   await checkPostgres();

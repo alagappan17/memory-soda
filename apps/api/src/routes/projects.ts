@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateBody } from '../middleware/validate.js';
-import { createProject, listProjects, deleteProject, updateProject } from '../services/project.service.js';
+import {
+  createProject,
+  listProjects,
+  deleteProject,
+  updateProject,
+} from '../services/project.service.js';
 
 const router = Router();
 
@@ -15,6 +20,11 @@ const updateBodySchema = z.object({
   description: z.string().max(500).optional(),
 });
 
+/**
+ * @route GET /dashboard/projects
+ * @description List all projects.
+ * @returns {{ projects: Project[] }}
+ */
 router.get('/', async (_req, res) => {
   try {
     const p = await listProjects();
@@ -25,6 +35,12 @@ router.get('/', async (_req, res) => {
   }
 });
 
+/**
+ * @route POST /dashboard/projects
+ * @description Create a new project. Projects scope API keys and working memory threads.
+ * @body {{ name: string, description?: string }}
+ * @returns {{ project: Project }}
+ */
 router.post('/', validateBody(createBodySchema), async (req, res) => {
   try {
     const { name, description } = req.body as z.infer<typeof createBodySchema>;
@@ -36,10 +52,17 @@ router.post('/', validateBody(createBodySchema), async (req, res) => {
   }
 });
 
+/**
+ * @route PATCH /dashboard/projects/:id
+ * @description Update a project's name or description.
+ * @param {string} id - The project ID.
+ * @body {{ name: string, description?: string }}
+ * @returns {{ project: Project }}
+ */
 router.patch('/:id', validateBody(updateBodySchema), async (req, res) => {
   try {
     const { name, description } = req.body as z.infer<typeof updateBodySchema>;
-    const project = await updateProject(req.params['id']!, name, description);
+    const project = await updateProject(req.params['id'], name, description);
     res.json({ project });
   } catch (err) {
     console.error(err);
@@ -47,9 +70,15 @@ router.patch('/:id', validateBody(updateBodySchema), async (req, res) => {
   }
 });
 
+/**
+ * @route DELETE /dashboard/projects/:id
+ * @description Delete a project. Does not cascade-delete associated API keys or threads.
+ * @param {string} id - The project ID.
+ * @returns 204 No Content
+ */
 router.delete('/:id', async (req, res) => {
   try {
-    await deleteProject(req.params['id']!);
+    await deleteProject(req.params['id']);
     res.status(204).send();
   } catch (err) {
     console.error(err);
