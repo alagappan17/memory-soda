@@ -1,7 +1,7 @@
-import { eq, and, lt, desc, asc, sql, max } from 'drizzle-orm';
+import { eq, and, lt, desc, asc, sql, max, inArray, isNull } from 'drizzle-orm';
 import { generateUserId } from '../lib/generate-user-id.js';
+import { summarizeMessages } from '../lib/gemini.js';
 import { db } from '../db/postgres.js';
-import { redis } from '../db/redis.js';
 import { threads, messages } from '../db/schema.js';
 import {
   memoryEvents,
@@ -11,68 +11,90 @@ import {
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface Thread {
-  threadId:       string;
-  userId:         string;
-  apiKeyId:       string;
-  tags:           string[];
-  messageCount:   number;
-  metadata:       Record<string, unknown> | null;
-  createdAt:      string;
-  updatedAt:      string;
-  endedAt:        string | null;
+  threadId: string;
+  userId: string;
+  apiKeyId: string;
+  tags: string[];
+  messageCount: number;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+  endedAt: string | null;
   lastActivityAt: string;
+  autoCompactThreshold: number | null;
+  lastCompactedAt: string | null;
+  lastCompactedSequence: number;
 }
 
 export interface Message {
-  messageId:      string;
-  threadId:       string;
-  role:           'user' | 'assistant' | 'system' | 'tool';
-  content:        string;
+  messageId: string;
+  threadId: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
   sequenceNumber: number;
-  tokenCount:     { input?: number; output?: number; total?: number } | null;
-  model:          string | null;
-  latencyMs:      number | null;
-  metadata:       Record<string, unknown> | null;
-  createdAt:      string;
+  tokenCount: { input?: number; output?: number; total?: number } | null;
+  model: string | null;
+  latencyMs: number | null;
+  metadata: Record<string, unknown> | null;
+  compactedAt: string | null;
+  createdAt: string;
 }
 
 export interface PrepareResult {
-  threadId:     string;
-  messages:     { role: string; content: string }[];
+  threadId: string;
+  messages: { role: string; content: string }[];
   messageCount: number;
-  truncated:    boolean;
+  truncated: boolean;
+  compacted: boolean;
+}
+
+export interface CompactResult {
+  threadId: string;
+  summaryMessageId: string;
+  compactedCount: number;
+  fromSequence: number;
+  toSequence: number;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function rowToThread(row: typeof threads.$inferSelect): Thread {
   return {
-    threadId:      row.id,
-    userId:        row.userId,
-    apiKeyId:      row.apiKeyId,
-    tags:          row.tags ?? [],
-    messageCount:  row.messageCount,
-    metadata:      row.metadata as Record<string, unknown> | null,
-    createdAt:     row.createdAt.toISOString(),
-    updatedAt:     row.updatedAt.toISOString(),
-    endedAt:       row.endedAt?.toISOString() ?? null,
+    threadId: row.id,
+    userId: row.userId,
+    apiKeyId: row.apiKeyId,
+    tags: row.tags ?? [],
+    messageCount: row.messageCount,
+    metadata: row.metadata as Record<string, unknown> | null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    endedAt: row.endedAt?.toISOString() ?? null,
     lastActivityAt: row.lastActivityAt.toISOString(),
+    autoCompactThreshold: row.autoCompactThreshold ?? null,
+    lastCompactedAt: row.lastCompactedAt?.toISOString() ?? null,
+    lastCompactedSequence: row.lastCompactedSequence,
   };
 }
 
 function rowToMessage(row: typeof messages.$inferSelect): Message {
   return {
-    messageId:      row.id,
-    threadId:       row.threadId,
-    role:           row.role,
-    content:        row.content,
+    messageId: row.id,
+    threadId: row.threadId,
+    role: row.role,
+    content: row.content,
     sequenceNumber: row.sequenceNumber,
-    tokenCount:     row.tokenCount as Message['tokenCount'],
-    model:          row.model ?? null,
-    latencyMs:      row.latencyMs ?? null,
-    metadata:       row.metadata as Record<string, unknown> | null,
-    createdAt:      row.createdAt.toISOString(),
+    tokenCount: row.tokenCount as Message['tokenCount'],
+    model: row.model ?? null,
+    latencyMs: row.latencyMs ?? null,
+    metadata: row.metadata as Record<string, unknown> | null,
+    compactedAt: row.compactedAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
   };
+}
+
+function isSummaryRow(row: { metadata: unknown }): boolean {
+  const meta = row.metadata as Record<string, unknown> | null;
+  return meta?.['type'] === 'compact_summary';
 }
 
 // ── Thread operations ────────────────────────────────────────────────────────
@@ -82,10 +104,17 @@ export async function createThread(
   userId: string | null | undefined,
   tags?: string[],
   metadata?: Record<string, unknown>,
+  autoCompactThreshold?: number,
 ): Promise<Thread> {
   const [row] = await db
     .insert(threads)
-    .values({ userId: userId || generateUserId(), apiKeyId, tags: tags ?? [], metadata: metadata ?? null })
+    .values({
+      userId: userId || generateUserId(),
+      apiKeyId,
+      tags: tags ?? [],
+      metadata: metadata ?? null,
+      autoCompactThreshold: autoCompactThreshold ?? null,
+    })
     .returning();
   return rowToThread(row!);
 }
@@ -148,7 +177,7 @@ export async function addMessage(
   model?: string,
   latencyMs?: number,
   metadata?: Record<string, unknown>,
-): Promise<{ message: Message; thread: Thread }> {
+): Promise<{ message: Message; thread: Thread; compacted: boolean }> {
   let result!: { message: Message; thread: Thread };
 
   await db.transaction(async (tx) => {
@@ -176,9 +205,9 @@ export async function addMessage(
         content,
         sequenceNumber: nextSeq,
         tokenCount: tokenCount ?? null,
-        model:      model      ?? null,
-        latencyMs:  latencyMs  ?? null,
-        metadata:   metadata   ?? null,
+        model: model ?? null,
+        latencyMs: latencyMs ?? null,
+        metadata: metadata ?? null,
       })
       .returning();
 
@@ -198,7 +227,18 @@ export async function addMessage(
     };
   });
 
-  return result;
+  let compacted = false;
+  const { thread } = result;
+  if (
+    thread.autoCompactThreshold !== null &&
+    thread.messageCount - thread.lastCompactedSequence >=
+      thread.autoCompactThreshold
+  ) {
+    const compactResult = await compactThread(threadId, apiKeyId);
+    if (compactResult) compacted = true;
+  }
+
+  return { ...result, compacted };
 }
 
 export async function listMessages(
@@ -243,6 +283,122 @@ export async function listMessages(
   };
 }
 
+// ── Compact ──────────────────────────────────────────────────────────────────
+
+export async function compactThread(
+  threadId: string,
+  apiKeyId: string,
+): Promise<CompactResult | null> {
+  const [threadRow] = await db
+    .select()
+    .from(threads)
+    .where(and(eq(threads.id, threadId), eq(threads.apiKeyId, apiKeyId)));
+  if (!threadRow) return null;
+
+  // Fetch existing active summary (rolling compaction: at most 1 active summary)
+  const [existingSummaryRow] = await db
+    .select()
+    .from(messages)
+    .where(
+      and(
+        eq(messages.threadId, threadId),
+        isNull(messages.compactedAt),
+        sql`${messages.metadata}->>'type' = 'compact_summary'`,
+      ),
+    )
+    .orderBy(desc(messages.sequenceNumber))
+    .limit(1);
+
+  // Fetch all un-compacted real messages (not summaries)
+  const realRows = await db
+    .select()
+    .from(messages)
+    .where(
+      and(
+        eq(messages.threadId, threadId),
+        isNull(messages.compactedAt),
+        sql`(${messages.metadata}->>'type' IS NULL OR ${messages.metadata}->>'type' != 'compact_summary')`,
+      ),
+    )
+    .orderBy(asc(messages.sequenceNumber));
+
+  if (realRows.length === 0) return null;
+
+  const fromSeq = realRows[0]!.sequenceNumber;
+  const toSeq = realRows[realRows.length - 1]!.sequenceNumber;
+  const realMessageCount = realRows.length;
+
+  const summaryText = await summarizeMessages(
+    realRows.map((r) => ({ role: r.role, content: r.content })),
+    existingSummaryRow?.content ?? null,
+  );
+
+  let summaryMessageId!: string;
+
+  await db.transaction(async (tx) => {
+    const [seqRow] = await tx
+      .select({ maxSeq: max(messages.sequenceNumber) })
+      .from(messages)
+      .where(eq(messages.threadId, threadId));
+    const nextSeq = (seqRow?.maxSeq ?? 0) + 1;
+
+    const [summaryRow] = await tx
+      .insert(messages)
+      .values({
+        threadId,
+        role: 'system',
+        content: summaryText,
+        sequenceNumber: nextSeq,
+        tokenCount: null,
+        model: null,
+        latencyMs: null,
+        metadata: {
+          type: 'compact_summary',
+          compactedRange: { fromSeq: 1, toSeq, count: realMessageCount },
+        },
+      })
+      .returning({ id: messages.id });
+
+    summaryMessageId = summaryRow!.id;
+
+    // Soft-delete real messages
+    await tx
+      .update(messages)
+      .set({ compactedAt: new Date() })
+      .where(
+        inArray(
+          messages.id,
+          realRows.map((r) => r.id),
+        ),
+      );
+
+    // Soft-delete old summary if it existed (rolling: only 1 active summary)
+    if (existingSummaryRow) {
+      await tx
+        .update(messages)
+        .set({ compactedAt: new Date() })
+        .where(eq(messages.id, existingSummaryRow.id));
+    }
+
+    await tx
+      .update(threads)
+      .set({
+        lastCompactedAt: new Date(),
+        lastCompactedSequence: toSeq,
+        updatedAt: new Date(),
+      })
+      .where(eq(threads.id, threadId));
+  });
+
+  return {
+    threadId,
+    summaryMessageId,
+    compactedCount: realMessageCount,
+    fromSequence: fromSeq,
+    toSequence: toSeq,
+  };
+}
+
 // ── Prepare ──────────────────────────────────────────────────────────────────
 
 export async function prepareThread(
@@ -250,39 +406,62 @@ export async function prepareThread(
   apiKeyId: string,
   messageLimit: number,
 ): Promise<PrepareResult | null> {
-  const cacheKey = `prepare:${threadId}:${messageLimit}`;
-  const cached = await redis.get(cacheKey);
-  if (cached) return JSON.parse(cached) as PrepareResult;
-
   const [threadRow] = await db
-    .select({ id: threads.id, messageCount: threads.messageCount })
+    .select({ id: threads.id })
     .from(threads)
     .where(and(eq(threads.id, threadId), eq(threads.apiKeyId, apiKeyId)));
   if (!threadRow) return null;
 
+  // Active summaries (not compacted, type = compact_summary)
+  const summaryRows = await db
+    .select({ role: messages.role, content: messages.content })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.threadId, threadId),
+        isNull(messages.compactedAt),
+        sql`${messages.metadata}->>'type' = 'compact_summary'`,
+      ),
+    )
+    .orderBy(asc(messages.sequenceNumber));
+
+  // Count of active real messages (not compacted, not summaries)
   const [totalRow] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(messages)
-    .where(eq(messages.threadId, threadId));
-  const totalCount = totalRow?.count ?? 0;
+    .where(
+      and(
+        eq(messages.threadId, threadId),
+        isNull(messages.compactedAt),
+        sql`(${messages.metadata}->>'type' IS NULL OR ${messages.metadata}->>'type' != 'compact_summary')`,
+      ),
+    );
+  const realCount = totalRow?.count ?? 0;
 
-  const rows = await db
+  // Last N active real messages
+  const realRows = await db
     .select({ role: messages.role, content: messages.content })
     .from(messages)
-    .where(eq(messages.threadId, threadId))
+    .where(
+      and(
+        eq(messages.threadId, threadId),
+        isNull(messages.compactedAt),
+        sql`(${messages.metadata}->>'type' IS NULL OR ${messages.metadata}->>'type' != 'compact_summary')`,
+      ),
+    )
     .orderBy(desc(messages.sequenceNumber))
     .limit(messageLimit);
 
-  rows.reverse();
+  realRows.reverse();
 
   const result: PrepareResult = {
     threadId,
-    messages: rows,
-    messageCount: totalCount,
-    truncated: totalCount > messageLimit,
+    messages: [...summaryRows, ...realRows],
+    messageCount: realCount,
+    truncated: realCount > messageLimit,
+    compacted: summaryRows.length > 0,
   };
 
-  await redis.set(cacheKey, JSON.stringify(result), 'EX', 5);
   return result;
 }
 
@@ -301,7 +480,7 @@ export async function getThreadStats(
   const allMessages = await db
     .select()
     .from(messages)
-    .where(eq(messages.threadId, threadId))
+    .where(and(eq(messages.threadId, threadId), isNull(messages.compactedAt)))
     .orderBy(asc(messages.sequenceNumber));
 
   // Token usage
@@ -312,14 +491,22 @@ export async function getThreadStats(
     averagePerMessage: number;
   } | null = null;
 
-  const withTokens = allMessages.filter((m) => m.tokenCount != null);
+  const withTokens = allMessages.filter(
+    (m) => m.tokenCount != null && !isSummaryRow(m),
+  );
   if (withTokens.length > 0) {
-    let totalInput = 0, totalOutput = 0, totalTokens = 0;
+    let totalInput = 0,
+      totalOutput = 0,
+      totalTokens = 0;
     for (const msg of withTokens) {
-      const tc = msg.tokenCount as { input?: number; output?: number; total?: number };
-      totalInput  += tc.input  ?? 0;
+      const tc = msg.tokenCount as {
+        input?: number;
+        output?: number;
+        total?: number;
+      };
+      totalInput += tc.input ?? 0;
       totalOutput += tc.output ?? 0;
-      totalTokens += tc.total  ?? 0;
+      totalTokens += tc.total ?? 0;
     }
     tokenUsage = {
       totalInput,
@@ -329,11 +516,13 @@ export async function getThreadStats(
     };
   }
 
-  // Session duration
+  // Session duration (based on real messages only)
+  const realMessages = allMessages.filter((m) => !isSummaryRow(m));
   let sessionDuration: { ms: number; seconds: number } | null = null;
-  if (allMessages.length >= 2) {
-    const ms = allMessages[allMessages.length - 1]!.createdAt.getTime()
-             - allMessages[0]!.createdAt.getTime();
+  if (realMessages.length >= 2) {
+    const ms =
+      realMessages[realMessages.length - 1]!.createdAt.getTime() -
+      realMessages[0]!.createdAt.getTime();
     sessionDuration = { ms, seconds: Math.floor(ms / 1000) };
   }
 
