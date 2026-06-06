@@ -64,6 +64,13 @@
       "when": 1749012000000,
       "tag": "0008_drop_thread_status",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1749098400000,
+      "tag": "0009_compact_feature",
+      "breakpoints": true
     }
   ]
 }
