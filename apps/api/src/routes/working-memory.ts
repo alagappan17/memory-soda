@@ -9,17 +9,20 @@ import {
   addMessage,
   listMessages,
   prepareThread,
+  compactThread,
   getThreadStats,
 } from '../services/working-memory.service.js';
+import { generateReply } from '../lib/gemini.js';
 
 const router = Router();
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
 
 const createThreadSchema = z.object({
-  userId:   z.string().min(1).optional(),
-  tags:     z.array(z.string()).optional(),
+  userId: z.string().min(1).optional(),
+  tags: z.array(z.string()).optional(),
   metadata: z.record(z.unknown()).optional(),
+  autoCompactThreshold: z.number().int().min(2).optional(),
 });
 
 const patchThreadSchema = z.object({
@@ -27,28 +30,38 @@ const patchThreadSchema = z.object({
 });
 
 const addMessageSchema = z.object({
-  role:      z.enum(['user', 'assistant', 'system', 'tool']),
-  content:   z.string().min(1),
-  tokenCount: z.object({
-    input:  z.number().int().nonnegative().optional(),
-    output: z.number().int().nonnegative().optional(),
-    total:  z.number().int().nonnegative().optional(),
-  }).optional(),
-  model:     z.string().optional(),
+  role: z.enum(['user', 'assistant', 'system', 'tool']),
+  content: z.string().min(1),
+  tokenCount: z
+    .object({
+      input: z.number().int().nonnegative().optional(),
+      output: z.number().int().nonnegative().optional(),
+      total: z.number().int().nonnegative().optional(),
+    })
+    .optional(),
+  model: z.string().optional(),
   latencyMs: z.number().int().nonnegative().optional(),
-  metadata: z.object({
-    stopReason: z.string().optional(),
-    agentName:  z.string().optional(),
-  }).optional(),
+  metadata: z
+    .object({
+      stopReason: z.string().optional(),
+      agentName: z.string().optional(),
+    })
+    .optional(),
 });
 
 const listMessagesSchema = z.object({
-  limit:  z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
   before: z.coerce.number().int().positive().optional(),
-  order:  z.enum(['asc', 'desc']).default('asc'),
+  order: z.enum(['asc', 'desc']).default('asc'),
 });
 
 const prepareSchema = z.object({
+  messageLimit: z.number().int().min(1).max(100).default(20),
+});
+
+const chatSchema = z.object({
+  content: z.string().min(1),
+  systemPrompt: z.string().optional(),
   messageLimit: z.number().int().min(1).max(100).default(20),
 });
 
@@ -63,9 +76,16 @@ const prepareSchema = z.object({
  */
 router.post('/threads', validateBody(createThreadSchema), async (req, res) => {
   try {
-    const { userId, tags, metadata } = req.body as z.infer<typeof createThreadSchema>;
+    const { userId, tags, metadata, autoCompactThreshold } =
+      req.body as z.infer<typeof createThreadSchema>;
     const apiKeyId = req.apiKey!.keyId;
-    const thread = await createThread(apiKeyId, userId, tags, metadata);
+    const thread = await createThread(
+      apiKeyId,
+      userId,
+      tags,
+      metadata,
+      autoCompactThreshold,
+    );
     res.status(201).json({
       threadId: thread.threadId,
       userId: thread.userId,
@@ -186,10 +206,9 @@ router.post(
   validateBody(addMessageSchema),
   async (req, res) => {
     try {
-      const { role, content, tokenCount, model, latencyMs, metadata } = req.body as z.infer<
-        typeof addMessageSchema
-      >;
-      const { message } = await addMessage(
+      const { role, content, tokenCount, model, latencyMs, metadata } =
+        req.body as z.infer<typeof addMessageSchema>;
+      const { message, compacted } = await addMessage(
         req.params.threadId,
         req.apiKey!.keyId,
         role,
@@ -205,6 +224,7 @@ router.post(
         sequenceNumber: message.sequenceNumber,
         role: message.role,
         createdAt: message.createdAt,
+        compacted,
       });
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
@@ -259,7 +279,6 @@ router.get('/threads/:threadId/messages', async (req, res) => {
 /**
  * @route POST /v1/memory/working/threads/:threadId/prepare
  * @description Return the last N messages formatted for LLM injection. Call this before every LLM turn.
- * Result is cached for 5 seconds per thread.
  * @auth API key required
  * @param {string} threadId
  * @body {{ messageLimit?: number }} - Defaults to 20.
@@ -288,6 +307,107 @@ router.post(
   },
 );
 
+// ── Chat ─────────────────────────────────────────────────────────────────────
+
+/**
+ * @route POST /v1/memory/working/threads/:threadId/chat
+ * @description Add a user message, generate an AI reply via Gemini, and store it.
+ * Combines addMessage + prepare + LLM call + addMessage in one request.
+ * @auth API key required
+ * @param {string} threadId
+ * @body {{ content: string, systemPrompt?: string, messageLimit?: number }}
+ * @returns {{ userMessage, assistantMessage, compacted, prepare }}
+ */
+router.post(
+  '/threads/:threadId/chat',
+  validateBody(chatSchema),
+  async (req, res) => {
+    try {
+      const { content, systemPrompt, messageLimit } =
+        req.body as z.infer<typeof chatSchema>;
+      const apiKeyId = req.apiKey!.keyId;
+      const threadId = req.params.threadId;
+
+      const { message: userMessage, compacted } = await addMessage(
+        threadId,
+        apiKeyId,
+        'user',
+        content,
+      );
+
+      const prepared = await prepareThread(threadId, apiKeyId, messageLimit);
+      if (!prepared) {
+        res.status(404).json({ error: 'Thread not found' });
+        return;
+      }
+
+      const replyContent = await generateReply(prepared.messages, systemPrompt);
+
+      const { message: assistantMessage } = await addMessage(
+        threadId,
+        apiKeyId,
+        'assistant',
+        replyContent,
+      );
+
+      res.status(201).json({
+        userMessage: {
+          messageId: userMessage.messageId,
+          sequenceNumber: userMessage.sequenceNumber,
+          role: userMessage.role,
+          createdAt: userMessage.createdAt,
+        },
+        assistantMessage: {
+          messageId: assistantMessage.messageId,
+          sequenceNumber: assistantMessage.sequenceNumber,
+          role: assistantMessage.role,
+          content: assistantMessage.content,
+          createdAt: assistantMessage.createdAt,
+        },
+        compacted,
+        prepare: {
+          messageCount: prepared.messageCount,
+          truncated: prepared.truncated,
+          compacted: prepared.compacted,
+        },
+      });
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === 'NOT_FOUND') {
+        res.status(404).json({ error: 'Thread not found' });
+        return;
+      }
+      console.error(err);
+      res.status(500).json({ error: 'Failed to generate reply' });
+    }
+  },
+);
+
+// ── Compact ──────────────────────────────────────────────────────────────────
+
+/**
+ * @route POST /v1/memory/working/threads/:threadId/compact
+ * @description Summarize un-compacted messages via LLM using a rolling strategy.
+ * Repeated calls build on the previous summary — only one active summary exists at a time.
+ * Auto-compact can be enabled at thread creation via `autoCompactThreshold`.
+ * @auth API key required
+ * @param {string} threadId
+ * @returns {CompactResult}
+ */
+router.post('/threads/:threadId/compact', async (req, res) => {
+  try {
+    const result = await compactThread(req.params.threadId, req.apiKey!.keyId);
+    if (!result) {
+      res.status(404).json({ error: 'Thread not found or nothing to compact' });
+      return;
+    }
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to compact thread' });
+  }
+});
+
 // ── Stats ────────────────────────────────────────────────────────────────────
 
 /**
@@ -299,10 +419,7 @@ router.post(
  */
 router.get('/threads/:threadId/stats', async (req, res) => {
   try {
-    const result = await getThreadStats(
-      req.params.threadId,
-      req.apiKey!.keyId,
-    );
+    const result = await getThreadStats(req.params.threadId, req.apiKey!.keyId);
     if (!result) {
       res.status(404).json({ error: 'Thread not found' });
       return;
