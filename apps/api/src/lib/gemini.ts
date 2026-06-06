@@ -13,7 +13,7 @@ const google = createGoogleGenerativeAI({
 const GEMINI_TIMEOUT_MS = 30000; // 30 seconds
 
 async function generateTextWithTimeout<T>(
-  fn: () => Promise<T>,
+  fn: (signal: AbortSignal) => Promise<T>,
   timeoutMs: number = GEMINI_TIMEOUT_MS,
 ): Promise<T> {
   const controller = new AbortController();
@@ -21,7 +21,7 @@ async function generateTextWithTimeout<T>(
 
   try {
     const result = await Promise.race([
-      fn(),
+      fn(controller.signal),
       new Promise<never>((_, reject) => {
         controller.signal.addEventListener('abort', () => {
           reject(new Error(`Gemini API request timed out after ${timeoutMs}ms`));
@@ -55,11 +55,12 @@ export async function generateReply(
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
-  const { text } = await generateTextWithTimeout(() =>
+  const { text } = await generateTextWithTimeout((signal) =>
     generateText({
       model: google('gemini-2.5-flash'),
       system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
       messages: chatMessages,
+      abortSignal: signal,
     }),
   );
 
@@ -80,10 +81,11 @@ export async function summarizeMessages(
 
   const prompt = `${contextBlock}New messages to incorporate:\n${transcript}\n\nWrite a concise factual summary of the full conversation so far, preserving all key decisions, facts, context, and unresolved questions. Do not add commentary or analysis.`;
 
-  const { text } = await generateTextWithTimeout(() =>
+  const { text } = await generateTextWithTimeout((signal) =>
     generateText({
       model: google('gemini-2.5-flash'),
       prompt,
+      abortSignal: signal,
     }),
   );
 
