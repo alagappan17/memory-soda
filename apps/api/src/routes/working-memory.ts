@@ -328,7 +328,7 @@ router.post(
       const apiKeyId = req.apiKey!.keyId;
       const threadId = req.params.threadId;
 
-      const { message: userMessage, compacted } = await addMessage(
+      const { message: userMessage } = await addMessage(
         threadId,
         apiKeyId,
         'user',
@@ -343,7 +343,7 @@ router.post(
 
       const replyContent = await generateReply(prepared.messages, systemPrompt);
 
-      const { message: assistantMessage } = await addMessage(
+      const { message: assistantMessage, compacted: assistantCompacted } = await addMessage(
         threadId,
         apiKeyId,
         'assistant',
@@ -364,7 +364,7 @@ router.post(
           content: assistantMessage.content,
           createdAt: assistantMessage.createdAt,
         },
-        compacted,
+        compacted: assistantCompacted,
         prepare: {
           messageCount: prepared.messageCount,
           truncated: prepared.truncated,
@@ -397,8 +397,12 @@ router.post(
 router.post('/threads/:threadId/compact', async (req, res) => {
   try {
     const result = await compactThread(req.params.threadId, req.apiKey!.keyId);
-    if (!result) {
-      res.status(404).json({ error: 'Thread not found or nothing to compact' });
+    if (result === null) {
+      res.status(404).json({ error: 'Thread not found' });
+      return;
+    }
+    if (result === false) {
+      res.status(200).json({ ok: true, compacted: false, message: 'Nothing to compact' });
       return;
     }
     res.json(result);

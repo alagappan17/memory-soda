@@ -288,50 +288,67 @@ export async function listMessages(
 export async function compactThread(
   threadId: string,
   apiKeyId: string,
-): Promise<CompactResult | null> {
-  const [threadRow] = await db
-    .select()
-    .from(threads)
-    .where(and(eq(threads.id, threadId), eq(threads.apiKeyId, apiKeyId)));
-  if (!threadRow) return null;
+): Promise<CompactResult | null | false> {
+  let existingSummaryRow: typeof messages.$inferSelect | undefined;
+  let realRows: (typeof messages.$inferSelect)[];
 
-  // Fetch existing active summary (rolling compaction: at most 1 active summary)
-  const [existingSummaryRow] = await db
-    .select()
-    .from(messages)
-    .where(
-      and(
-        eq(messages.threadId, threadId),
-        isNull(messages.compactedAt),
-        sql`${messages.metadata}->>'type' = 'compact_summary'`,
-      ),
-    )
-    .orderBy(desc(messages.sequenceNumber))
-    .limit(1);
+  // Perform initial check and lock within a transaction
+  const canCompact = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(threads)
+      .where(and(eq(threads.id, threadId), eq(threads.apiKeyId, apiKeyId)))
+      .for('update');
 
-  // Fetch all un-compacted real messages (not summaries)
-  const realRows = await db
-    .select()
-    .from(messages)
-    .where(
-      and(
-        eq(messages.threadId, threadId),
-        isNull(messages.compactedAt),
-        sql`(${messages.metadata}->>'type' IS NULL OR ${messages.metadata}->>'type' != 'compact_summary')`,
-      ),
-    )
-    .orderBy(asc(messages.sequenceNumber));
+    if (!row) return 'NOT_FOUND';
 
-  if (realRows.length === 0) return null;
+    // Fetch existing active summary (rolling compaction: at most 1 active summary)
+    const [summary] = await tx
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.threadId, threadId),
+          isNull(messages.compactedAt),
+          sql`${messages.metadata}->>'type' = 'compact_summary'`,
+        ),
+      )
+      .orderBy(desc(messages.sequenceNumber))
+      .limit(1);
+    existingSummaryRow = summary;
 
-  const fromSeq = realRows[0]!.sequenceNumber;
-  const toSeq = realRows[realRows.length - 1]!.sequenceNumber;
-  const realMessageCount = realRows.length;
+    // Fetch all un-compacted real messages (not summaries)
+    realRows = await tx
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.threadId, threadId),
+          isNull(messages.compactedAt),
+          sql`(${messages.metadata}->>'type' IS NULL OR ${messages.metadata}->>'type' != 'compact_summary')`,
+        ),
+      )
+      .orderBy(asc(messages.sequenceNumber));
+
+    return realRows.length > 0 ? 'CAN_COMPACT' : 'NOTHING_TO_COMPACT';
+  });
+
+  if (canCompact === 'NOT_FOUND') return null;
+  if (canCompact === 'NOTHING_TO_COMPACT') return false;
+
+  const fromSeq = realRows![0]!.sequenceNumber;
+  const toSeq = realRows![realRows!.length - 1]!.sequenceNumber;
+  const realMessageCount = realRows!.length;
 
   const summaryText = await summarizeMessages(
-    realRows.map((r) => ({ role: r.role, content: r.content })),
+    realRows!.map((r) => ({ role: r.role, content: r.content })),
     existingSummaryRow?.content ?? null,
   );
+
+  if (!summaryText || summaryText.trim().length === 0) {
+    console.error('Compaction failed: summarizeMessages returned empty or blank summary');
+    return false;
+  }
 
   let summaryMessageId!: string;
 
@@ -354,7 +371,7 @@ export async function compactThread(
         latencyMs: null,
         metadata: {
           type: 'compact_summary',
-          compactedRange: { fromSeq: 1, toSeq, count: realMessageCount },
+          compactedRange: { fromSeq, toSeq, count: realMessageCount },
         },
       })
       .returning({ id: messages.id });
@@ -368,7 +385,7 @@ export async function compactThread(
       .where(
         inArray(
           messages.id,
-          realRows.map((r) => r.id),
+          realRows!.map((r) => r.id),
         ),
       );
 
