@@ -11,6 +11,9 @@ export interface WMThread {
   createdAt: string;
   lastActivityAt: string;
   endedAt: string | null;
+  autoCompactThreshold: number | null;
+  lastCompactedAt: string | null;
+  lastCompactedSequence: number;
 }
 
 export interface WMMessageMetadata {
@@ -28,6 +31,7 @@ export interface WMMessage {
   model: string | null;
   latencyMs: number | null;
   metadata: WMMessageMetadata | null;
+  compactedAt: string | null;
   createdAt: string;
 }
 
@@ -43,6 +47,7 @@ export interface WMCreateThreadRequest {
   userId?: string;
   tags?: string[];
   metadata?: Record<string, unknown>;
+  autoCompactThreshold?: number;
 }
 
 export interface WMPatchThreadRequest {
@@ -82,6 +87,7 @@ export interface WMAddMessageResponse {
   sequenceNumber: number;
   role: MessageRole;
   createdAt: string;
+  compacted: boolean;
 }
 
 export interface WMListMessagesResponse {
@@ -95,6 +101,24 @@ export interface WMPrepareResponse {
   messages: { role: string; content: string }[];
   messageCount: number;
   truncated: boolean;
+  compacted: boolean;
+}
+
+export interface WMCompactSummaryMetadata {
+  type: 'compact_summary';
+  compactedRange: {
+    fromSeq: number;
+    toSeq: number;
+    count: number;
+  };
+}
+
+export interface WMCompactResult {
+  threadId: string;
+  summaryMessageId: string;
+  compactedCount: number;
+  fromSequence: number;
+  toSequence: number;
 }
 
 export interface WMEndThreadResponse {

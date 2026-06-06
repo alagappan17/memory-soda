@@ -18,6 +18,8 @@ export type {
   WMEndThreadResponse,
   WMTokenUsage,
   WMThreadStatsResponse,
+  WMCompactResult,
+  WMCompactSummaryMetadata,
 } from '@memory-soda/types';
 
 export interface MemorySodaConfig {
