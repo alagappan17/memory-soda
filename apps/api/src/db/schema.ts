@@ -113,6 +113,9 @@ export const threads = pgTable(
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
+    autoCompactThreshold: integer('auto_compact_threshold'),
+    lastCompactedAt: timestamp('last_compacted_at', { withTimezone: true }),
+    lastCompactedSequence: integer('last_compacted_sequence').notNull().default(0),
   },
   (t) => [index('threads_activity_idx').on(t.lastActivityAt)],
 );
@@ -134,6 +137,7 @@ export const messages = pgTable(
     model: text('model'),
     latencyMs: integer('latency_ms'),
     metadata: jsonb('metadata'),
+    compactedAt: timestamp('compacted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -141,6 +145,7 @@ export const messages = pgTable(
   (t) => [
     uniqueIndex('messages_thread_seq_idx').on(t.threadId, t.sequenceNumber),
     index('messages_thread_time_idx').on(t.threadId, sql`${t.createdAt} DESC`),
+    index('messages_thread_compacted_idx').on(t.threadId, t.compactedAt),
   ],
 );
 
