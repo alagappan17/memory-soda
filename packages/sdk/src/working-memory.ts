@@ -13,6 +13,7 @@ import type {
   WMPrepareResponse,
   WMEndThreadResponse,
   WMThreadStatsResponse,
+  WMCompactResult,
 } from './types.js';
 
 const BASE = '/v1/memory/working';
@@ -140,6 +141,21 @@ export class WorkingMemoryClient {
   }
 
   /**
+   * Compact a thread by summarizing its un-compacted messages via LLM.
+   * Uses a rolling strategy — each call folds all history into a single active summary.
+   * Auto-compact fires automatically after `addMessage` when `autoCompactThreshold` is set.
+   *
+   * @param threadId - The thread to compact.
+   * @returns Compaction result including summary message ID and the compacted sequence range.
+   */
+  compact(threadId: string): Promise<WMCompactResult> {
+    return request(this.baseUrl, this.apiKey, `${BASE}/threads/${threadId}/compact`, {
+      method: 'POST',
+      signal: this.signal(),
+    });
+  }
+
+  /**
    * Token usage and session duration stats for a thread.
    *
    * @param threadId - The thread to query.
@@ -166,11 +182,13 @@ export class WorkingMemoryClient {
     firstMessage: WMAddMessageRequest;
     tags?: string[];
     metadata?: Record<string, unknown>;
+    autoCompactThreshold?: number;
   }): Promise<{ threadId: string; prepare: WMPrepareResponse }> {
     const thread = await this.createThread({
       userId: opts.userId,
       tags: opts.tags,
       metadata: opts.metadata,
+      autoCompactThreshold: opts.autoCompactThreshold,
     });
     await this.addMessage(thread.threadId, opts.firstMessage);
     const prepare = await this.prepare(thread.threadId);
