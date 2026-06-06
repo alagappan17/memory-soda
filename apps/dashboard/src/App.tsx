@@ -9,6 +9,7 @@ import ApiKeysPage from './pages/api-keys';
 import StatusPage from './pages/status';
 import ProjectsPage from './pages/projects';
 import ConversationsPage from './pages/conversations';
+import PlaygroundPage from './pages/playground';
 
 function DashboardHeader() {
   const location = useLocation();
@@ -17,6 +18,7 @@ function DashboardHeader() {
     '/': 'Home',
     '/projects': 'Projects',
     '/conversations': 'Conversations',
+    '/playground': 'Playground',
     '/api-keys': 'API Keys',
     '/status': 'Status',
   };
@@ -47,6 +49,7 @@ export default function App() {
                     <Route path="/projects" element={<div className="flex-1 overflow-y-auto"><ProjectsPage /></div>} />
                     <Route path="/conversations" element={<ConversationsPage />} />
                     <Route path="/api-keys" element={<div className="flex-1 overflow-y-auto"><ApiKeysPage /></div>} />
+                    <Route path="/playground" element={<PlaygroundPage />} />
                     <Route path="/status" element={<div className="flex-1 overflow-y-auto"><StatusPage /></div>} />
                   </Routes>
                 </div>

@@ -7,6 +7,7 @@ import {
   MessagesSquare,
   KeyRound,
   Activity,
+  FlaskConical,
   ChevronsUpDown,
   Plus,
   Check,
@@ -45,6 +46,7 @@ const navItems = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/projects', label: 'Projects', icon: Folder },
   { to: '/conversations', label: 'Conversations', icon: MessagesSquare },
+  { to: '/playground', label: 'Playground', icon: FlaskConical },
   { to: '/api-keys', label: 'API Keys', icon: KeyRound },
   { to: '/status', label: 'Status', icon: Activity },
 ];
