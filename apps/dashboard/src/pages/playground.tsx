@@ -161,6 +161,7 @@ function MessageDetailCard({ msg }: { msg: ChatMessage }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 let opIdSeq = 0;
+let requestIdSeq = 0;
 
 export default function PlaygroundPage() {
   const [apiKey, setApiKey] = useState('');
@@ -169,6 +170,7 @@ export default function PlaygroundPage() {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadStartedAt, setThreadStartedAt] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [currentRequestId, setCurrentRequestId] = useState<number | null>(null);
 
   const [settings, setSettings] = useState<WMSettings>({
     autoCompactEnabled: false,
@@ -214,10 +216,13 @@ export default function PlaygroundPage() {
 
   async function sendMessage() {
     const content = input.trim();
-    if (!content || sending || !apiKey.trim()) return;
+    if (!content || sending || compacting || !apiKey.trim()) return;
     setError(null);
     setSending(true);
     setInput('');
+
+    const requestId = ++requestIdSeq;
+    setCurrentRequestId(requestId);
 
     try {
       let tid = threadId;
@@ -242,10 +247,11 @@ export default function PlaygroundPage() {
 
       // Optimistically show the user's message immediately
       const optimisticSeq = (messages[messages.length - 1]?.sequenceNumber ?? 0) + 1;
+      const optimisticId = `optimistic-${optimisticSeq}`;
       setMessages((prev) => [
         ...prev,
         {
-          messageId: `optimistic-${optimisticSeq}`,
+          messageId: optimisticId,
           role: 'user',
           content,
           sequenceNumber: optimisticSeq,
@@ -287,17 +293,27 @@ export default function PlaygroundPage() {
       });
 
       if (chatRes.compacted) {
-        addOp('auto_compacted', { triggered: true });
+        addOp('auto_compacted', { triggered: true, summary: 'Auto-compaction triggered after message threshold' });
       }
 
-      await refreshMessages(apiKey, tid);
+      if (requestId === currentRequestId) {
+        // Remove optimistic message before refreshing with real data
+        setMessages((prev) => prev.filter((m) => m.messageId !== optimisticId));
+        await refreshMessages(apiKey, tid);
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      setError(msg);
-      addOp('error', { message: msg });
+      if (requestId === currentRequestId) {
+        // Remove optimistic message on error
+        setMessages((prev) => prev.filter((m) => m.messageId !== optimisticId));
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        setError(msg);
+        addOp('error', { message: msg });
+      }
     } finally {
-      setSending(false);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      if (requestId === currentRequestId) {
+        setSending(false);
+        setTimeout(() => inputRef.current?.focus(), 50);
+      }
     }
   }
 
@@ -305,6 +321,10 @@ export default function PlaygroundPage() {
     if (!threadId || !apiKey.trim() || compacting) return;
     setCompacting(true);
     setError(null);
+
+    const requestId = ++requestIdSeq;
+    setCurrentRequestId(requestId);
+
     try {
       const result = await wmFetch<{
         summaryMessageId: string;
@@ -343,13 +363,19 @@ export default function PlaygroundPage() {
           .join('\n'),
       });
 
-      await refreshMessages(apiKey, threadId);
+      if (requestId === currentRequestId) {
+        await refreshMessages(apiKey, threadId);
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      setError(msg);
-      addOp('error', { message: msg });
+      if (requestId === currentRequestId) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        setError(msg);
+        addOp('error', { message: msg });
+      }
     } finally {
-      setCompacting(false);
+      if (requestId === currentRequestId) {
+        setCompacting(false);
+      }
     }
   }
 
@@ -382,7 +408,14 @@ export default function PlaygroundPage() {
           <input
             type={showKey ? 'text' : 'password'}
             value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            onChange={(e) => {
+              setApiKey(e.target.value);
+              setThreadId(null);
+              setThreadStartedAt(null);
+              setMessages([]);
+              setOps([]);
+              setError(null);
+            }}
             placeholder="ms_..."
             className="flex-1 min-w-0 rounded border border-input bg-background px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring font-mono"
           />
@@ -404,7 +437,8 @@ export default function PlaygroundPage() {
           </button>
           <button
             onClick={newThread}
-            className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            disabled={sending || compacting}
+            className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity"
           >
             New thread
           </button>
