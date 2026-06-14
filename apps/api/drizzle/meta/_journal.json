@@ -71,6 +71,13 @@
       "when": 1749098400000,
       "tag": "0009_compact_feature",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781251802165,
+      "tag": "0010_episodic_and_project_scoping",
+      "breakpoints": true
     }
   ]
 }

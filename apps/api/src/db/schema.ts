@@ -36,8 +36,8 @@ export const memories = pgTable(
     source: text('source').notNull().default('USER'),
     metadata: jsonb('metadata').notNull().default({}),
     embedding: vector('embedding', { dimensions: 3072 }),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('memories_user_id_idx').on(t.userId)],
 );
@@ -49,6 +49,7 @@ export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   description: text('description'),
+  settings: jsonb('settings'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
@@ -60,9 +61,9 @@ export const apiKeys = pgTable('api_keys', {
   name: text('name').notNull(),
   key: text('key').notNull().unique(),
   keyPreview: text('key_preview').notNull(),
-  projectId: uuid('project_id').references(() => projects.id, {
-    onDelete: 'cascade',
-  }),
+  projectId: uuid('project_id')
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   lastUsedAt: timestamp('last_used_at'),
   revokedAt: timestamp('revoked_at'),
@@ -97,9 +98,9 @@ export const threads = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: text('user_id').notNull(),
-    apiKeyId: uuid('api_key_id')
+    projectId: uuid('project_id')
       .notNull()
-      .references(() => apiKeys.id, { onDelete: 'cascade' }),
+      .references(() => projects.id, { onDelete: 'cascade' }),
     tags: text('tags').array().notNull().default([]),
     metadata: jsonb('metadata'),
     messageCount: integer('message_count').notNull().default(0),
@@ -109,15 +110,20 @@ export const threads = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
-    endedAt: timestamp('ended_at', { withTimezone: true }),
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
     autoCompactThreshold: integer('auto_compact_threshold'),
+    episodicSettings: jsonb('episodic_settings'),
     lastCompactedAt: timestamp('last_compacted_at', { withTimezone: true }),
-    lastCompactedSequence: integer('last_compacted_sequence').notNull().default(0),
+    lastCompactedSequence: integer('last_compacted_sequence')
+      .notNull()
+      .default(0),
   },
-  (t) => [index('threads_activity_idx').on(t.lastActivityAt)],
+  (t) => [
+    index('threads_activity_idx').on(t.lastActivityAt),
+    index('threads_project_idx').on(t.projectId),
+  ],
 );
 
 export type ThreadRow = typeof threads.$inferSelect;
@@ -152,17 +158,79 @@ export const messages = pgTable(
 export type MessageRow = typeof messages.$inferSelect;
 export type NewMessageRow = typeof messages.$inferInsert;
 
-export const threadsRelations = relations(threads, ({ one, many }) => ({
-  apiKey: one(apiKeys, {
-    fields: [threads.apiKeyId],
-    references: [apiKeys.id],
-  }),
+export const threadsRelations = relations(threads, ({ many }) => ({
   messages: many(messages),
 }));
 
 export const messagesRelations = relations(messages, ({ one }) => ({
   thread: one(threads, {
     fields: [messages.threadId],
+    references: [threads.id],
+  }),
+}));
+
+// ── Episodic Memory ───────────────────────────────────────────────────────────
+
+export const episodeStatusEnum = pgEnum('episode_status', [
+  'pending',
+  'processing',
+  'completed',
+  'failed',
+  'deleted',
+  'archived',
+]);
+
+export const episodes = pgTable(
+  'episodes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    threadId: uuid('thread_id').references(() => threads.id),
+    userId: text('user_id').notNull(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    status: episodeStatusEnum('status').notNull().default('pending'),
+    summary: text('summary'),
+    keyLearnings: jsonb('key_learnings'),
+    embedding: vector('embedding', { dimensions: 768 }),
+    messageCount: integer('message_count').notNull().default(0),
+    tokenCount: integer('token_count'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    processingStartedAt: timestamp('processing_started_at', {
+      withTimezone: true,
+    }),
+    processingCompletedAt: timestamp('processing_completed_at', {
+      withTimezone: true,
+    }),
+    error: text('error'),
+    retryCount: integer('retry_count').notNull().default(0),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('episodes_user_project_status_idx').on(
+      t.userId,
+      t.projectId,
+      t.status,
+    ),
+    index('episodes_user_created_idx').on(t.userId, t.createdAt),
+    index('episodes_thread_idx').on(t.threadId),
+    index('episodes_status_created_idx').on(t.status, t.createdAt),
+  ],
+);
+
+export type EpisodeRow = typeof episodes.$inferSelect;
+export type NewEpisodeRow = typeof episodes.$inferInsert;
+
+export const episodesRelations = relations(episodes, ({ one }) => ({
+  thread: one(threads, {
+    fields: [episodes.threadId],
     references: [threads.id],
   }),
 }));
