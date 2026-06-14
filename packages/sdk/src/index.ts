@@ -1,25 +1,38 @@
 export { MemorySodaClient } from './client.js';
+export type { MemorySodaConfig } from './client.js';
+export { ThreadClient } from './thread.js';
 export { WorkingMemoryClient } from './working-memory.js';
-export { ApiError, AuthError, MemorySodaError, NetworkError } from './errors.js';
+export {
+  ApiError,
+  AuthError,
+  MemorySodaError,
+  NetworkError,
+} from './errors.js';
 export type {
-  MemorySodaConfig,
   HealthResponse,
-  // Working Memory
-  MessageRole,
+  // Thread
   WMThread,
-  WMMessage,
-  WMMessageMetadata,
-  WMTokenCount,
+  WMThreadSettings,
   WMCreateThreadRequest,
   WMPatchThreadRequest,
-  WMAddMessageRequest,
-  WMListMessagesQuery,
-  WMPrepareRequest,
   WMCreateThreadResponse,
-  WMAddMessageResponse,
-  WMListMessagesResponse,
-  WMPrepareResponse,
   WMEndThreadResponse,
   WMTokenUsage,
   WMThreadStatsResponse,
-} from './types.js';
+  WMCompactResult,
+  WMCompactSummaryMetadata,
+  // Working Memory
+  MessageRole,
+  WMMessage,
+  WMMessageMetadata,
+  WMTokenCount,
+  WMAddMessageRequest,
+  WMListMessagesQuery,
+  WMPrepareRequest,
+  WMAddMessageResponse,
+  WMListMessagesResponse,
+  WMPrepareResponse,
+  // Episodic context (surfaced in prepare response)
+  EpisodeContextItem,
+  EpisodeContext,
+} from '@memory-soda/types';
