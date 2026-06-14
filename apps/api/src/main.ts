@@ -8,10 +8,13 @@ import apiKeysRouter from './routes/api-keys.js';
 import projectsRouter from './routes/projects.js';
 import { requireApiKey } from './middleware/auth.js';
 import workingMemoryRouter from './routes/working-memory.js';
+import episodicMemoryRouter from './routes/episodic-memory.js';
+import threadRouter from './routes/thread.js';
 import threadsRouter from './routes/threads.js';
 import { initNeo4j } from './db/neo4j-init.js';
 import { db, checkPostgres } from './db/postgres.js';
 import { listApiKeys, createApiKey } from './services/api-key.service.js';
+import { retryFailedEpisodes } from './services/episodic-memory.service.js';
 
 // In compiled output (dist/apps/api/src/), drizzle/ is at dist/drizzle/
 const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle');
@@ -39,7 +42,9 @@ app.use('/dashboard/threads', threadsRouter);
 
 // Protected routes (SDK usage — require API key)
 app.use(requireApiKey);
+app.use('/v1/threads', threadRouter);
 app.use('/v1/memory/working', workingMemoryRouter);
+app.use('/v1/memory/episodic', episodicMemoryRouter);
 
 async function bootstrap(): Promise<void> {
   await checkPostgres();
@@ -74,6 +79,12 @@ async function bootstrap(): Promise<void> {
     console.log(`[ ready ] http://${host}:${port}`);
   });
 }
+
+setInterval(() => {
+  retryFailedEpisodes().catch((err) => {
+    console.error('[episodic] retry job failed:', err);
+  });
+}, 120_000).unref();
 
 bootstrap().catch((err) => {
   console.error('[ startup ] failed:', err);
