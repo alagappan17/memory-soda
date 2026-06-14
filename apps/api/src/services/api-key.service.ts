@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/postgres.js';
 import { apiKeys } from '../db/schema.js';
 import type { ApiKey } from '@memory-soda/types';
+import { getOrCreateDefaultProject } from './project.service.js';
 
 function generateKey(): string {
   return 'ms_' + randomBytes(32).toString('hex');
@@ -17,7 +18,7 @@ function rowToApiKey(row: typeof apiKeys.$inferSelect): ApiKey {
     id: row.id,
     name: row.name,
     keyPreview: row.keyPreview,
-    projectId: row.projectId ?? null,
+    projectId: row.projectId,
     createdAt: row.createdAt.toISOString(),
     lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
     revokedAt: row.revokedAt?.toISOString() ?? null,
@@ -31,10 +32,11 @@ export async function createApiKey(
   const key = generateKey();
   const keyPreview = key.slice(0, 10) + '...' + key.slice(-4);
   const hashedKey = hashKey(key);
+  const resolvedProjectId = projectId ?? (await getOrCreateDefaultProject()).id;
 
   const [row] = await db
     .insert(apiKeys)
-    .values({ name, key: hashedKey, keyPreview, projectId: projectId ?? null })
+    .values({ name, key: hashedKey, keyPreview, projectId: resolvedProjectId })
     .returning();
 
   return { apiKey: rowToApiKey(row!), key };
@@ -45,27 +47,16 @@ export async function listApiKeys(): Promise<ApiKey[]> {
   return rows.map(rowToApiKey);
 }
 
-export async function findApiKeyByValue(key: string): Promise<typeof apiKeys.$inferSelect | null> {
+export async function findApiKeyByValue(
+  key: string,
+): Promise<typeof apiKeys.$inferSelect | null> {
   const hashed = hashKey(key);
-  
-  // Try looking up by hashed key first
-  let [row] = await db.select().from(apiKeys).where(eq(apiKeys.key, hashed)).limit(1);
-  if (row) return row;
-
-  // Fallback: Try looking up by plain-text key (for legacy keys)
-  [row] = await db.select().from(apiKeys).where(eq(apiKeys.key, key)).limit(1);
-  if (row) {
-    // Migrate legacy plain-text key to hashed key in background
-    db.update(apiKeys)
-      .set({ key: hashed })
-      .where(eq(apiKeys.id, row.id))
-      .catch((err) => {
-        console.error('[api-key] failed to auto-migrate legacy plain-text key:', err);
-      });
-    return row;
-  }
-
-  return null;
+  const [row] = await db
+    .select()
+    .from(apiKeys)
+    .where(eq(apiKeys.key, hashed))
+    .limit(1);
+  return row ?? null;
 }
 
 export async function revokeApiKey(id: string): Promise<void> {

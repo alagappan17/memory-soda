@@ -3,70 +3,69 @@ import { db } from '../db/postgres.js';
 import { threads, messages } from '../db/schema.js';
 
 export interface DashboardThread {
-  threadId:       string;
-  userId:         string;
-  apiKeyId:       string;
-  tags:           string[];
-  messageCount:   number;
-  metadata:       unknown;
-  createdAt:      string;
-  updatedAt:      string;
-  endedAt:        string | null;
+  threadId: string;
+  userId: string;
+  projectId: string;
+  tags: string[];
+  messageCount: number;
+  metadata: unknown;
+  createdAt: string;
+  updatedAt: string;
   lastActivityAt: string;
 }
 
 export interface DashboardMessage {
-  messageId:      string;
-  threadId:       string;
-  role:           string;
-  content:        string;
+  messageId: string;
+  threadId: string;
+  role: string;
+  content: string;
   sequenceNumber: number;
-  tokenCount:     unknown;
-  model:          string | null;
-  latencyMs:      number | null;
-  metadata:       unknown;
-  createdAt:      string;
+  tokenCount: unknown;
+  model: string | null;
+  latencyMs: number | null;
+  metadata: unknown;
+  createdAt: string;
 }
 
 function mapThread(row: typeof threads.$inferSelect): DashboardThread {
   return {
-    threadId:       row.id,
-    userId:         row.userId,
-    apiKeyId:       row.apiKeyId,
-    tags:           row.tags ?? [],
-    messageCount:   row.messageCount,
-    metadata:       row.metadata,
-    createdAt:      row.createdAt.toISOString(),
-    updatedAt:      row.updatedAt.toISOString(),
-    endedAt:        row.endedAt?.toISOString() ?? null,
+    threadId: row.id,
+    userId: row.userId,
+    projectId: row.projectId,
+    tags: row.tags ?? [],
+    messageCount: row.messageCount,
+    metadata: row.metadata,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
     lastActivityAt: row.lastActivityAt.toISOString(),
   };
 }
 
 function mapMessage(row: typeof messages.$inferSelect): DashboardMessage {
   return {
-    messageId:      row.id,
-    threadId:       row.threadId,
-    role:           row.role,
-    content:        row.content,
+    messageId: row.id,
+    threadId: row.threadId,
+    role: row.role,
+    content: row.content,
     sequenceNumber: row.sequenceNumber,
-    tokenCount:     row.tokenCount,
-    model:          row.model ?? null,
-    latencyMs:      row.latencyMs ?? null,
-    metadata:       row.metadata,
-    createdAt:      row.createdAt.toISOString(),
+    tokenCount: row.tokenCount,
+    model: row.model ?? null,
+    latencyMs: row.latencyMs ?? null,
+    metadata: row.metadata,
+    createdAt: row.createdAt.toISOString(),
   };
 }
 
 export async function listThreads(opts: {
+  projectId: string;
   userId?: string;
   limit: number;
   offset: number;
 }): Promise<{ threads: DashboardThread[]; total: number }> {
-  const conditions = [];
+  const conditions = [eq(threads.projectId, opts.projectId)];
   if (opts.userId) conditions.push(eq(threads.userId, opts.userId));
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = and(...conditions);
 
   const [rows, totalRows] = await Promise.all([
     db
@@ -84,17 +83,18 @@ export async function listThreads(opts: {
 
   return {
     threads: rows.map(mapThread),
-    total:   totalRows[0]?.count ?? 0,
+    total: totalRows[0]?.count ?? 0,
   };
 }
 
 export async function getThreadWithMessages(
   threadId: string,
+  projectId: string,
 ): Promise<{ thread: DashboardThread; messages: DashboardMessage[] } | null> {
   const [threadRow] = await db
     .select()
     .from(threads)
-    .where(eq(threads.id, threadId));
+    .where(and(eq(threads.id, threadId), eq(threads.projectId, projectId)));
 
   if (!threadRow) return null;
 
@@ -105,7 +105,7 @@ export async function getThreadWithMessages(
     .orderBy(asc(messages.sequenceNumber));
 
   return {
-    thread:   mapThread(threadRow),
+    thread: mapThread(threadRow),
     messages: msgRows.map(mapMessage),
   };
 }
