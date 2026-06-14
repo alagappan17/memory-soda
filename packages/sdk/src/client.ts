@@ -1,6 +1,13 @@
 import { request } from './http.js';
+import { ThreadClient } from './thread.js';
 import { WorkingMemoryClient } from './working-memory.js';
-import type { MemorySodaConfig, HealthResponse } from './types.js';
+import type { HealthResponse } from '@memory-soda/types';
+
+export interface MemorySodaConfig {
+  baseUrl: string;
+  apiKey: string;
+  timeout?: number;
+}
 
 /**
  * Root client for the Memory Soda API.
@@ -8,7 +15,8 @@ import type { MemorySodaConfig, HealthResponse } from './types.js';
  * @example
  * ```ts
  * const client = new MemorySodaClient({ baseUrl: 'http://localhost:3004', apiKey: 'ms_...' });
- * const { threadId, prepare } = await client.workingMemory.startConversation({ firstMessage: { role: 'user', content: 'Hello' } });
+ * const thread = await client.threads.create({ userId: 'u1' });
+ * const prepare = await client.workingMemory.prepare(thread.threadId);
  * ```
  */
 export class MemorySodaClient {
@@ -16,17 +24,24 @@ export class MemorySodaClient {
   private readonly apiKey: string;
   private readonly timeout: number;
 
-  /** Working Memory — conversation history layer. */
+  /** Thread management — create, get, update, and end threads. */
+  readonly threads: ThreadClient;
+
+  /** Working Memory — conversation history, message storage, and LLM context preparation. */
   readonly workingMemory: WorkingMemoryClient;
 
   constructor(config: MemorySodaConfig) {
     this.baseUrl = config.baseUrl;
     this.apiKey = config.apiKey;
     this.timeout = config.timeout ?? 60_000;
+    this.threads = new ThreadClient(this.baseUrl, this.apiKey, () =>
+      this.signal(),
+    );
     this.workingMemory = new WorkingMemoryClient(
       this.baseUrl,
       this.apiKey,
       () => this.signal(),
+      this.threads,
     );
   }
 
@@ -37,8 +52,10 @@ export class MemorySodaClient {
   static fromEnv(): MemorySodaClient {
     const baseUrl = process.env['MEMORY_SODA_BASE_URL'];
     const apiKey = process.env['MEMORY_SODA_API_KEY'];
-    if (!baseUrl) throw new Error('MEMORY_SODA_BASE_URL environment variable is not set');
-    if (!apiKey) throw new Error('MEMORY_SODA_API_KEY environment variable is not set');
+    if (!baseUrl)
+      throw new Error('MEMORY_SODA_BASE_URL environment variable is not set');
+    if (!apiKey)
+      throw new Error('MEMORY_SODA_API_KEY environment variable is not set');
     return new MemorySodaClient({ baseUrl, apiKey });
   }
 
