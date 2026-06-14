@@ -1,7 +1,11 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import QueryProvider from './providers/query-provider';
 import { ProjectProvider } from './providers/project-provider';
-import { SidebarProvider, SidebarInset, SidebarTrigger } from './components/ui/sidebar';
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from './components/ui/sidebar';
 import { TooltipProvider } from './components/ui/tooltip';
 import AppSidebar from './components/app-sidebar';
 import HomePage from './pages/home';
@@ -10,6 +14,7 @@ import StatusPage from './pages/status';
 import ProjectsPage from './pages/projects';
 import ConversationsPage from './pages/conversations';
 import PlaygroundPage from './pages/playground';
+import ProjectSettingsPage from './pages/project-settings';
 
 function DashboardHeader() {
   const location = useLocation();
@@ -23,12 +28,18 @@ function DashboardHeader() {
     '/status': 'Status',
   };
 
-  const currentLabel = pathMap[location.pathname] || 'Home';
+  const currentLabel =
+    location.pathname.startsWith('/projects/') &&
+    location.pathname.endsWith('/settings')
+      ? 'Project Settings'
+      : pathMap[location.pathname] || 'Home';
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2.5 border-b bg-background px-4">
       <SidebarTrigger className="-ml-1" />
-      <span className="font-medium text-sm text-foreground">{currentLabel}</span>
+      <span className="font-medium text-sm text-foreground">
+        {currentLabel}
+      </span>
     </header>
   );
 }
@@ -45,12 +56,51 @@ export default function App() {
                 <DashboardHeader />
                 <div className="flex-1 min-h-0 flex flex-col">
                   <Routes>
-                    <Route path="/" element={<div className="flex-1 overflow-y-auto"><HomePage /></div>} />
-                    <Route path="/projects" element={<div className="flex-1 overflow-y-auto"><ProjectsPage /></div>} />
-                    <Route path="/conversations" element={<ConversationsPage />} />
-                    <Route path="/api-keys" element={<div className="flex-1 overflow-y-auto"><ApiKeysPage /></div>} />
+                    <Route
+                      path="/"
+                      element={
+                        <div className="flex-1 overflow-y-auto">
+                          <HomePage />
+                        </div>
+                      }
+                    />
+                    <Route
+                      path="/projects"
+                      element={
+                        <div className="flex-1 overflow-y-auto">
+                          <ProjectsPage />
+                        </div>
+                      }
+                    />
+                    <Route
+                      path="/projects/:id/settings"
+                      element={
+                        <div className="flex-1 overflow-y-auto">
+                          <ProjectSettingsPage />
+                        </div>
+                      }
+                    />
+                    <Route
+                      path="/conversations"
+                      element={<ConversationsPage />}
+                    />
+                    <Route
+                      path="/api-keys"
+                      element={
+                        <div className="flex-1 overflow-y-auto">
+                          <ApiKeysPage />
+                        </div>
+                      }
+                    />
                     <Route path="/playground" element={<PlaygroundPage />} />
-                    <Route path="/status" element={<div className="flex-1 overflow-y-auto"><StatusPage /></div>} />
+                    <Route
+                      path="/status"
+                      element={
+                        <div className="flex-1 overflow-y-auto">
+                          <StatusPage />
+                        </div>
+                      }
+                    />
                   </Routes>
                 </div>
               </SidebarInset>

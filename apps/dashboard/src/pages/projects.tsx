@@ -18,9 +18,12 @@ import {
 } from '@/components/ui/dialog';
 import { Plus, Check, Pencil, AlertCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 
 export default function ProjectsPage() {
-  const { projects, selectedProject, createProject, updateProject, loading } = useProject();
+  const navigate = useNavigate();
+  const { projects, selectedProject, createProject, updateProject, loading } =
+    useProject();
   const [showNewProject, setShowNewProject] = useState(false);
   const [newName, setNewName] = useState('');
   const [description, setDescription] = useState('');
@@ -31,9 +34,13 @@ export default function ProjectsPage() {
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [updating, setUpdating] = useState(false);
-  
+
   const [descriptions, setDescriptions] = useState<Record<string, string>>({});
-  const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    message: string;
+    type: 'success' | 'error';
+  }>({
     visible: false,
     message: '',
     type: 'success',
@@ -65,7 +72,7 @@ export default function ProjectsPage() {
     const targetName = newName.trim();
     try {
       const proj = await createProject(targetName, description.trim());
-      
+
       // Save description
       const savedDescs = localStorage.getItem('project_descriptions');
       const descs = savedDescs ? JSON.parse(savedDescs) : {};
@@ -96,7 +103,11 @@ export default function ProjectsPage() {
     if (!editingProject || !editName.trim() || !editDescription.trim()) return;
     setUpdating(true);
     try {
-      await updateProject(editingProject.id, editName.trim(), editDescription.trim());
+      await updateProject(
+        editingProject.id,
+        editName.trim(),
+        editDescription.trim(),
+      );
 
       // Save description
       const savedDescs = localStorage.getItem('project_descriptions');
@@ -135,7 +146,9 @@ export default function ProjectsPage() {
 
       <div className="rounded-md border border-border overflow-hidden bg-card shadow-sm">
         {loading ? (
-          <div className="px-4 py-6 text-sm text-muted-foreground text-center">Loading...</div>
+          <div className="px-4 py-6 text-sm text-muted-foreground text-center">
+            Loading...
+          </div>
         ) : projects.length === 0 ? (
           <div className="px-4 py-8 text-sm text-muted-foreground text-center">
             No projects found. Create one to get started.
@@ -153,7 +166,10 @@ export default function ProjectsPage() {
             <TableBody>
               {projects.map((p) => {
                 const isActive = selectedProject?.id === p.id;
-                const desc = p.description || descriptions[p.id] || 'No description provided.';
+                const desc =
+                  p.description ||
+                  descriptions[p.id] ||
+                  'No description provided.';
                 return (
                   <TableRow
                     key={p.id}
@@ -169,7 +185,10 @@ export default function ProjectsPage() {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground truncate max-w-xs" title={desc}>
+                    <TableCell
+                      className="text-muted-foreground truncate max-w-xs"
+                      title={desc}
+                    >
                       {desc}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs font-mono">
@@ -180,13 +199,15 @@ export default function ProjectsPage() {
                       })}
                     </TableCell>
                     <TableCell className="text-right">
-                      <button
-                        onClick={() => handleStartEdit(p)}
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                        title="Edit project"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleStartEdit(p)}
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          title="Edit project"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -218,7 +239,9 @@ export default function ProjectsPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">Description</label>
+              <label className="text-sm font-medium leading-none">
+                Description
+              </label>
               <input
                 type="text"
                 placeholder="A short description about this project..."
@@ -274,7 +297,9 @@ export default function ProjectsPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">Description</label>
+              <label className="text-sm font-medium leading-none">
+                Description
+              </label>
               <input
                 type="text"
                 placeholder="A short description about this project..."
@@ -299,7 +324,9 @@ export default function ProjectsPage() {
               </button>
               <button
                 type="submit"
-                disabled={updating || !editName.trim() || !editDescription.trim()}
+                disabled={
+                  updating || !editName.trim() || !editDescription.trim()
+                }
                 className="px-3.5 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity cursor-pointer"
               >
                 {updating ? 'Saving…' : 'Save Changes'}
@@ -310,21 +337,24 @@ export default function ProjectsPage() {
       </Dialog>
 
       {/* Floating Sonner-Style Toast Notification */}
-      {toast.visible && createPortal(
-        <div className="fixed top-6 right-6 z-[9999] flex items-center gap-3.5 px-4 py-3 rounded-xl border border-border bg-card text-card-foreground shadow-lg animate-in fade-in-0 slide-in-from-top-5 duration-300 min-w-[300px] select-none font-sans">
-          {toast.type === 'success' ? (
-            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <Check className="h-3.5 w-3.5 stroke-[3]" />
-            </div>
-          ) : (
-            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-              <AlertCircle className="h-3.5 w-3.5 stroke-[2.5]" />
-            </div>
-          )}
-          <span className="text-sm font-medium text-foreground">{toast.message}</span>
-        </div>,
-        document.body
-      )}
+      {toast.visible &&
+        createPortal(
+          <div className="fixed top-6 right-6 z-[9999] flex items-center gap-3.5 px-4 py-3 rounded-xl border border-border bg-card text-card-foreground shadow-lg animate-in fade-in-0 slide-in-from-top-5 duration-300 min-w-[300px] select-none font-sans">
+            {toast.type === 'success' ? (
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <Check className="h-3.5 w-3.5 stroke-[3]" />
+              </div>
+            ) : (
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                <AlertCircle className="h-3.5 w-3.5 stroke-[2.5]" />
+              </div>
+            )}
+            <span className="text-sm font-medium text-foreground">
+              {toast.message}
+            </span>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

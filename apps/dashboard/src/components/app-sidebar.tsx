@@ -8,6 +8,7 @@ import {
   KeyRound,
   Activity,
   FlaskConical,
+  Settings,
   ChevronsUpDown,
   Plus,
   Check,
@@ -171,6 +172,13 @@ export default function AppSidebar() {
               {navItems.map((item) => (
                 <NavItem key={item.to} {...item} />
               ))}
+              {selectedProject && (
+                <NavItem
+                  to={`/projects/${selectedProject.id}/settings`}
+                  label="Project Defaults"
+                  icon={Settings}
+                />
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
