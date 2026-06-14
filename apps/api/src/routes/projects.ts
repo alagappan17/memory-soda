@@ -6,6 +6,8 @@ import {
   listProjects,
   deleteProject,
   updateProject,
+  getProjectSettings,
+  updateProjectSettings,
 } from '../services/project.service.js';
 
 const router = Router();
@@ -18,6 +20,20 @@ const createBodySchema = z.object({
 const updateBodySchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
+});
+
+const settingsPatchSchema = z.object({
+  episodic: z
+    .object({
+      enabled: z.boolean().optional(),
+      maxMessages: z.number().int().min(10).max(1000).optional(),
+      maxRetries: z.number().int().min(0).max(10).optional(),
+      retryDelayMs: z.number().int().min(60000).optional(),
+      contextEpisodes: z.number().int().min(1).max(20).optional(),
+      similarityWeight: z.number().min(0).max(1).optional(),
+      recencyWeight: z.number().min(0).max(1).optional(),
+    })
+    .optional(),
 });
 
 /**
@@ -85,5 +101,38 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete project' });
   }
 });
+
+/**
+ * @route GET /dashboard/projects/:id/settings
+ * @description Get project settings (merged with defaults).
+ */
+router.get('/:id/settings', async (req, res) => {
+  try {
+    const settings = await getProjectSettings(req.params['id']);
+    res.json({ settings });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get project settings' });
+  }
+});
+
+/**
+ * @route PATCH /dashboard/projects/:id/settings
+ * @description Partially update project settings.
+ */
+router.patch(
+  '/:id/settings',
+  validateBody(settingsPatchSchema),
+  async (req, res) => {
+    try {
+      const patch = req.body as z.infer<typeof settingsPatchSchema>;
+      const settings = await updateProjectSettings(req.params['id'], patch);
+      res.json({ settings });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to update project settings' });
+    }
+  },
+);
 
 export default router;
