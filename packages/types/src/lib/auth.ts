@@ -1,5 +1,6 @@
 export interface ApiKeyPayload {
   keyId: string;
+  projectId: string;
   name?: string;
 }
 
@@ -7,7 +8,7 @@ export interface ApiKey {
   id: string;
   name: string;
   keyPreview: string;
-  projectId: string | null;
+  projectId: string;
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
