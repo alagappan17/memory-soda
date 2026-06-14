@@ -6,8 +6,34 @@ import { Separator } from '../components/ui/separator';
 
 const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3004';
 const BASE = `${API_URL}/v1/memory/working`;
+const THREADS_BASE = `${API_URL}/v1/threads`;
 
-async function wmFetch<T>(apiKey: string, path: string, opts?: RequestInit): Promise<T> {
+async function apiFetch<T>(
+  baseUrl: string,
+  apiKey: string,
+  path: string,
+  opts?: RequestInit,
+): Promise<T> {
+  const res = await fetch(`${baseUrl}${path}`, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+      ...(opts?.headers ?? {}),
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error?: string }).error ?? res.statusText);
+  }
+  return res.json() as Promise<T>;
+}
+
+async function wmFetch<T>(
+  apiKey: string,
+  path: string,
+  opts?: RequestInit,
+): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...opts,
     headers: {
@@ -43,7 +69,15 @@ interface WMSettings {
   messageLimit: number;
 }
 
-type OpType = 'thread_created' | 'message_added' | 'ai_replied' | 'prepare' | 'auto_compacted' | 'compacted' | 'error';
+type OpType =
+  | 'thread_created'
+  | 'message_added'
+  | 'ai_replied'
+  | 'prepare'
+  | 'auto_compacted'
+  | 'compacted'
+  | 'error'
+  | 'thread_ended';
 
 interface Operation {
   id: number;
@@ -61,18 +95,27 @@ interface Operation {
 function MessageMeta({ msg, isUser }: { msg: ChatMessage; isUser: boolean }) {
   const tc = msg.tokenCount;
   const hasTokens = tc && (tc.input !== undefined || tc.output !== undefined);
-  const time = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const time = new Date(msg.createdAt).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   return (
-    <div className={`flex items-center gap-1.5 mt-1 text-[10px] text-muted-foreground font-mono ${isUser ? 'flex-row-reverse' : ''}`}>
+    <div
+      className={`flex items-center gap-1.5 mt-1 text-[10px] text-muted-foreground font-mono ${isUser ? 'flex-row-reverse' : ''}`}
+    >
       <span className="font-sans">{time}</span>
       <span>·</span>
       <span>seq:{msg.sequenceNumber}</span>
       {hasTokens && (
         <>
           <span>·</span>
-          {tc!.input !== undefined && <span>↑{tc!.input.toLocaleString()}</span>}
-          {tc!.output !== undefined && <span>↓{tc!.output.toLocaleString()}</span>}
+          {tc!.input !== undefined && (
+            <span>↑{tc!.input.toLocaleString()}</span>
+          )}
+          {tc!.output !== undefined && (
+            <span>↓{tc!.output.toLocaleString()}</span>
+          )}
         </>
       )}
       {msg.model && (
@@ -87,10 +130,17 @@ function MessageMeta({ msg, isUser }: { msg: ChatMessage; isUser: boolean }) {
 
 function MessageDetailCard({ msg }: { msg: ChatMessage }) {
   const tc = msg.tokenCount;
-  const hasTokens = tc && (tc.input !== undefined || tc.output !== undefined || tc.total !== undefined);
+  const hasTokens =
+    tc &&
+    (tc.input !== undefined ||
+      tc.output !== undefined ||
+      tc.total !== undefined);
   const time = new Date(msg.createdAt).toLocaleString([], {
-    month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   });
 
   return (
@@ -98,7 +148,9 @@ function MessageDetailCard({ msg }: { msg: ChatMessage }) {
       <CardContent className="p-3 space-y-2.5">
         <div className="grid grid-cols-[5rem_1fr] gap-x-3 gap-y-1.5 items-baseline">
           <span className="text-muted-foreground">Message</span>
-          <span className="font-mono text-[10px] truncate">{msg.messageId}</span>
+          <span className="font-mono text-[10px] truncate">
+            {msg.messageId}
+          </span>
           <span className="text-muted-foreground">Role</span>
           <span className="font-medium capitalize">{msg.role}</span>
           <span className="text-muted-foreground">Sequence</span>
@@ -114,13 +166,22 @@ function MessageDetailCard({ msg }: { msg: ChatMessage }) {
           {msg.latencyMs !== null && (
             <>
               <span className="text-muted-foreground">Latency</span>
-              <span className="font-mono">{msg.latencyMs.toLocaleString()} ms</span>
+              <span className="font-mono">
+                {msg.latencyMs.toLocaleString()} ms
+              </span>
             </>
           )}
           {msg.compactedAt && (
             <>
               <span className="text-muted-foreground">Compacted</span>
-              <span>{new Date(msg.compactedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+              <span>
+                {new Date(msg.compactedAt).toLocaleString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
             </>
           )}
         </div>
@@ -134,19 +195,25 @@ function MessageDetailCard({ msg }: { msg: ChatMessage }) {
                 {tc!.input !== undefined && (
                   <>
                     <span className="text-muted-foreground">Input</span>
-                    <span className="font-mono">{tc!.input.toLocaleString()}</span>
+                    <span className="font-mono">
+                      {tc!.input.toLocaleString()}
+                    </span>
                   </>
                 )}
                 {tc!.output !== undefined && (
                   <>
                     <span className="text-muted-foreground">Output</span>
-                    <span className="font-mono">{tc!.output.toLocaleString()}</span>
+                    <span className="font-mono">
+                      {tc!.output.toLocaleString()}
+                    </span>
                   </>
                 )}
                 {tc!.total !== undefined && (
                   <>
                     <span className="text-muted-foreground">Total</span>
-                    <span className="font-mono">{tc!.total.toLocaleString()}</span>
+                    <span className="font-mono">
+                      {tc!.total.toLocaleString()}
+                    </span>
                   </>
                 )}
               </div>
@@ -170,7 +237,7 @@ export default function PlaygroundPage() {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadStartedAt, setThreadStartedAt] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [currentRequestId, setCurrentRequestId] = useState<number | null>(null);
+  const currentRequestId = useRef<number>(0);
 
   const [settings, setSettings] = useState<WMSettings>({
     autoCompactEnabled: false,
@@ -210,7 +277,10 @@ export default function PlaygroundPage() {
   }
 
   async function refreshMessages(key: string, tid: string) {
-    const result = await wmFetch<{ messages: ChatMessage[] }>(key, `/threads/${tid}/messages?limit=100&order=asc`);
+    const result = await wmFetch<{ messages: ChatMessage[] }>(
+      key,
+      `/threads/${tid}/messages?limit=100&order=asc`,
+    );
     setMessages(result.messages);
   }
 
@@ -222,36 +292,47 @@ export default function PlaygroundPage() {
     setInput('');
 
     const requestId = ++requestIdSeq;
-    setCurrentRequestId(requestId);
+    currentRequestId.current = requestId;
+    let optimisticId: string | null = null;
 
     try {
       let tid = threadId;
       const startedAt = threadStartedAt ?? Date.now();
 
       if (!tid) {
-        const threadRes = await wmFetch<{ threadId: string }>(apiKey, '/threads', {
-          method: 'POST',
-          body: JSON.stringify({
-            autoCompactThreshold:
-              settings.autoCompactEnabled ? settings.autoCompactThreshold : undefined,
-          }),
-        });
+        const threadRes = await apiFetch<{ threadId: string }>(
+          THREADS_BASE,
+          apiKey,
+          '',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              autoCompactThreshold: settings.autoCompactEnabled
+                ? settings.autoCompactThreshold
+                : undefined,
+            }),
+          },
+        );
         tid = threadRes.threadId;
         setThreadId(tid);
         setThreadStartedAt(startedAt);
         addOp('thread_created', {
           threadId: tid,
-          autoCompact: settings.autoCompactEnabled ? settings.autoCompactThreshold : 'off',
+          autoCompact: settings.autoCompactEnabled
+            ? settings.autoCompactThreshold
+            : 'off',
         });
       }
 
       // Optimistically show the user's message immediately
-      const optimisticSeq = (messages[messages.length - 1]?.sequenceNumber ?? 0) + 1;
-      const optimisticId = `optimistic-${optimisticSeq}`;
+      const optimisticSeq =
+        (messages[messages.length - 1]?.sequenceNumber ?? 0) + 1;
+      const newOptimisticId = `optimistic-${optimisticSeq}`;
+      optimisticId = newOptimisticId;
       setMessages((prev) => [
         ...prev,
         {
-          messageId: optimisticId,
+          messageId: newOptimisticId,
           role: 'user',
           content,
           sequenceNumber: optimisticSeq,
@@ -264,10 +345,26 @@ export default function PlaygroundPage() {
       ]);
 
       const chatRes = await wmFetch<{
-        userMessage: { messageId: string; sequenceNumber: number; role: string; createdAt: string };
-        assistantMessage: { messageId: string; sequenceNumber: number; role: string; content: string; createdAt: string };
+        userMessage: {
+          messageId: string;
+          sequenceNumber: number;
+          role: string;
+          createdAt: string;
+        };
+        assistantMessage: {
+          messageId: string;
+          sequenceNumber: number;
+          role: string;
+          content: string;
+          createdAt: string;
+        };
         compacted: boolean;
-        prepare: { messageCount: number; truncated: boolean; compacted: boolean };
+        prepare: {
+          messageCount: number;
+          truncated: boolean;
+          compacted: boolean;
+          context: any | null;
+        };
       }>(apiKey, `/threads/${tid}/chat`, {
         method: 'POST',
         body: JSON.stringify({
@@ -286,6 +383,7 @@ export default function PlaygroundPage() {
         messageCount: chatRes.prepare.messageCount,
         truncated: chatRes.prepare.truncated,
         compacted: chatRes.prepare.compacted,
+        episodes: chatRes.prepare.context?.episodeCount || 0,
       });
       addOp('ai_replied', {
         sequenceNumber: chatRes.assistantMessage.sequenceNumber,
@@ -293,16 +391,19 @@ export default function PlaygroundPage() {
       });
 
       if (chatRes.compacted) {
-        addOp('auto_compacted', { triggered: true, summary: 'Auto-compaction triggered after message threshold' });
+        addOp('auto_compacted', {
+          triggered: true,
+          summary: 'Auto-compaction triggered after message threshold',
+        });
       }
 
-      if (requestId === currentRequestId) {
+      if (requestId === currentRequestId.current) {
         // Remove optimistic message before refreshing with real data
         setMessages((prev) => prev.filter((m) => m.messageId !== optimisticId));
         await refreshMessages(apiKey, tid);
       }
     } catch (err: unknown) {
-      if (requestId === currentRequestId) {
+      if (requestId === currentRequestId.current) {
         // Remove optimistic message on error
         setMessages((prev) => prev.filter((m) => m.messageId !== optimisticId));
         const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -310,7 +411,7 @@ export default function PlaygroundPage() {
         addOp('error', { message: msg });
       }
     } finally {
-      if (requestId === currentRequestId) {
+      if (requestId === currentRequestId.current) {
         setSending(false);
         setTimeout(() => inputRef.current?.focus(), 50);
       }
@@ -323,7 +424,7 @@ export default function PlaygroundPage() {
     setError(null);
 
     const requestId = ++requestIdSeq;
-    setCurrentRequestId(requestId);
+    currentRequestId.current = requestId;
 
     try {
       const result = await wmFetch<{
@@ -359,22 +460,47 @@ export default function PlaygroundPage() {
         compacted: prepRes.compacted,
         roles: prepRes.messages.map((m) => m.role),
         contextPreview: prepRes.messages
-          .map((m) => `[${m.role}]: ${m.content.slice(0, 80)}${m.content.length > 80 ? '…' : ''}`)
+          .map(
+            (m) =>
+              `[${m.role}]: ${m.content.slice(0, 80)}${m.content.length > 80 ? '…' : ''}`,
+          )
           .join('\n'),
       });
 
-      if (requestId === currentRequestId) {
+      if (requestId === currentRequestId.current) {
         await refreshMessages(apiKey, threadId);
       }
     } catch (err: unknown) {
-      if (requestId === currentRequestId) {
+      if (requestId === currentRequestId.current) {
         const msg = err instanceof Error ? err.message : 'Unknown error';
         setError(msg);
         addOp('error', { message: msg });
       }
     } finally {
-      if (requestId === currentRequestId) {
+      if (requestId === currentRequestId.current) {
         setCompacting(false);
+      }
+    }
+  }
+
+  async function endThreadNow() {
+    if (!threadId || !apiKey.trim() || sending || compacting) return;
+    setError(null);
+
+    const requestId = ++requestIdSeq;
+    currentRequestId.current = requestId;
+
+    try {
+      const ended = await apiFetch<{
+        threadId: string;
+        episodeQueued: boolean;
+      }>(THREADS_BASE, apiKey, `/${threadId}/end`, { method: 'POST' });
+      addOp('thread_ended', ended);
+    } catch (err: unknown) {
+      if (requestId === currentRequestId.current) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        setError(msg);
+        addOp('error', { message: msg });
       }
     }
   }
@@ -398,12 +524,13 @@ export default function PlaygroundPage() {
   const hasThread = !!threadId;
   const canSend = !!apiKey.trim() && !!input.trim() && !sending;
 
-
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Top bar — API key + actions */}
       <div className="border-b border-border px-4 py-2 bg-card flex items-center gap-3 flex-wrap text-sm shrink-0">
-        <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">API Key</span>
+        <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+          API Key
+        </span>
         <div className="flex items-center gap-1 flex-1 min-w-0 max-w-xs">
           <input
             type={showKey ? 'text' : 'password'}
@@ -434,6 +561,13 @@ export default function PlaygroundPage() {
             className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors"
           >
             {compacting ? 'Compacting…' : 'Compact now'}
+          </button>
+          <button
+            onClick={endThreadNow}
+            disabled={!hasThread || !apiKey.trim() || sending || compacting}
+            className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors"
+          >
+            End thread
           </button>
           <button
             onClick={newThread}
@@ -481,7 +615,9 @@ export default function PlaygroundPage() {
                 <div className="text-center space-y-1">
                   <p>No messages yet.</p>
                   <p className="text-xs">
-                    {apiKey.trim() ? 'Type a message to start a thread.' : 'Enter your API key above first.'}
+                    {apiKey.trim()
+                      ? 'Type a message to start a thread.'
+                      : 'Enter your API key above first.'}
                   </p>
                 </div>
               </div>
@@ -494,16 +630,18 @@ export default function PlaygroundPage() {
                   key={msg.sequenceNumber}
                   className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-[78%] flex flex-col group/msg relative ${isUser ? 'items-end' : 'items-start'}`}>
+                  <div
+                    className={`max-w-[78%] flex flex-col group/msg relative ${isUser ? 'items-end' : 'items-start'}`}
+                  >
                     <div
                       className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                         msg.compactedAt
                           ? 'opacity-35 line-through decoration-muted-foreground'
                           : isUser
-                          ? 'bg-primary text-primary-foreground rounded-br-sm'
-                          : msg.role === 'system'
-                          ? 'bg-amber-50 border border-amber-200 text-amber-900 rounded-bl-sm dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200'
-                          : 'bg-muted rounded-bl-sm'
+                            ? 'bg-primary text-primary-foreground rounded-br-sm'
+                            : msg.role === 'system'
+                              ? 'bg-amber-50 border border-amber-200 text-amber-900 rounded-bl-sm dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200'
+                              : 'bg-muted rounded-bl-sm'
                       }`}
                     >
                       {msg.role === 'system' && (
@@ -513,7 +651,10 @@ export default function PlaygroundPage() {
                       )}
                       <span className="whitespace-pre-wrap">{msg.content}</span>
                       {msg.compactedAt && (
-                        <span className="block text-[10px] text-muted-foreground mt-1 no-underline" style={{ textDecoration: 'none' }}>
+                        <span
+                          className="block text-[10px] text-muted-foreground mt-1 no-underline"
+                          style={{ textDecoration: 'none' }}
+                        >
                           compacted
                         </span>
                       )}
@@ -541,7 +682,9 @@ export default function PlaygroundPage() {
               </div>
             )}
 
-            {(messages.length > 0 || sending) && <div ref={messagesEndRef} className="h-6" />}
+            {(messages.length > 0 || sending) && (
+              <div ref={messagesEndRef} className="h-6" />
+            )}
           </div>
 
           {/* Error */}
@@ -592,20 +735,31 @@ export default function PlaygroundPage() {
               <div className="px-4 pb-4 pt-1 bg-card space-y-3">
                 {/* Auto-compact toggle */}
                 <div className="flex items-center justify-between">
-                  <label className="text-xs text-muted-foreground">Auto-compact</label>
+                  <label className="text-xs text-muted-foreground">
+                    Auto-compact
+                  </label>
                   <button
                     onClick={() =>
-                      setSettings((s) => ({ ...s, autoCompactEnabled: !s.autoCompactEnabled }))
+                      setSettings((s) => ({
+                        ...s,
+                        autoCompactEnabled: !s.autoCompactEnabled,
+                      }))
                     }
                     className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
                       settings.autoCompactEnabled ? 'bg-primary' : 'bg-input'
                     }`}
                     disabled={hasThread}
-                    title={hasThread ? 'Cannot change after thread is started' : undefined}
+                    title={
+                      hasThread
+                        ? 'Cannot change after thread is started'
+                        : undefined
+                    }
                   >
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
-                        settings.autoCompactEnabled ? 'translate-x-4' : 'translate-x-0'
+                        settings.autoCompactEnabled
+                          ? 'translate-x-4'
+                          : 'translate-x-0'
                       }`}
                     />
                   </button>
@@ -616,7 +770,9 @@ export default function PlaygroundPage() {
                   <div className="flex items-center justify-between">
                     <label className="text-xs text-muted-foreground">
                       Compact threshold
-                      <span className="block text-[10px] opacity-60">messages before compact</span>
+                      <span className="block text-[10px] opacity-60">
+                        messages before compact
+                      </span>
                     </label>
                     <input
                       type="number"
@@ -626,7 +782,10 @@ export default function PlaygroundPage() {
                       onChange={(e) =>
                         setSettings((s) => ({
                           ...s,
-                          autoCompactThreshold: Math.max(2, parseInt(e.target.value, 10) || 2),
+                          autoCompactThreshold: Math.max(
+                            2,
+                            parseInt(e.target.value, 10) || 2,
+                          ),
                         }))
                       }
                       disabled={hasThread}
@@ -639,7 +798,9 @@ export default function PlaygroundPage() {
                 <div className="flex items-center justify-between">
                   <label className="text-xs text-muted-foreground">
                     Message limit
-                    <span className="block text-[10px] opacity-60">messages fetched for prepare</span>
+                    <span className="block text-[10px] opacity-60">
+                      messages fetched for prepare
+                    </span>
                   </label>
                   <input
                     type="number"
@@ -649,7 +810,10 @@ export default function PlaygroundPage() {
                     onChange={(e) =>
                       setSettings((s) => ({
                         ...s,
-                        messageLimit: Math.max(1, Math.min(100, parseInt(e.target.value, 10) || 20)),
+                        messageLimit: Math.max(
+                          1,
+                          Math.min(100, parseInt(e.target.value, 10) || 20),
+                        ),
                       }))
                     }
                     className="w-20 text-right rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
@@ -658,7 +822,8 @@ export default function PlaygroundPage() {
 
                 {hasThread && (
                   <p className="text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1">
-                    Thread active — start a new thread to change compact settings.
+                    Thread active — start a new thread to change compact
+                    settings.
                   </p>
                 )}
               </div>
@@ -668,7 +833,9 @@ export default function PlaygroundPage() {
           {/* Operations log */}
           <div className="flex-1 overflow-y-auto min-h-0">
             <div className="px-3 py-2 border-b border-border bg-card sticky top-0 z-10">
-              <p className="text-xs font-medium text-muted-foreground">Memory Operations</p>
+              <p className="text-xs font-medium text-muted-foreground">
+                Memory Operations
+              </p>
             </div>
 
             {ops.length === 0 ? (
@@ -678,7 +845,11 @@ export default function PlaygroundPage() {
             ) : (
               <div className="p-2 space-y-1.5">
                 {ops.map((op) => (
-                  <OperationEntry key={op.id} op={op} relTime={relTime(op.ts)} />
+                  <OperationEntry
+                    key={op.id}
+                    op={op}
+                    relTime={relTime(op.ts)}
+                  />
                 ))}
                 <div ref={opsEndRef} />
               </div>
@@ -707,7 +878,9 @@ function OperationEntry({ op, relTime }: { op: Operation; relTime: string }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
             <span className="font-medium text-foreground">{label}</span>
-            <span className="text-[10px] text-muted-foreground font-mono shrink-0">{relTime}</span>
+            <span className="text-[10px] text-muted-foreground font-mono shrink-0">
+              {relTime}
+            </span>
           </div>
           {subtitle && (
             <p className="text-muted-foreground mt-0.5 truncate">{subtitle}</p>
@@ -744,7 +917,8 @@ function opMeta(op: Operation): {
         label: 'Thread created',
         subtitle: `id: ${String(d['threadId']).slice(0, 8)}… · auto-compact: ${d['autoCompact']}`,
         borderColor: 'border-emerald-400 dark:border-emerald-600',
-        bgColor: 'bg-emerald-50/60 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30',
+        bgColor:
+          'bg-emerald-50/60 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30',
         icon: '✦',
       };
     case 'message_added':
@@ -752,7 +926,8 @@ function opMeta(op: Operation): {
         label: `Message added`,
         subtitle: `role: ${d['role']} · seq: ${d['sequenceNumber']}${d['compacted'] ? ' · auto-compacted' : ''}`,
         borderColor: 'border-blue-400 dark:border-blue-600',
-        bgColor: 'bg-blue-50/60 dark:bg-blue-950/20 hover:bg-blue-50 dark:hover:bg-blue-950/30',
+        bgColor:
+          'bg-blue-50/60 dark:bg-blue-950/20 hover:bg-blue-50 dark:hover:bg-blue-950/30',
         icon: '→',
       };
     case 'ai_replied':
@@ -760,23 +935,28 @@ function opMeta(op: Operation): {
         label: 'AI replied',
         subtitle: `seq: ${d['sequenceNumber']} · ${String(d['preview']).slice(0, 55)}${String(d['preview']).length > 55 ? '…' : ''}`,
         borderColor: 'border-teal-400 dark:border-teal-600',
-        bgColor: 'bg-teal-50/60 dark:bg-teal-950/20 hover:bg-teal-50 dark:hover:bg-teal-950/30',
+        bgColor:
+          'bg-teal-50/60 dark:bg-teal-950/20 hover:bg-teal-50 dark:hover:bg-teal-950/30',
         icon: '✦',
       };
     case 'prepare':
       return {
         label: 'Prepare',
-        subtitle: `${d['messageCount']} msgs · compacted: ${d['compacted']}${d['truncated'] ? ' · truncated' : ''}`,
+        subtitle: `${d['messageCount']} msgs · compacted: ${d['compacted']}${d['truncated'] ? ' · truncated' : ''}${d['episodes'] ? ` · ${d['episodes']} episodes` : ''}`,
         borderColor: 'border-violet-400 dark:border-violet-600',
-        bgColor: 'bg-violet-50/60 dark:bg-violet-950/20 hover:bg-violet-50 dark:hover:bg-violet-950/30',
+        bgColor:
+          'bg-violet-50/60 dark:bg-violet-950/20 hover:bg-violet-50 dark:hover:bg-violet-950/30',
         icon: '⟳',
       };
     case 'auto_compacted':
       return {
         label: 'Auto-compacted',
-        subtitle: String(d['summary']).slice(0, 60) + (String(d['summary']).length > 60 ? '…' : ''),
+        subtitle:
+          String(d['summary']).slice(0, 60) +
+          (String(d['summary']).length > 60 ? '…' : ''),
         borderColor: 'border-orange-400 dark:border-orange-600',
-        bgColor: 'bg-orange-50/60 dark:bg-orange-950/20 hover:bg-orange-50 dark:hover:bg-orange-950/30',
+        bgColor:
+          'bg-orange-50/60 dark:bg-orange-950/20 hover:bg-orange-50 dark:hover:bg-orange-950/30',
         icon: '⊙',
       };
     case 'compacted':
@@ -784,15 +964,26 @@ function opMeta(op: Operation): {
         label: 'Manual compact',
         subtitle: `${d['compactedCount']} msgs · seq ${d['fromSequence']}–${d['toSequence']}`,
         borderColor: 'border-orange-400 dark:border-orange-600',
-        bgColor: 'bg-orange-50/60 dark:bg-orange-950/20 hover:bg-orange-50 dark:hover:bg-orange-950/30',
+        bgColor:
+          'bg-orange-50/60 dark:bg-orange-950/20 hover:bg-orange-50 dark:hover:bg-orange-950/30',
         icon: '⊙',
+      };
+    case 'thread_ended':
+      return {
+        label: 'Thread ended',
+        subtitle: `Background episodic extraction triggered`,
+        borderColor: 'border-green-400 dark:border-green-600',
+        bgColor:
+          'bg-green-50/60 dark:bg-green-950/20 hover:bg-green-50 dark:hover:bg-green-950/30',
+        icon: '✓',
       };
     case 'error':
       return {
         label: 'Error',
         subtitle: String(d['message']),
         borderColor: 'border-red-400 dark:border-red-600',
-        bgColor: 'bg-red-50/60 dark:bg-red-950/20 hover:bg-red-50 dark:hover:bg-red-950/30',
+        bgColor:
+          'bg-red-50/60 dark:bg-red-950/20 hover:bg-red-50 dark:hover:bg-red-950/30',
         icon: '✕',
       };
   }
