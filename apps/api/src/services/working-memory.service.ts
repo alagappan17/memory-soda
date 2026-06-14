@@ -1,30 +1,18 @@
 import { eq, and, lt, desc, asc, sql, max, inArray, isNull } from 'drizzle-orm';
-import { generateUserId } from '../lib/generate-user-id.js';
 import { summarizeMessages } from '../lib/gemini.js';
 import { db } from '../db/postgres.js';
 import { threads, messages } from '../db/schema.js';
 import {
-  memoryEvents,
-  type ThreadEndedPayload,
-} from '../events/memory-events.js';
+  getEpisodicContext,
+  getProjectEpisodicSettings,
+} from './episodic-memory.service.js';
+import type {
+  EpisodeContext,
+  ProjectEpisodicSettings,
+} from '@memory-soda/types';
+import { type Thread, rowToThread } from './thread.service.js';
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
-export interface Thread {
-  threadId: string;
-  userId: string;
-  apiKeyId: string;
-  tags: string[];
-  messageCount: number;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
-  updatedAt: string;
-  endedAt: string | null;
-  lastActivityAt: string;
-  autoCompactThreshold: number | null;
-  lastCompactedAt: string | null;
-  lastCompactedSequence: number;
-}
+export type { Thread };
 
 export interface Message {
   messageId: string;
@@ -43,9 +31,11 @@ export interface Message {
 export interface PrepareResult {
   threadId: string;
   messages: { role: string; content: string }[];
+  context: EpisodeContext | null;
   messageCount: number;
   truncated: boolean;
   compacted: boolean;
+  warning?: string;
 }
 
 export interface CompactResult {
@@ -56,25 +46,7 @@ export interface CompactResult {
   toSequence: number;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function rowToThread(row: typeof threads.$inferSelect): Thread {
-  return {
-    threadId: row.id,
-    userId: row.userId,
-    apiKeyId: row.apiKeyId,
-    tags: row.tags ?? [],
-    messageCount: row.messageCount,
-    metadata: row.metadata as Record<string, unknown> | null,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-    endedAt: row.endedAt?.toISOString() ?? null,
-    lastActivityAt: row.lastActivityAt.toISOString(),
-    autoCompactThreshold: row.autoCompactThreshold ?? null,
-    lastCompactedAt: row.lastCompactedAt?.toISOString() ?? null,
-    lastCompactedSequence: row.lastCompactedSequence,
-  };
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function rowToMessage(row: typeof messages.$inferSelect): Message {
   return {
@@ -97,80 +69,14 @@ function isSummaryRow(row: { metadata: unknown }): boolean {
   return meta?.['type'] === 'compact_summary';
 }
 
-// ── Thread operations ────────────────────────────────────────────────────────
+const notSummarySql = sql`(${messages.metadata}->>'type' IS NULL OR ${messages.metadata}->>'type' != 'compact_summary')`;
+const isSummarySql = sql`${messages.metadata}->>'type' = 'compact_summary'`;
 
-export async function createThread(
-  apiKeyId: string,
-  userId: string | null | undefined,
-  tags?: string[],
-  metadata?: Record<string, unknown>,
-  autoCompactThreshold?: number,
-): Promise<Thread> {
-  const [row] = await db
-    .insert(threads)
-    .values({
-      userId: userId || generateUserId(),
-      apiKeyId,
-      tags: tags ?? [],
-      metadata: metadata ?? null,
-      autoCompactThreshold: autoCompactThreshold ?? null,
-    })
-    .returning();
-  return rowToThread(row!);
-}
-
-export async function getThread(
-  threadId: string,
-  apiKeyId: string,
-): Promise<Thread | null> {
-  const [row] = await db
-    .select()
-    .from(threads)
-    .where(and(eq(threads.id, threadId), eq(threads.apiKeyId, apiKeyId)));
-  return row ? rowToThread(row) : null;
-}
-
-export async function updateThreadMetadata(
-  threadId: string,
-  apiKeyId: string,
-  metadata: Record<string, unknown>,
-): Promise<Thread | null> {
-  const [row] = await db
-    .update(threads)
-    .set({
-      metadata: sql`COALESCE(${threads.metadata}, '{}'::jsonb) || ${JSON.stringify(metadata)}::jsonb`,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(threads.id, threadId), eq(threads.apiKeyId, apiKeyId)))
-    .returning();
-  if (!row) return null;
-  return rowToThread(row);
-}
-
-export async function endThread(
-  threadId: string,
-  apiKeyId: string,
-): Promise<Thread | null> {
-  const [row] = await db
-    .update(threads)
-    .set({ endedAt: new Date(), updatedAt: new Date() })
-    .where(and(eq(threads.id, threadId), eq(threads.apiKeyId, apiKeyId)))
-    .returning();
-  if (!row) return null;
-  const payload: ThreadEndedPayload = {
-    threadId,
-    apiKeyId,
-    userId: row.userId,
-  };
-  setImmediate(() => memoryEvents.emit('thread:ended', payload));
-  return rowToThread(row);
-}
-
-// ── Message operations ───────────────────────────────────────────────────────
+// ── Message operations ────────────────────────────────────────────────────────
 
 export async function addMessage(
   threadId: string,
-  apiKeyId: string,
+  projectId: string,
   role: 'user' | 'assistant' | 'system' | 'tool',
   content: string,
   tokenCount?: { input?: number; output?: number; total?: number },
@@ -179,12 +85,13 @@ export async function addMessage(
   metadata?: Record<string, unknown>,
 ): Promise<{ message: Message; thread: Thread; compacted: boolean }> {
   let result!: { message: Message; thread: Thread };
+  let uncompactedCount = 0;
 
   await db.transaction(async (tx) => {
     const [threadRow] = await tx
       .select()
       .from(threads)
-      .where(and(eq(threads.id, threadId), eq(threads.apiKeyId, apiKeyId)))
+      .where(and(eq(threads.id, threadId), eq(threads.projectId, projectId)))
       .for('update');
 
     if (!threadRow) {
@@ -221,6 +128,18 @@ export async function addMessage(
       .where(eq(threads.id, threadId))
       .returning();
 
+    const [cntRow] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.threadId, threadId),
+          isNull(messages.compactedAt),
+          notSummarySql,
+        ),
+      );
+    uncompactedCount = cntRow?.count ?? 0;
+
     result = {
       message: rowToMessage(msgRow!),
       thread: rowToThread(updatedThread!),
@@ -231,10 +150,13 @@ export async function addMessage(
   const { thread } = result;
   if (
     thread.autoCompactThreshold !== null &&
-    thread.messageCount - thread.lastCompactedSequence >=
-      thread.autoCompactThreshold
+    uncompactedCount >= thread.autoCompactThreshold
   ) {
-    const compactResult = await compactThread(threadId, apiKeyId);
+    // Keep the message that triggered compaction verbatim so the next LLM
+    // turn sees the user's actual words, not a paraphrase in the summary.
+    const compactResult = await compactThread(threadId, projectId, {
+      keepLast: 1,
+    });
     if (compactResult) compacted = true;
   }
 
@@ -243,7 +165,7 @@ export async function addMessage(
 
 export async function listMessages(
   threadId: string,
-  apiKeyId: string,
+  projectId: string,
   opts: {
     limit: number;
     before?: number;
@@ -253,7 +175,7 @@ export async function listMessages(
   const [threadRow] = await db
     .select({ id: threads.id })
     .from(threads)
-    .where(and(eq(threads.id, threadId), eq(threads.apiKeyId, apiKeyId)));
+    .where(and(eq(threads.id, threadId), eq(threads.projectId, projectId)));
   if (!threadRow) return null;
 
   const conditions = [eq(messages.threadId, threadId)];
@@ -283,26 +205,26 @@ export async function listMessages(
   };
 }
 
-// ── Compact ──────────────────────────────────────────────────────────────────
+// ── Compact ───────────────────────────────────────────────────────────────────
 
 export async function compactThread(
   threadId: string,
-  apiKeyId: string,
+  projectId: string,
+  opts: { keepLast?: number } = {},
 ): Promise<CompactResult | null | false> {
+  const keepLast = opts.keepLast ?? 0;
   let existingSummaryRow: typeof messages.$inferSelect | undefined;
   let realRows: (typeof messages.$inferSelect)[];
 
-  // Perform initial check and lock within a transaction
   const canCompact = await db.transaction(async (tx) => {
     const [row] = await tx
       .select()
       .from(threads)
-      .where(and(eq(threads.id, threadId), eq(threads.apiKeyId, apiKeyId)))
+      .where(and(eq(threads.id, threadId), eq(threads.projectId, projectId)))
       .for('update');
 
     if (!row) return 'NOT_FOUND';
 
-    // Fetch existing active summary (rolling compaction: at most 1 active summary)
     const [summary] = await tx
       .select()
       .from(messages)
@@ -310,14 +232,13 @@ export async function compactThread(
         and(
           eq(messages.threadId, threadId),
           isNull(messages.compactedAt),
-          sql`${messages.metadata}->>'type' = 'compact_summary'`,
+          isSummarySql,
         ),
       )
       .orderBy(desc(messages.sequenceNumber))
       .limit(1);
     existingSummaryRow = summary;
 
-    // Fetch all un-compacted real messages (not summaries)
     realRows = await tx
       .select()
       .from(messages)
@@ -325,34 +246,52 @@ export async function compactThread(
         and(
           eq(messages.threadId, threadId),
           isNull(messages.compactedAt),
-          sql`(${messages.metadata}->>'type' IS NULL OR ${messages.metadata}->>'type' != 'compact_summary')`,
+          notSummarySql,
         ),
       )
       .orderBy(asc(messages.sequenceNumber));
 
-    return realRows.length > 0 ? 'CAN_COMPACT' : 'NOTHING_TO_COMPACT';
+    return realRows.length > keepLast ? 'CAN_COMPACT' : 'NOTHING_TO_COMPACT';
   });
 
   if (canCompact === 'NOT_FOUND') return null;
   if (canCompact === 'NOTHING_TO_COMPACT') return false;
 
-  const fromSeq = realRows![0]!.sequenceNumber;
-  const toSeq = realRows![realRows!.length - 1]!.sequenceNumber;
-  const realMessageCount = realRows!.length;
+  const targetRows = realRows!.slice(0, realRows!.length - keepLast);
+  const fromSeq = targetRows[0]!.sequenceNumber;
+  const toSeq = targetRows[targetRows.length - 1]!.sequenceNumber;
+  const targetIds = targetRows.map((r) => r.id);
 
   const summaryText = await summarizeMessages(
-    realRows!.map((r) => ({ role: r.role, content: r.content })),
+    targetRows.map((r) => ({ role: r.role, content: r.content })),
     existingSummaryRow?.content ?? null,
   );
 
   if (!summaryText || summaryText.trim().length === 0) {
-    console.error('Compaction failed: summarizeMessages returned empty or blank summary');
+    console.error(
+      'Compaction failed: summarizeMessages returned empty or blank summary',
+    );
     return false;
   }
 
   let summaryMessageId!: string;
 
-  await db.transaction(async (tx) => {
+  const committed = await db.transaction(async (tx) => {
+    await tx
+      .select({ id: threads.id })
+      .from(threads)
+      .where(eq(threads.id, threadId))
+      .for('update');
+
+    // Concurrent compact may have claimed these rows while the LLM call ran.
+    const [staleRow] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(
+        and(inArray(messages.id, targetIds), isNull(messages.compactedAt)),
+      );
+    if ((staleRow?.count ?? 0) !== targetIds.length) return false;
+
     const [seqRow] = await tx
       .select({ maxSeq: max(messages.sequenceNumber) })
       .from(messages)
@@ -371,25 +310,18 @@ export async function compactThread(
         latencyMs: null,
         metadata: {
           type: 'compact_summary',
-          compactedRange: { fromSeq, toSeq, count: realMessageCount },
+          compactedRange: { fromSeq, toSeq, count: targetRows.length },
         },
       })
       .returning({ id: messages.id });
 
     summaryMessageId = summaryRow!.id;
 
-    // Soft-delete real messages
     await tx
       .update(messages)
       .set({ compactedAt: new Date() })
-      .where(
-        inArray(
-          messages.id,
-          realRows!.map((r) => r.id),
-        ),
-      );
+      .where(inArray(messages.id, targetIds));
 
-    // Soft-delete old summary if it existed (rolling: only 1 active summary)
     if (existingSummaryRow) {
       await tx
         .update(messages)
@@ -405,93 +337,135 @@ export async function compactThread(
         updatedAt: new Date(),
       })
       .where(eq(threads.id, threadId));
+
+    return true;
   });
+
+  if (!committed) return false;
 
   return {
     threadId,
     summaryMessageId,
-    compactedCount: realMessageCount,
+    compactedCount: targetRows.length,
     fromSequence: fromSeq,
     toSequence: toSeq,
   };
 }
 
-// ── Prepare ──────────────────────────────────────────────────────────────────
+// ── Prepare ───────────────────────────────────────────────────────────────────
 
 export async function prepareThread(
   threadId: string,
-  apiKeyId: string,
+  projectId: string,
   messageLimit: number,
+  query?: string,
 ): Promise<PrepareResult | null> {
   const [threadRow] = await db
-    .select({ id: threads.id })
+    .select({
+      id: threads.id,
+      userId: threads.userId,
+      episodicSettings: threads.episodicSettings,
+      autoCompactThreshold: threads.autoCompactThreshold,
+    })
     .from(threads)
-    .where(and(eq(threads.id, threadId), eq(threads.apiKeyId, apiKeyId)));
+    .where(and(eq(threads.id, threadId), eq(threads.projectId, projectId)));
   if (!threadRow) return null;
 
-  // Active summaries (not compacted, type = compact_summary)
-  const summaryRows = await db
-    .select({ role: messages.role, content: messages.content })
-    .from(messages)
-    .where(
-      and(
-        eq(messages.threadId, threadId),
-        isNull(messages.compactedAt),
-        sql`${messages.metadata}->>'type' = 'compact_summary'`,
-      ),
-    )
-    .orderBy(asc(messages.sequenceNumber));
+  // The active compact summary is always included first and never counts
+  // against messageLimit — shrinking the limit can't drop compacted context.
+  const fetchMessages = async () => {
+    const summaryRows = await db
+      .select({ role: messages.role, content: messages.content })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.threadId, threadId),
+          isNull(messages.compactedAt),
+          isSummarySql,
+        ),
+      )
+      .orderBy(asc(messages.sequenceNumber));
 
-  // Count of active real messages (not compacted, not summaries)
-  const [totalRow] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(messages)
-    .where(
-      and(
-        eq(messages.threadId, threadId),
-        isNull(messages.compactedAt),
-        sql`(${messages.metadata}->>'type' IS NULL OR ${messages.metadata}->>'type' != 'compact_summary')`,
-      ),
-    );
-  const realCount = totalRow?.count ?? 0;
+    const [totalRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.threadId, threadId),
+          isNull(messages.compactedAt),
+          notSummarySql,
+        ),
+      );
+    const realCount = totalRow?.count ?? 0;
 
-  // Last N active real messages
-  const realRows = await db
-    .select({ role: messages.role, content: messages.content })
-    .from(messages)
-    .where(
-      and(
-        eq(messages.threadId, threadId),
-        isNull(messages.compactedAt),
-        sql`(${messages.metadata}->>'type' IS NULL OR ${messages.metadata}->>'type' != 'compact_summary')`,
-      ),
-    )
-    .orderBy(desc(messages.sequenceNumber))
-    .limit(messageLimit);
+    const realRows = await db
+      .select({ role: messages.role, content: messages.content })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.threadId, threadId),
+          isNull(messages.compactedAt),
+          notSummarySql,
+        ),
+      )
+      .orderBy(desc(messages.sequenceNumber))
+      .limit(messageLimit);
 
-  realRows.reverse();
+    realRows.reverse();
+    return { summaryRows, realRows, realCount };
+  };
 
-  const result: PrepareResult = {
+  const fetchContext = async (): Promise<EpisodeContext | null> => {
+    try {
+      const settings =
+        (threadRow.episodicSettings as ProjectEpisodicSettings | null) ??
+        (await getProjectEpisodicSettings(projectId));
+      if (!settings.enabled) return null;
+      return await getEpisodicContext(
+        threadRow.userId,
+        projectId,
+        query,
+        settings.contextEpisodes,
+        settings.similarityWeight,
+        settings.recencyWeight,
+      );
+    } catch {
+      return null;
+    }
+  };
+
+  const [{ summaryRows, realRows, realCount }, context] = await Promise.all([
+    fetchMessages(),
+    fetchContext(),
+  ]);
+
+  const threshold = threadRow.autoCompactThreshold ?? null;
+  const warning =
+    threshold !== null && messageLimit < threshold
+      ? `messageLimit (${messageLimit}) is less than autoCompactThreshold (${threshold}). Messages between the compact summary and the retrieved tail may be missing. Set messageLimit >= autoCompactThreshold to ensure full context.`
+      : undefined;
+
+  return {
     threadId,
     messages: [...summaryRows, ...realRows],
+    context,
     messageCount: realCount,
     truncated: realCount > messageLimit,
     compacted: summaryRows.length > 0,
+    warning,
   };
-
-  return result;
 }
 
-// ── Stats ────────────────────────────────────────────────────────────────────
+// ── Stats ─────────────────────────────────────────────────────────────────────
 
 export async function getThreadStats(
   threadId: string,
-  apiKeyId: string,
+  projectId: string,
 ): Promise<object | null> {
   const [threadRow] = await db
     .select()
     .from(threads)
-    .where(and(eq(threads.id, threadId), eq(threads.apiKeyId, apiKeyId)));
+    .where(and(eq(threads.id, threadId), eq(threads.projectId, projectId)));
   if (!threadRow) return null;
 
   const allMessages = await db
@@ -500,7 +474,6 @@ export async function getThreadStats(
     .where(and(eq(messages.threadId, threadId), isNull(messages.compactedAt)))
     .orderBy(asc(messages.sequenceNumber));
 
-  // Token usage
   let tokenUsage: {
     totalInput: number;
     totalOutput: number;
@@ -533,7 +506,6 @@ export async function getThreadStats(
     };
   }
 
-  // Session duration (based on real messages only)
   const realMessages = allMessages.filter((m) => !isSummaryRow(m));
   let sessionDuration: { ms: number; seconds: number } | null = null;
   if (realMessages.length >= 2) {
