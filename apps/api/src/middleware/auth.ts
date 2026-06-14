@@ -6,12 +6,16 @@ declare global {
   namespace Express {
     interface Request {
       apiKey?: ApiKeyPayload;
-      projectId?: string | null;
+      projectId?: string;
     }
   }
 }
 
-export async function requireApiKey(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function requireApiKey(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Missing or invalid Authorization header' });
@@ -33,11 +37,16 @@ export async function requireApiKey(req: Request, res: Response, next: NextFunct
       return;
     }
 
+    if (!row.projectId) {
+      res.status(401).json({ error: 'API key is not linked to a project' });
+      return;
+    }
+
     // Non-blocking last-used update
     touchApiKey(row.id).catch(() => {});
 
-    req.apiKey = { keyId: row.id, name: row.name };
-    req.projectId = row.projectId ?? null;
+    req.apiKey = { keyId: row.id, projectId: row.projectId, name: row.name };
+    req.projectId = row.projectId;
     next();
   } catch (err) {
     console.error('[auth] error checking API key:', err);
