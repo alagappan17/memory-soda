@@ -1,20 +1,6 @@
-// ── Thread ────────────────────────────────────────────────────────────────────
+import type { EpisodeContext } from './episodic-memory.js';
 
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool';
-
-export interface WMThread {
-  threadId: string;
-  userId: string;
-  tags: string[];
-  messageCount: number;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
-  lastActivityAt: string;
-  endedAt: string | null;
-  autoCompactThreshold: number | null;
-  lastCompactedAt: string | null;
-  lastCompactedSequence: number;
-}
 
 export interface WMMessageMetadata {
   stopReason?: string;
@@ -43,17 +29,6 @@ export interface WMTokenCount {
 
 // ── Request bodies ────────────────────────────────────────────────────────────
 
-export interface WMCreateThreadRequest {
-  userId?: string;
-  tags?: string[];
-  metadata?: Record<string, unknown>;
-  autoCompactThreshold?: number;
-}
-
-export interface WMPatchThreadRequest {
-  metadata: Record<string, unknown>;
-}
-
 export interface WMAddMessageRequest {
   role: MessageRole;
   content: string;
@@ -71,15 +46,10 @@ export interface WMListMessagesQuery {
 
 export interface WMPrepareRequest {
   messageLimit?: number;
+  query?: string;
 }
 
 // ── Response shapes ───────────────────────────────────────────────────────────
-
-export interface WMCreateThreadResponse {
-  threadId: string;
-  userId: string;
-  createdAt: string;
-}
 
 export interface WMAddMessageResponse {
   messageId: string;
@@ -99,45 +69,10 @@ export interface WMListMessagesResponse {
 export interface WMPrepareResponse {
   threadId: string;
   messages: { role: string; content: string }[];
+  context: EpisodeContext | null;
   messageCount: number;
   truncated: boolean;
   compacted: boolean;
-}
-
-export interface WMCompactSummaryMetadata {
-  type: 'compact_summary';
-  compactedRange: {
-    fromSeq: number;
-    toSeq: number;
-    count: number;
-  };
-}
-
-export interface WMCompactResult {
-  threadId: string;
-  summaryMessageId: string;
-  compactedCount: number;
-  fromSequence: number;
-  toSequence: number;
-}
-
-export interface WMEndThreadResponse {
-  threadId: string;
-  endedAt: string;
-}
-
-export interface WMTokenUsage {
-  totalInput: number;
-  totalOutput: number;
-  totalTokens: number;
-  averagePerMessage: number;
-}
-
-export interface WMThreadStatsResponse {
-  threadId: string;
-  messageCount: number;
-  tokenUsage: WMTokenUsage | null;
-  sessionDuration: { ms: number; seconds: number } | null;
-  createdAt: string;
-  lastActivityAt: string;
+  /** Present when messageLimit < autoCompactThreshold — callers risk a context gap between the compact summary and the retrieved tail. */
+  warning?: string;
 }
