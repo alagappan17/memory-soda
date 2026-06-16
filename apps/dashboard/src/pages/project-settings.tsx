@@ -194,7 +194,7 @@ export default function ProjectSettingsPage() {
                     className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
                     value={settings.episodic.maxRetries}
                     onChange={(e) =>
-                      handleChange('maxRetries', parseInt(e.target.value) || 3)
+                      handleChange('maxRetries', (v => isNaN(v) ? 3 : v)(parseInt(e.target.value)))
                     }
                   />
                 </div>

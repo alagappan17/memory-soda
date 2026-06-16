@@ -8,6 +8,7 @@ import type {
   WMPrepareResponse,
   WMCompactResult,
   WMCreateThreadRequest,
+  WMThreadStatsResponse,
 } from '@memory-soda/types';
 import type { ThreadClient } from './thread.js';
 
@@ -132,7 +133,7 @@ export class WorkingMemoryClient {
    * @param threadId - The thread to query.
    * @returns Aggregated input/output token totals, average per message, and session duration.
    */
-  getThreadStats(threadId: string): Promise<object> {
+  getThreadStats(threadId: string): Promise<WMThreadStatsResponse> {
     return request(
       this.baseUrl,
       this.apiKey,

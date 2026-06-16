@@ -39,7 +39,7 @@ export class ThreadClient {
    *
    * @param threadId - The thread ID returned from {@link create}.
    * @returns Full thread object including settings, message count, and metadata.
-   * @throws If the thread does not exist or was created with a different API key.
+   * @throws If the thread does not exist or belongs to a different project.
    */
   get(threadId: string): Promise<WMThread> {
     return request(this.baseUrl, this.apiKey, `${BASE}/${threadId}`, {

@@ -522,6 +522,7 @@ export default function PlaygroundPage() {
   async function endThreadNow() {
     if (!threadId || !apiKey.trim() || sending || compacting) return;
     setError(null);
+    setSending(true);
 
     const requestId = ++requestIdSeq;
     currentRequestId.current = requestId;
@@ -539,11 +540,15 @@ export default function PlaygroundPage() {
         setError(msg);
         addOp('error', { message: msg });
       }
+    } finally {
+      if (requestId === currentRequestId.current) {
+        setSending(false);
+      }
     }
   }
 
   async function fetchEpisodes() {
-    if (!apiKey.trim() || !userId.trim()) return;
+    if (!apiKey.trim() || !userId.trim() || loadingEpisodes) return;
     setLoadingEpisodes(true);
     try {
       const episodesT0 = Date.now();

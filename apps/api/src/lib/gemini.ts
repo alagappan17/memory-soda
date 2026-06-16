@@ -202,6 +202,7 @@ export async function embedText(text: string): Promise<number[]> {
     },
     {
       headers: { 'x-goog-api-key': apiKey },
+      timeout: GEMINI_TIMEOUT_MS,
     },
   );
   return res.data.embedding.values;
