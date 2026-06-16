@@ -36,8 +36,12 @@ export const memories = pgTable(
     source: text('source').notNull().default('USER'),
     metadata: jsonb('metadata').notNull().default({}),
     embedding: vector('embedding', { dimensions: 3072 }),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [index('memories_user_id_idx').on(t.userId)],
 );
@@ -234,3 +238,19 @@ export const episodesRelations = relations(episodes, ({ one }) => ({
     references: [threads.id],
   }),
 }));
+
+export const scheduledEpisodes = pgTable(
+  'scheduled_episodes',
+  {
+    threadId: uuid('thread_id')
+      .primaryKey()
+      .references(() => threads.id, { onDelete: 'cascade' }),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    fireAt: timestamp('fire_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [index('scheduled_episodes_fire_at_idx').on(t.fireAt)],
+);
+
+export type ScheduledEpisodeRow = typeof scheduledEpisodes.$inferSelect;
