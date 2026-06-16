@@ -1,5 +1,7 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
+import axios from 'axios';
+import type { EpisodeContext } from '@memory-soda/types';
 
 const apiKey = process.env['GOOGLE_GENERATIVE_AI_API_KEY'];
 if (!apiKey || apiKey.trim().length === 0) {
@@ -7,8 +9,6 @@ if (!apiKey || apiKey.trim().length === 0) {
     'GOOGLE_GENERATIVE_AI_API_KEY environment variable is required but not set',
   );
 }
-const geminiApiKey: string = apiKey;
-
 const google = createGoogleGenerativeAI({
   apiKey,
 });
@@ -44,8 +44,26 @@ async function generateTextWithTimeout<T>(
 export async function generateReply(
   contextMessages: { role: string; content: string }[],
   systemPrompt?: string,
+  episodicContext?: EpisodeContext | null,
 ): Promise<string> {
   const systemParts: string[] = [];
+
+  // Inject past episode memories as the first system block so the AI has
+  // cross-thread context (e.g. from a previous chat session).
+  if (episodicContext?.episodes && episodicContext.episodes.length > 0) {
+    const episodeLines = episodicContext.episodes
+      .map((ep, i) => {
+        const learnings =
+          ep.keyLearnings && ep.keyLearnings.length > 0
+            ? `\n  Key learnings:\n${ep.keyLearnings.map((l) => `    - ${l}`).join('\n')}`
+            : '';
+        return `Episode ${i + 1} (ended ${ep.endedAt ? new Date(ep.endedAt).toLocaleDateString() : 'unknown'}):\n  ${ep.summary}${learnings}`;
+      })
+      .join('\n\n');
+    systemParts.push(
+      `Past conversation memories (${episodicContext.episodeCount} total episode${episodicContext.episodeCount !== 1 ? 's' : ''} for this user):\n\n${episodeLines}`,
+    );
+  }
 
   const compactSummaries = contextMessages
     .filter((m) => m.role === 'system')
@@ -118,20 +136,12 @@ function buildTranscript(
   messages: { role: string; content: string }[],
   maxMessages: number,
 ): string {
-  let lines: string[];
-  if (messages.length > maxMessages) {
-    const head = messages.slice(0, 20);
-    const tail = messages.slice(-(maxMessages - 20));
-    const skipped = messages.length - maxMessages;
-    lines = [
-      ...head.map((m) => `${m.role}: ${m.content}`),
-      `[... ${skipped} messages omitted ...]`,
-      ...tail.map((m) => `${m.role}: ${m.content}`),
-    ];
-  } else {
-    lines = messages.map((m) => `${m.role}: ${m.content}`);
-  }
-  return lines.join('\n');
+  const fmt = (m: { role: string; content: string }) => `${m.role}: ${m.content}`;
+  if (messages.length <= maxMessages) return messages.map(fmt).join('\n');
+  const head = messages.slice(0, 20);
+  const tail = messages.slice(-(maxMessages - 20));
+  const skipped = messages.length - maxMessages;
+  return [...head.map(fmt), `[... ${skipped} messages omitted ...]`, ...tail.map(fmt)].join('\n');
 }
 
 function parseExtractionResponse(text: string): ExtractionResult {
@@ -183,25 +193,16 @@ export async function extractEpisode(
 }
 
 export async function embedText(text: string): Promise<number[]> {
-  const res = await fetch(
+  const res = await axios.post<{ embedding: { values: number[] } }>(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent',
     {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': geminiApiKey,
-      },
-      body: JSON.stringify({
-        model: 'models/gemini-embedding-001',
-        content: { parts: [{ text }] },
-        outputDimensionality: 768,
-      }),
+      model: 'models/gemini-embedding-001',
+      content: { parts: [{ text }] },
+      outputDimensionality: 768,
+    },
+    {
+      headers: { 'x-goog-api-key': apiKey },
     },
   );
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Embedding API error ${res.status}: ${body}`);
-  }
-  const data = (await res.json()) as { embedding: { values: number[] } };
-  return data.embedding.values;
+  return res.data.embedding.values;
 }
