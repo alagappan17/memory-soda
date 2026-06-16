@@ -1,8 +1,8 @@
 export interface ProjectEpisodicSettings {
   enabled: boolean;
+  autoEpisodeIntervalMs: number | null;
   maxMessages: number;
   maxRetries: number;
-  retryDelayMs: number;
   contextEpisodes: number;
   similarityWeight: number;
   recencyWeight: number;
@@ -10,9 +10,9 @@ export interface ProjectEpisodicSettings {
 
 export const DEFAULT_EPISODIC_SETTINGS: ProjectEpisodicSettings = {
   enabled: true,
+  autoEpisodeIntervalMs: 10_000,
   maxMessages: 100,
   maxRetries: 3,
-  retryDelayMs: 300000,
   contextEpisodes: 3,
   similarityWeight: 0.7,
   recencyWeight: 0.3,
