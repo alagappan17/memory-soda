@@ -1,6 +1,6 @@
 import { db } from '../db/postgres.js';
 import { projects } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type {
   Project,
   ProjectSettings,
@@ -84,26 +84,18 @@ export async function updateProjectSettings(
   id: string,
   settings: ProjectSettingsPatch,
 ): Promise<ProjectSettings> {
-  const [row] = await db
-    .select({ settings: projects.settings })
-    .from(projects)
-    .where(eq(projects.id, id));
-  if (!row) throw new Error('Project not found');
-
-  const current = (row.settings as ProjectSettingsPatch | null) ?? {};
-
-  const mergedRaw = {
-    ...current,
-    episodic: {
-      ...(current.episodic ?? {}),
-      ...(settings.episodic ?? {}),
-    },
-  };
-
+  const episodicPatch = JSON.stringify(settings.episodic ?? {});
   const [updated] = await db
     .update(projects)
-    .set({ settings: mergedRaw })
+    .set({
+      settings: sql`jsonb_set(
+        COALESCE(${projects.settings}, '{}'::jsonb),
+        '{episodic}',
+        COALESCE(${projects.settings}->'episodic', '{}'::jsonb) || ${episodicPatch}::jsonb
+      )`,
+    })
     .where(eq(projects.id, id))
     .returning();
-  return mergeWithDefaults(updated!.settings as ProjectSettingsPatch);
+  if (!updated) throw new Error('Project not found');
+  return mergeWithDefaults(updated.settings as ProjectSettingsPatch);
 }

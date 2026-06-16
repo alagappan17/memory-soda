@@ -1,7 +1,7 @@
 import { eq, and, lt, desc, asc, sql, max, inArray, isNull } from 'drizzle-orm';
 import { summarizeMessages } from '../lib/gemini.js';
 import { db } from '../db/postgres.js';
-import { threads, messages } from '../db/schema.js';
+import { threads, messages, scheduledEpisodes } from '../db/schema.js';
 import {
   getEpisodicContext,
   getProjectEpisodicSettings,
@@ -158,6 +158,20 @@ export async function addMessage(
       keepLast: 1,
     });
     if (compactResult) compacted = true;
+  }
+
+  const rawSettings = thread.episodicSettings;
+  const resolvedSettings = rawSettings ?? await getProjectEpisodicSettings(projectId);
+
+  if (resolvedSettings.enabled && resolvedSettings.autoEpisodeIntervalMs !== null) {
+    const fireAt = new Date(Date.now() + resolvedSettings.autoEpisodeIntervalMs);
+    await db
+      .insert(scheduledEpisodes)
+      .values({ threadId, projectId, fireAt })
+      .onConflictDoUpdate({
+        target: scheduledEpisodes.threadId,
+        set: { fireAt, projectId },
+      });
   }
 
   return { ...result, compacted };
@@ -374,43 +388,35 @@ export async function prepareThread(
   // The active compact summary is always included first and never counts
   // against messageLimit — shrinking the limit can't drop compacted context.
   const fetchMessages = async () => {
-    const summaryRows = await db
-      .select({ role: messages.role, content: messages.content })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.threadId, threadId),
-          isNull(messages.compactedAt),
-          isSummarySql,
-        ),
-      )
-      .orderBy(asc(messages.sequenceNumber));
-
-    const [totalRow] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.threadId, threadId),
-          isNull(messages.compactedAt),
-          notSummarySql,
-        ),
-      );
+    const realMsgWhere = and(
+      eq(messages.threadId, threadId),
+      isNull(messages.compactedAt),
+      notSummarySql,
+    );
+    const [summaryRows, [totalRow], realRows] = await Promise.all([
+      db
+        .select({ role: messages.role, content: messages.content })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.threadId, threadId),
+            isNull(messages.compactedAt),
+            isSummarySql,
+          ),
+        )
+        .orderBy(asc(messages.sequenceNumber)),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(messages)
+        .where(realMsgWhere),
+      db
+        .select({ role: messages.role, content: messages.content })
+        .from(messages)
+        .where(realMsgWhere)
+        .orderBy(desc(messages.sequenceNumber))
+        .limit(messageLimit),
+    ]);
     const realCount = totalRow?.count ?? 0;
-
-    const realRows = await db
-      .select({ role: messages.role, content: messages.content })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.threadId, threadId),
-          isNull(messages.compactedAt),
-          notSummarySql,
-        ),
-      )
-      .orderBy(desc(messages.sequenceNumber))
-      .limit(messageLimit);
-
     realRows.reverse();
     return { summaryRows, realRows, realCount };
   };

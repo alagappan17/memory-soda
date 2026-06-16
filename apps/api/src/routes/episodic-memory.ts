@@ -34,7 +34,7 @@ router.get(
   validateQuery(listQuerySchema),
   async (req, res) => {
     try {
-      const { limit, before, status } = listQuerySchema.parse(req.query);
+      const { limit, before, status } = req.query as unknown as z.infer<typeof listQuerySchema>;
       const result = await listUserEpisodes(req.params.userId, req.projectId!, {
         limit,
         before,
@@ -57,7 +57,7 @@ router.get(
   validateQuery(searchQuerySchema),
   async (req, res) => {
     try {
-      const { q, limit } = searchQuerySchema.parse(req.query);
+      const { q, limit } = req.query as unknown as z.infer<typeof searchQuerySchema>;
       const episodes = await searchEpisodes(
         req.params.userId,
         req.projectId!,

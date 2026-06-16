@@ -17,9 +17,9 @@ const router = Router();
 
 const episodicOverrideSchema = z.object({
   enabled: z.boolean().optional(),
+  autoEpisodeIntervalMs: z.number().min(1_000).nullable().optional(),
   maxMessages: z.number().int().min(1).max(1000).optional(),
   maxRetries: z.number().int().min(0).max(10).optional(),
-  retryDelayMs: z.number().int().min(0).optional(),
   contextEpisodes: z.number().int().min(1).max(20).optional(),
   similarityWeight: z.number().min(0).max(1).optional(),
   recencyWeight: z.number().min(0).max(1).optional(),
@@ -81,6 +81,7 @@ router.post('/', validateBody(createThreadSchema), async (req, res) => {
     );
     res.status(201).json({
       threadId: thread.threadId,
+      projectId: thread.projectId,
       userId: thread.userId,
       createdAt: thread.createdAt,
       settings: threadSettings(thread),
