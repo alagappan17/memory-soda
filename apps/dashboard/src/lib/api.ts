@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { ProjectSettings } from '@memory-soda/types';
+import type { ProjectSettings, ProjectSettingsPatch } from '@memory-soda/types';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3004',
@@ -15,10 +15,9 @@ export async function getProjectSettings(
   return res.data;
 }
 
-// using any for DeepPartial or we can just use Partial<ProjectSettings>
 export async function updateProjectSettings(
   projectId: string,
-  patch: any,
+  patch: ProjectSettingsPatch,
 ): Promise<{ settings: ProjectSettings }> {
   const res = await api.patch(
     `/dashboard/projects/${projectId}/settings`,

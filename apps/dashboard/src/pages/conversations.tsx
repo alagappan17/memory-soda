@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
 import { useProject } from '../providers/project-provider';
+import api from '../lib/api';
 import {
   RefreshCw,
   Copy,
@@ -14,10 +14,6 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Separator } from '../components/ui/separator';
-
-const api = axios.create({
-  baseURL: import.meta.env['VITE_API_URL'] ?? 'http://localhost:3004',
-});
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
