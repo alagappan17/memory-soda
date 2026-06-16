@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { getProjectSettings, updateProjectSettings } from '@/lib/api';
 import type { ProjectSettings } from '@memory-soda/types';
@@ -6,11 +6,16 @@ import { useProject } from '@/providers/project-provider';
 import { Check, AlertCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
+function settingsEqual(a: ProjectSettings, b: ProjectSettings): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 export default function ProjectSettingsPage() {
   const { id } = useParams<{ id: string }>();
   const { projects } = useProject();
   const project = projects.find((p) => p.id === id);
 
+  const [savedSettings, setSavedSettings] = useState<ProjectSettings | null>(null);
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -18,37 +23,34 @@ export default function ProjectSettingsPage() {
     visible: boolean;
     message: string;
     type: 'success' | 'error';
-  }>({
-    visible: false,
-    message: '',
-    type: 'success',
-  });
+  }>({ visible: false, message: '', type: 'success' });
 
   function showToast(message: string, type: 'success' | 'error') {
     setToast({ visible: true, message, type });
-    setTimeout(() => {
-      setToast((prev) => ({ ...prev, visible: false }));
-    }, 3000);
+    setTimeout(() => setToast((prev) => ({ ...prev, visible: false })), 3000);
   }
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     getProjectSettings(id)
-      .then((res) => setSettings(res.settings))
+      .then((res) => {
+        setSavedSettings(res.settings);
+        setSettings(res.settings);
+      })
       .catch(() => showToast('Failed to load settings', 'error'))
       .finally(() => setLoading(false));
   }, [id]);
 
+  const isDirty = settings && savedSettings ? !settingsEqual(settings, savedSettings) : false;
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!id || !settings) return;
-
     setSaving(true);
     try {
-      const res = await updateProjectSettings(id, {
-        episodic: settings.episodic,
-      });
+      const res = await updateProjectSettings(id, { episodic: settings.episodic });
+      setSavedSettings(res.settings);
       setSettings(res.settings);
       showToast('Settings saved successfully', 'success');
     } catch {
@@ -58,19 +60,20 @@ export default function ProjectSettingsPage() {
     }
   }
 
-  const handleChange = (
-    field: keyof ProjectSettings['episodic'],
-    value: any,
-  ) => {
-    if (!settings) return;
-    setSettings({
-      ...settings,
-      episodic: {
-        ...settings.episodic,
-        [field]: value,
-      },
-    });
-  };
+  const handleChange = useCallback(
+    (field: keyof ProjectSettings['episodic'], value: unknown) => {
+      setSettings((prev) =>
+        prev
+          ? { ...prev, episodic: { ...prev.episodic, [field]: value } }
+          : prev,
+      );
+    },
+    [],
+  );
+
+  const episodicEnabled = settings?.episodic.enabled ?? false;
+  const fieldClass = (base: string) =>
+    `${base}${!episodicEnabled ? ' opacity-40 pointer-events-none' : ''}`;
 
   if (!project) {
     return (
@@ -85,11 +88,20 @@ export default function ProjectSettingsPage() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 w-full">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold">Project Defaults</h1>
+        <h1 className="text-2xl font-semibold">Project Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Default settings for <strong>{project.name}</strong>. These apply to
-          all new threads unless overridden at thread creation. Existing threads
-          are not affected.
+          Default settings for <strong>{project.name}</strong>. These are applied
+          to all new threads automatically. You can edit them here at any time —
+          changes apply to threads created after saving. To override per thread,
+          pass{' '}
+          <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
+            config.episodic
+          </code>{' '}
+          when calling{' '}
+          <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
+            threads.create()
+          </code>{' '}
+          in the SDK.
         </p>
       </div>
 
@@ -98,19 +110,12 @@ export default function ProjectSettingsPage() {
           Loading settings...
         </div>
       ) : settings ? (
-        <form
-          onSubmit={handleSave}
-          className="space-y-8 bg-card border border-border p-6 rounded-lg shadow-sm"
-        >
+        <form onSubmit={handleSave} className="space-y-8">
           <div>
             <h2 className="text-lg font-medium mb-1">Episodic Memory</h2>
-            <p className="text-xs text-muted-foreground mb-4">
-              Override per thread via the{' '}
-              <code className="font-mono bg-muted px-1 py-0.5 rounded">
-                config.episodic
-              </code>{' '}
-              field when creating a thread. If not provided, these defaults are
-              used.
+            <p className="text-xs text-muted-foreground mb-6">
+              Controls how memories are extracted and retrieved for threads in
+              this project.
             </p>
 
             <div className="space-y-6">
@@ -120,21 +125,25 @@ export default function ProjectSettingsPage() {
                     Enable Episodic Memory
                   </label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Extract and embed memories when end() is called on a thread.
+                    Extract and embed memories when{' '}
+                    <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
+                      end()
+                    </code>{' '}
+                    is called on a thread.
                   </p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
                     className="sr-only peer"
-                    checked={settings.episodic.enabled}
+                    checked={episodicEnabled}
                     onChange={(e) => handleChange('enabled', e.target.checked)}
                   />
                   <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
+              <div className={fieldClass('grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border transition-opacity duration-200')}>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Max Messages</label>
                   <p className="text-xs text-muted-foreground">
@@ -147,21 +156,19 @@ export default function ProjectSettingsPage() {
                     className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
                     value={settings.episodic.maxMessages}
                     onChange={(e) =>
-                      handleChange(
-                        'maxMessages',
-                        parseInt(e.target.value) || 100,
-                      )
+                      handleChange('maxMessages', parseInt(e.target.value) || 100)
                     }
-                    disabled={!settings.episodic.enabled}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Context Episodes
-                  </label>
+                  <label className="text-sm font-medium">Context Episodes</label>
                   <p className="text-xs text-muted-foreground">
-                    Number of relevant episodes to retrieve during prepare().
+                    Number of relevant episodes to retrieve during{' '}
+                    <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
+                      prepare()
+                    </code>
+                    .
                   </p>
                   <input
                     type="number"
@@ -170,12 +177,8 @@ export default function ProjectSettingsPage() {
                     className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
                     value={settings.episodic.contextEpisodes}
                     onChange={(e) =>
-                      handleChange(
-                        'contextEpisodes',
-                        parseInt(e.target.value) || 3,
-                      )
+                      handleChange('contextEpisodes', parseInt(e.target.value) || 3)
                     }
-                    disabled={!settings.episodic.enabled}
                   />
                 </div>
 
@@ -193,38 +196,38 @@ export default function ProjectSettingsPage() {
                     onChange={(e) =>
                       handleChange('maxRetries', parseInt(e.target.value) || 3)
                     }
-                    disabled={!settings.episodic.enabled}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Retry Delay (Minutes)
-                  </label>
+                  <label className="text-sm font-medium">Auto-Episode Interval (min)</label>
                   <p className="text-xs text-muted-foreground">
-                    Wait time before retrying a failed extraction.
+                    Minutes of inactivity before an episode is auto-generated. Leave empty to disable.
                   </p>
                   <input
                     type="number"
                     min={1}
+                    placeholder="off"
                     className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={Math.floor(settings.episodic.retryDelayMs / 60000)}
-                    onChange={(e) =>
-                      handleChange(
-                        'retryDelayMs',
-                        (parseInt(e.target.value) || 5) * 60000,
-                      )
+                    value={
+                      settings.episodic.autoEpisodeIntervalMs !== null
+                        ? Math.round((settings.episodic.autoEpisodeIntervalMs ?? 1_800_000) / 60_000)
+                        : ''
                     }
-                    disabled={!settings.episodic.enabled}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handleChange(
+                        'autoEpisodeIntervalMs',
+                        val === '' ? null : Math.max(1, parseInt(val) || 1) * 60_000,
+                      );
+                    }}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Similarity Weight
-                  </label>
+<div className="space-y-2">
+                  <label className="text-sm font-medium">Similarity Weight</label>
                   <p className="text-xs text-muted-foreground">
-                    Relevance weighting for semantic similarity (0.0 to 1.0).
+                    Relevance weighting for semantic similarity (0.0 – 1.0).
                   </p>
                   <input
                     type="number"
@@ -236,26 +239,22 @@ export default function ProjectSettingsPage() {
                     onChange={(e) => {
                       const val = parseFloat(e.target.value) || 0;
                       handleChange('similarityWeight', val);
-                      handleChange(
-                        'recencyWeight',
-                        Number((1 - val).toFixed(1)),
-                      );
+                      handleChange('recencyWeight', Number((1 - val).toFixed(1)));
                     }}
-                    disabled={!settings.episodic.enabled}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Recency Weight</label>
                   <p className="text-xs text-muted-foreground">
-                    Relevance weighting for recency (0.0 to 1.0).
+                    Relevance weighting for recency (0.0 – 1.0). Auto-computed.
                   </p>
                   <input
                     type="number"
                     step="0.1"
                     min={0}
                     max={1}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
+                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none opacity-40"
                     value={settings.episodic.recencyWeight}
                     disabled
                   />
@@ -267,8 +266,8 @@ export default function ProjectSettingsPage() {
           <div className="flex justify-end pt-4 border-t border-border">
             <button
               type="submit"
-              disabled={saving}
-              className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
+              disabled={saving || !isDirty}
+              className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
             >
               {saving ? 'Saving...' : 'Save Settings'}
             </button>
@@ -276,7 +275,6 @@ export default function ProjectSettingsPage() {
         </form>
       ) : null}
 
-      {/* Toast Notification */}
       {toast.visible &&
         createPortal(
           <div className="fixed top-6 right-6 z-[9999] flex items-center gap-3.5 px-4 py-3 rounded-xl border border-border bg-card text-card-foreground shadow-lg animate-in fade-in-0 slide-in-from-top-5 duration-300 min-w-[300px] select-none font-sans">

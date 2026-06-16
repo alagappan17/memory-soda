@@ -175,7 +175,7 @@ export default function AppSidebar() {
               {selectedProject && (
                 <NavItem
                   to={`/projects/${selectedProject.id}/settings`}
-                  label="Project Defaults"
+                  label="Project Settings"
                   icon={Settings}
                 />
               )}
