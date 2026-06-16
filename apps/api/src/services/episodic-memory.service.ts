@@ -1,6 +1,6 @@
 import { eq, and, desc, lt, count, sql, isNull, inArray, isNotNull, ne } from 'drizzle-orm';
 import { db } from '../db/postgres.js';
-import { episodes, messages, projects } from '../db/schema.js';
+import { episodes, messages, projects, threads } from '../db/schema.js';
 import type { EpisodeRow } from '../db/schema.js';
 import { extractEpisode, embedText } from '../lib/gemini.js';
 import type {
@@ -9,6 +9,8 @@ import type {
   EpisodeContextItem,
   EpisodeWithRelevance,
   ProjectEpisodicSettings,
+  ProjectSettings,
+  ProjectSettingsPatch,
 } from '@memory-soda/types';
 import { mergeWithDefaults } from '../lib/project-settings.js';
 
@@ -22,10 +24,7 @@ export async function getProjectEpisodicSettings(
     .from(projects)
     .where(eq(projects.id, projectId));
 
-  const raw = row?.settings as
-    | import('@memory-soda/types').ProjectSettings
-    | null
-    | undefined;
+  const raw = row?.settings as ProjectSettings | null | undefined;
   return mergeWithDefaults(raw).episodic;
 }
 
@@ -119,13 +118,14 @@ export async function createPendingEpisode(payload: {
 // ── Process ───────────────────────────────────────────────────────────────────
 
 export async function processEpisode(episodeId: string): Promise<void> {
+  const now = new Date();
   // Atomic claim: only one worker can move pending/failed → processing.
   const [episode] = await db
     .update(episodes)
     .set({
       status: 'processing',
-      processingStartedAt: new Date(),
-      updatedAt: new Date(),
+      processingStartedAt: now,
+      updatedAt: now,
     })
     .where(
       and(
@@ -158,8 +158,8 @@ export async function processEpisode(episodeId: string): Promise<void> {
         status: 'completed',
         summary: 'No messages in this thread.',
         keyLearnings: [],
-        processingCompletedAt: new Date(),
-        updatedAt: new Date(),
+        processingCompletedAt: now,
+        updatedAt: now,
       })
       .where(eq(episodes.id, episodeId));
     return;
@@ -180,7 +180,7 @@ export async function processEpisode(episodeId: string): Promise<void> {
       .set({
         status: 'failed',
         error: err instanceof Error ? err.message : String(err),
-        updatedAt: new Date(),
+        updatedAt: now,
       })
       .where(eq(episodes.id, episodeId));
     return;
@@ -204,7 +204,7 @@ export async function processEpisode(episodeId: string): Promise<void> {
         summary,
         keyLearnings,
         error: `Embedding failed: ${embeddingError}`,
-        updatedAt: new Date(),
+        updatedAt: now,
       })
       .where(eq(episodes.id, episodeId));
     return;
@@ -217,9 +217,9 @@ export async function processEpisode(episodeId: string): Promise<void> {
       summary,
       keyLearnings,
       embedding,
-      processingCompletedAt: new Date(),
+      processingCompletedAt: now,
       error: null,
-      updatedAt: new Date(),
+      updatedAt: now,
     })
     .where(eq(episodes.id, episodeId));
 }
@@ -227,8 +227,6 @@ export async function processEpisode(episodeId: string): Promise<void> {
 // ── Retry job ─────────────────────────────────────────────────────────────────
 
 export async function retryFailedEpisodes(): Promise<void> {
-  const globalDefaults = mergeWithDefaults(null).episodic;
-
   const rows = await db
     .select({
       id: episodes.id,
@@ -236,23 +234,26 @@ export async function retryFailedEpisodes(): Promise<void> {
       retryCount: episodes.retryCount,
     })
     .from(episodes)
-    .where(
-      and(
-        eq(episodes.status, 'failed'),
-        sql`${episodes.retryCount} < ${globalDefaults.maxRetries}`,
-        lt(
-          episodes.updatedAt,
-          sql`now() - interval '${sql.raw(String(globalDefaults.retryDelayMs))} milliseconds'`,
-        ),
-      ),
-    )
+    .where(eq(episodes.status, 'failed'))
     .limit(20);
 
+  const uniqueProjectIds = [...new Set(rows.map((r) => r.projectId))];
+  const projectRows =
+    uniqueProjectIds.length > 0
+      ? await db
+          .select({ id: projects.id, settings: projects.settings })
+          .from(projects)
+          .where(inArray(projects.id, uniqueProjectIds))
+      : [];
+  const settingsMap = new Map(
+    projectRows.map((r) => [
+      r.id,
+      mergeWithDefaults(r.settings as ProjectSettingsPatch | null).episodic,
+    ]),
+  );
+
   for (const row of rows) {
-    // Re-check with project-specific settings
-    const settings = await getProjectEpisodicSettings(row.projectId).catch(
-      () => globalDefaults,
-    );
+    const settings = settingsMap.get(row.projectId) ?? mergeWithDefaults(null).episodic;
     if (row.retryCount >= settings.maxRetries) continue;
 
     // Atomic: only bump retryCount if no other instance already did.
@@ -289,6 +290,21 @@ export async function getEpisodicContext(
   similarityWeight: number,
   recencyWeight: number,
 ): Promise<EpisodeContext> {
+  if (!query) {
+    const [totalRows, rows] = await Promise.all([
+      db.select({ count: count() }).from(episodes).where(activeEpisodesFilter(userId, projectId)),
+      db
+        .select()
+        .from(episodes)
+        .where(activeEpisodesFilter(userId, projectId))
+        .orderBy(desc(episodes.endedAt))
+        .limit(contextEpisodes),
+    ]);
+    const episodeCount = totalRows[0]?.count ?? 0;
+    if (episodeCount === 0) return { episodes: null, episodeCount: 0 };
+    return { episodes: rows.map((r) => rowToContextItem(r, 1.0)), episodeCount };
+  }
+
   const totalRows = await db
     .select({ count: count() })
     .from(episodes)
@@ -296,20 +312,6 @@ export async function getEpisodicContext(
   const episodeCount = totalRows[0]?.count ?? 0;
 
   if (episodeCount === 0) return { episodes: null, episodeCount: 0 };
-
-  if (!query) {
-    const rows = await db
-      .select()
-      .from(episodes)
-      .where(activeEpisodesFilter(userId, projectId))
-      .orderBy(desc(episodes.endedAt))
-      .limit(contextEpisodes);
-
-    return {
-      episodes: rows.map((r) => rowToContextItem(r, 1.0)),
-      episodeCount,
-    };
-  }
 
   // Similarity search
   const queryEmbedding = await embedText(query);
@@ -499,4 +501,56 @@ export async function searchEpisodes(
     }))
     .sort((a, b) => b.relevanceScore - a.relevanceScore)
     .slice(0, limit);
+}
+
+export async function processScheduledEpisodes(): Promise<void> {
+  const due = await db.execute(sql`
+    DELETE FROM scheduled_episodes
+    WHERE thread_id IN (
+      SELECT thread_id FROM scheduled_episodes WHERE fire_at < now() LIMIT 20
+    )
+    RETURNING thread_id, project_id
+  `);
+
+  const dueRows = due.rows as { thread_id: string; project_id: string }[];
+  if (dueRows.length === 0) return;
+
+  const uniqueProjectIds = [...new Set(dueRows.map((r) => r.project_id))];
+  const projectRows = await db
+    .select({ id: projects.id, settings: projects.settings })
+    .from(projects)
+    .where(inArray(projects.id, uniqueProjectIds));
+  const settingsMap = new Map(
+    projectRows.map((r) => [
+      r.id,
+      mergeWithDefaults(r.settings as ProjectSettingsPatch | null).episodic,
+    ]),
+  );
+
+  const uniqueThreadIds = [...new Set(dueRows.map((r) => r.thread_id))];
+  const threadRows = await db
+    .select({ id: threads.id, userId: threads.userId, messageCount: threads.messageCount, createdAt: threads.createdAt })
+    .from(threads)
+    .where(inArray(threads.id, uniqueThreadIds));
+  const threadMap = new Map(threadRows.map((r) => [r.id, r]));
+
+  for (const row of dueRows) {
+    const settings = settingsMap.get(row.project_id) ?? mergeWithDefaults(null).episodic;
+    if (!settings.enabled || settings.autoEpisodeIntervalMs === null) continue;
+
+    const threadRow = threadMap.get(row.thread_id);
+    if (!threadRow) continue;
+
+    createPendingEpisode({
+      threadId: row.thread_id,
+      userId: threadRow.userId,
+      projectId: row.project_id,
+      messageCount: threadRow.messageCount,
+      tokenCount: null,
+      startedAt: threadRow.createdAt,
+      endedAt: new Date(),
+    })
+      .then((episode) => processEpisode(episode.id))
+      .catch((err) => console.error('[episodic] scheduled episode failed:', err));
+  }
 }

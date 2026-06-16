@@ -14,7 +14,10 @@ import threadsRouter from './routes/threads.js';
 import { initNeo4j } from './db/neo4j-init.js';
 import { db, checkPostgres } from './db/postgres.js';
 import { listApiKeys, createApiKey } from './services/api-key.service.js';
-import { retryFailedEpisodes } from './services/episodic-memory.service.js';
+import {
+  retryFailedEpisodes,
+  processScheduledEpisodes,
+} from './services/episodic-memory.service.js';
 
 // In compiled output (dist/apps/api/src/), drizzle/ is at dist/drizzle/
 const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle');
@@ -57,22 +60,20 @@ async function bootstrap(): Promise<void> {
 
   await initNeo4j();
 
-  if (process.env.MIGRATE_ON_START === 'true') {
-    const existingKeys = await listApiKeys();
-    if (existingKeys.length === 0) {
-      const { key } = await createApiKey('default');
-      const line = `│  API Key: ${key}`;
-      const padded = line.padEnd(50) + '│';
-      console.log('');
-      console.log('┌──────────────────────────────────────────────────┐');
-      console.log('│  Memory Soda — First-time setup                  │');
-      console.log('│                                                  │');
-      console.log(padded);
-      console.log('│                                                  │');
-      console.log('│  Save this — it will not be shown again.         │');
-      console.log('└──────────────────────────────────────────────────┘');
-      console.log('');
-    }
+  const existingKeys = await listApiKeys();
+  if (existingKeys.length === 0) {
+    const { key } = await createApiKey('default');
+    const line = `│  API Key: ${key}`;
+    const padded = line.padEnd(50) + '│';
+    console.log('');
+    console.log('┌──────────────────────────────────────────────────┐');
+    console.log('│  Memory Soda — First-time setup                  │');
+    console.log('│                                                  │');
+    console.log(padded);
+    console.log('│                                                  │');
+    console.log('│  Save this — it will not be shown again.         │');
+    console.log('└──────────────────────────────────────────────────┘');
+    console.log('');
   }
 
   app.listen(port, host, () => {
@@ -85,6 +86,12 @@ setInterval(() => {
     console.error('[episodic] retry job failed:', err);
   });
 }, 120_000).unref();
+
+setInterval(() => {
+  processScheduledEpisodes().catch((err) => {
+    console.error('[episodic] scheduled episodes job failed:', err);
+  });
+}, 5_000).unref();
 
 bootstrap().catch((err) => {
   console.error('[ startup ] failed:', err);
