@@ -162,13 +162,13 @@ router.post(
         content,
       );
 
-      const prepared = await prepareThread(threadId, projectId, messageLimit);
+      const prepared = await prepareThread(threadId, projectId, messageLimit, content);
       if (!prepared) {
         res.status(404).json({ error: 'Thread not found' });
         return;
       }
 
-      const replyContent = await generateReply(prepared.messages, systemPrompt);
+      const replyContent = await generateReply(prepared.messages, systemPrompt, prepared.context);
 
       const { message: assistantMessage, compacted: assistantCompacted } =
         await addMessage(threadId, projectId, 'assistant', replyContent);
@@ -192,6 +192,9 @@ router.post(
           messageCount: prepared.messageCount,
           truncated: prepared.truncated,
           compacted: prepared.compacted,
+          context: prepared.context
+            ? { episodeCount: prepared.context.episodeCount }
+            : null,
         },
       });
     } catch (err: unknown) {

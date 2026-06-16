@@ -26,9 +26,9 @@ const settingsPatchSchema = z.object({
   episodic: z
     .object({
       enabled: z.boolean().optional(),
+      autoEpisodeIntervalMs: z.number().min(60_000).nullable().optional(),
       maxMessages: z.number().int().min(10).max(1000).optional(),
       maxRetries: z.number().int().min(0).max(10).optional(),
-      retryDelayMs: z.number().int().min(60000).optional(),
       contextEpisodes: z.number().int().min(1).max(20).optional(),
       similarityWeight: z.number().min(0).max(1).optional(),
       recencyWeight: z.number().min(0).max(1).optional(),

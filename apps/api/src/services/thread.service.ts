@@ -8,7 +8,6 @@ import {
   processEpisode,
 } from './episodic-memory.service.js';
 import type { ProjectEpisodicSettings } from '@memory-soda/types';
-import { mergeWithDefaults } from '../lib/project-settings.js';
 
 // ── Internal type ─────────────────────────────────────────────────────────────
 
@@ -61,9 +60,7 @@ export async function createThread(
 ): Promise<Thread> {
   const projectSettings = await getProjectEpisodicSettings(projectId);
   const resolvedEpisodic: ProjectEpisodicSettings = episodicOverride
-    ? mergeWithDefaults({
-        episodic: { ...projectSettings, ...episodicOverride },
-      }).episodic
+    ? { ...projectSettings, ...episodicOverride }
     : projectSettings;
 
   const [row] = await db
