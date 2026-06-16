@@ -513,6 +513,12 @@ export default function ConversationsPage() {
   }, [selectedProject]);
 
   useEffect(() => {
+    setSelectedId(null);
+    setSelectedThread(null);
+    setMessages([]);
+    setEpisodes([]);
+  }, [selectedProject?.id]);
+  useEffect(() => {
     fetchThreads();
   }, [fetchThreads]);
   useEffect(() => {

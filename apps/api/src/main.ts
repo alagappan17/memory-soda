@@ -79,19 +79,19 @@ async function bootstrap(): Promise<void> {
   app.listen(port, host, () => {
     console.log(`[ ready ] http://${host}:${port}`);
   });
+
+  setInterval(() => {
+    retryFailedEpisodes().catch((err) => {
+      console.error('[episodic] retry job failed:', err);
+    });
+  }, 120_000).unref();
+
+  setInterval(() => {
+    processScheduledEpisodes().catch((err) => {
+      console.error('[episodic] scheduled episodes job failed:', err);
+    });
+  }, 5_000).unref();
 }
-
-setInterval(() => {
-  retryFailedEpisodes().catch((err) => {
-    console.error('[episodic] retry job failed:', err);
-  });
-}, 120_000).unref();
-
-setInterval(() => {
-  processScheduledEpisodes().catch((err) => {
-    console.error('[episodic] scheduled episodes job failed:', err);
-  });
-}, 5_000).unref();
 
 bootstrap().catch((err) => {
   console.error('[ startup ] failed:', err);

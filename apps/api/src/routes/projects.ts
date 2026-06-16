@@ -111,6 +111,10 @@ router.get('/:id/settings', async (req, res) => {
     const settings = await getProjectSettings(req.params['id']);
     res.json({ settings });
   } catch (err) {
+    if (err instanceof Error && err.message === 'Project not found') {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
     console.error(err);
     res.status(500).json({ error: 'Failed to get project settings' });
   }
@@ -129,6 +133,10 @@ router.patch(
       const settings = await updateProjectSettings(req.params['id'], patch);
       res.json({ settings });
     } catch (err) {
+      if (err instanceof Error && err.message === 'Project not found') {
+        res.status(404).json({ error: 'Project not found' });
+        return;
+      }
       console.error(err);
       res.status(500).json({ error: 'Failed to update project settings' });
     }

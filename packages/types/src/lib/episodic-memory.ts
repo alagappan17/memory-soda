@@ -1,4 +1,4 @@
-export type EpisodeStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'archived';
+export type EpisodeStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'deleted' | 'archived';
 
 export interface Episode {
   episodeId: string;
