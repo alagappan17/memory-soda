@@ -1,4 +1,6 @@
 import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useProject } from '../providers/project-provider';
 import api from '../lib/api';
 import {
@@ -11,6 +13,7 @@ import {
   Clock,
   AlertCircle,
   Loader2,
+  Brain,
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Separator } from '../components/ui/separator';
@@ -20,6 +23,7 @@ import { Separator } from '../components/ui/separator';
 interface Thread {
   threadId: string;
   userId: string;
+  title: string | null;
   tags: string[];
   messageCount: number;
   metadata: Record<string, unknown> | null;
@@ -54,6 +58,19 @@ interface Episode {
   error: string | null;
   retryCount: number;
   createdAt: string;
+}
+
+interface Fact {
+  factId: string;
+  subject: string;
+  predicate: string;
+  object: string;
+  objectIsEntity: boolean;
+  confidence: number;
+  episodeId: string | null;
+  validAt: string;
+  invalidAt: string | null;
+  contextEntityName?: string | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -96,17 +113,18 @@ function ThreadItem({
         selected ? 'bg-muted' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <span className="text-sm font-mono truncate text-foreground">
-          {thread.userId}
+      <div className="flex items-center justify-between gap-2 mb-0.5">
+        <span className="text-sm font-medium truncate text-foreground">
+          {thread.title ?? 'Untitled'}
         </span>
       </div>
-      <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1">
-        <span className="flex items-center gap-1">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+        <span className="font-mono truncate max-w-[120px]">{thread.userId}</span>
+        <span className="flex items-center gap-1 shrink-0">
           <MessageSquare className="w-3 h-3" />
           {thread.messageCount}
         </span>
-        <span>{relativeTime(thread.lastActivityAt)}</span>
+        <span className="shrink-0">{relativeTime(thread.lastActivityAt)}</span>
       </div>
       {thread.tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-1">
@@ -315,13 +333,41 @@ function MessageBubble({ msg }: { msg: Message }) {
         className={`max-w-[75%] flex flex-col ${isUser ? 'items-end' : 'items-start'} relative group/msg`}
       >
         <div
-          className={`rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words ${
+          className={`rounded-2xl px-4 py-2.5 text-sm ${
             isUser
               ? 'bg-primary text-primary-foreground rounded-br-sm'
               : 'bg-muted text-foreground rounded-bl-sm'
           }`}
         >
-          {msg.content}
+          <Markdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+              em: ({ children }) => <em className="italic">{children}</em>,
+              code: ({ children, className }) => {
+                const isBlock = className?.includes('language-');
+                return isBlock
+                  ? <code className={`block bg-black/10 dark:bg-white/10 rounded px-3 py-2 text-[0.8em] font-mono overflow-x-auto my-1.5 whitespace-pre ${className ?? ''}`}>{children}</code>
+                  : <code className="bg-black/10 dark:bg-white/10 rounded px-1 py-0.5 text-[0.85em] font-mono">{children}</code>;
+              },
+              pre: ({ children }) => <>{children}</>,
+              ul: ({ children }) => <ul className="list-disc pl-4 mb-1.5 space-y-0.5">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal pl-4 mb-1.5 space-y-0.5">{children}</ol>,
+              li: ({ children }) => <li>{children}</li>,
+              blockquote: ({ children }) => <blockquote className="border-l-2 border-current/30 pl-3 italic opacity-80 my-1.5">{children}</blockquote>,
+              a: ({ children, href }) => <a href={href} target="_blank" rel="noreferrer" className="underline underline-offset-2 opacity-80 hover:opacity-100">{children}</a>,
+              h1: ({ children }) => <h1 className="text-base font-bold mb-1">{children}</h1>,
+              h2: ({ children }) => <h2 className="text-sm font-bold mb-1">{children}</h2>,
+              h3: ({ children }) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
+              hr: () => <hr className="my-2 border-current/20" />,
+              table: ({ children }) => <div className="overflow-x-auto my-1.5"><table className="text-xs border-collapse">{children}</table></div>,
+              th: ({ children }) => <th className="border border-current/20 px-2 py-1 font-semibold text-left">{children}</th>,
+              td: ({ children }) => <td className="border border-current/20 px-2 py-1">{children}</td>,
+            }}
+          >
+            {msg.content}
+          </Markdown>
         </div>
         <MessageMeta msg={msg} isUser={isUser} />
 
@@ -438,6 +484,48 @@ function EpisodeCard({ episode, isLast }: { episode: Episode; isLast: boolean })
   );
 }
 
+// ── Fact card ──────────────────────────────────────────────────────────────────
+
+function FactCard({ fact }: { fact: Fact }) {
+  const invalidated = Boolean(fact.invalidAt);
+  const confidence = Math.round(fact.confidence * 100);
+  return (
+    <div className={`flex gap-3 py-3 border-b border-border last:border-b-0 ${invalidated ? 'opacity-40' : ''}`}>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm leading-relaxed">
+          <span className="font-medium text-foreground">{fact.subject}</span>
+          {' '}
+          <span className="text-muted-foreground italic">{fact.predicate}</span>
+          {' '}
+          <span className={fact.objectIsEntity ? 'font-medium text-foreground' : 'text-foreground'}>{fact.object}</span>
+        </p>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <span className={`text-xs px-1.5 py-0.5 rounded-full font-mono ${
+            confidence >= 80 ? 'bg-green-500/10 text-green-600 dark:text-green-400' :
+            confidence >= 50 ? 'bg-yellow-400/10 text-yellow-600 dark:text-yellow-400' :
+            'bg-red-500/10 text-red-600 dark:text-red-400'
+          }`}>
+            {confidence}%
+          </span>
+          {fact.contextEntityName && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-accent text-accent-foreground font-mono">
+              @{fact.contextEntityName}
+            </span>
+          )}
+          {fact.episodeId && (
+            <span className="text-xs text-muted-foreground font-mono truncate max-w-40" title={fact.episodeId}>
+              ep:{fact.episodeId.slice(0, 8)}
+            </span>
+          )}
+          {invalidated && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">superseded</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ConversationsPage() {
@@ -455,10 +543,14 @@ export default function ConversationsPage() {
   const [msgsLoading, setMsgsLoading] = useState(false);
   const [msgsError, setMsgsError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'messages' | 'episodes'>('messages');
+  const [activeTab, setActiveTab] = useState<'messages' | 'episodes' | 'facts'>('messages');
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [episodesError, setEpisodesError] = useState<string | null>(null);
+
+  const [facts, setFacts] = useState<Fact[]>([]);
+  const [factsLoading, setFactsLoading] = useState(false);
+  const [factsError, setFactsError] = useState<string | null>(null);
 
   const [copied, setCopied] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -512,11 +604,28 @@ export default function ConversationsPage() {
     }
   }, [selectedProject]);
 
+  const fetchFacts = useCallback(async (threadId: string) => {
+    if (!selectedProject) return;
+    setFactsLoading(true);
+    setFactsError(null);
+    try {
+      const res = await api.get(`/dashboard/threads/${threadId}/facts`, {
+        params: { projectId: selectedProject.id },
+      });
+      setFacts(res.data.facts);
+    } catch {
+      setFactsError('Failed to load facts');
+    } finally {
+      setFactsLoading(false);
+    }
+  }, [selectedProject]);
+
   useEffect(() => {
     setSelectedId(null);
     setSelectedThread(null);
     setMessages([]);
     setEpisodes([]);
+    setFacts([]);
   }, [selectedProject?.id]);
   useEffect(() => {
     fetchThreads();
@@ -525,11 +634,18 @@ export default function ConversationsPage() {
     if (selectedId) {
       fetchMessages(selectedId);
       fetchEpisodes(selectedId);
+      fetchFacts(selectedId);
     }
-  }, [selectedId, fetchMessages, fetchEpisodes]);
+  }, [selectedId, fetchMessages, fetchEpisodes, fetchFacts]);
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (!selectedId || activeTab !== 'episodes') return;
+    const id = setInterval(() => fetchEpisodes(selectedId), 8_000);
+    return () => clearInterval(id);
+  }, [selectedId, activeTab, fetchEpisodes]);
 
   const visibleThreads = threads.filter((t) => {
     if (
@@ -550,6 +666,7 @@ export default function ConversationsPage() {
     if (selectedId) {
       fetchMessages(selectedId);
       fetchEpisodes(selectedId);
+      fetchFacts(selectedId);
     }
   }
 
@@ -700,6 +817,22 @@ export default function ConversationsPage() {
                           </span>
                         )}
                       </button>
+                      <button
+                        onClick={() => setActiveTab('facts')}
+                        className={`flex items-center gap-1.5 px-3 py-1 text-xs border-l border-border transition-colors ${
+                          activeTab === 'facts'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:bg-muted'
+                        }`}
+                      >
+                        <Brain className="w-3 h-3" />
+                        Facts
+                        {facts.length > 0 && (
+                          <span className={`ml-0.5 text-[10px] font-mono ${activeTab === 'facts' ? 'opacity-80' : 'text-muted-foreground'}`}>
+                            {facts.length}
+                          </span>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </>
@@ -708,7 +841,7 @@ export default function ConversationsPage() {
               )}
             </div>
 
-            {activeTab === 'messages' ? (
+            {activeTab === 'messages' && (
               <div className="flex-1 overflow-y-auto py-4">
                 {msgsError && (
                   <div className="mx-6 my-2 px-4 py-3 rounded-md bg-destructive/10 text-destructive text-sm">
@@ -737,7 +870,8 @@ export default function ConversationsPage() {
                 )}
                 <div ref={chatEndRef} />
               </div>
-            ) : (
+            )}
+            {activeTab === 'episodes' && (
               <div className="flex-1 overflow-y-auto px-6 py-6">
                 {episodesError && (
                   <div className="mb-4 px-4 py-3 rounded-md bg-destructive/10 text-destructive text-sm">
@@ -763,6 +897,42 @@ export default function ConversationsPage() {
                     {episodes.map((ep, i) => (
                       <EpisodeCard key={ep.episodeId} episode={ep} isLast={i === episodes.length - 1} />
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {activeTab === 'facts' && (
+              <div className="flex-1 overflow-y-auto px-6 py-6">
+                {factsError && (
+                  <div className="mb-4 px-4 py-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                    {factsError}
+                  </div>
+                )}
+                {factsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading facts…
+                  </div>
+                ) : facts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+                    <Brain className="w-8 h-8 opacity-30" />
+                    <p className="text-sm">No facts extracted for this user yet.</p>
+                    <p className="text-xs opacity-70">Facts are extracted when threads are ended and semantic memory is enabled.</p>
+                  </div>
+                ) : (
+                  <div className="max-w-2xl">
+                    <p className="text-xs text-muted-foreground mb-4">
+                      {facts.filter(f => !f.invalidAt).length} active · {facts.filter(f => f.invalidAt).length} superseded
+                    </p>
+                    <Card>
+                      <CardContent className="p-0 divide-y divide-border">
+                        {facts.map((fact) => (
+                          <div key={fact.factId} className="px-4">
+                            <FactCard fact={fact} />
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
                   </div>
                 )}
               </div>

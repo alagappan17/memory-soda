@@ -1,38 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
-import type { ProjectEpisodicSettings } from '@memory-soda/types';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import type { ProjectEpisodicSettings, ProjectSemanticSettings, SemanticFact } from '@memory-soda/types';
+import { MemorySodaClient } from '@memory-soda/sdk';
+import type { Episode } from '@memory-soda/sdk';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Card, CardContent } from '../components/ui/card';
 import { Separator } from '../components/ui/separator';
 
-// ── API ───────────────────────────────────────────────────────────────────────
-
 const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3004';
-const BASE = `${API_URL}/v1/memory/working`;
-const THREADS_BASE = `${API_URL}/v1/threads`;
-
-async function apiFetch<T>(
-  baseUrl: string,
-  apiKey: string,
-  path: string,
-  opts?: RequestInit,
-): Promise<T> {
-  const res = await fetch(`${baseUrl}${path}`, {
-    ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-      ...(opts?.headers ?? {}),
-    },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: string }).error ?? res.statusText);
-  }
-  return res.json() as Promise<T>;
-}
-
-function wmFetch<T>(apiKey: string, path: string, opts?: RequestInit): Promise<T> {
-  return apiFetch<T>(BASE, apiKey, path, opts);
-}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -76,17 +51,6 @@ interface Operation {
   data: unknown;
 }
 
-interface Episode {
-  episodeId: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'archived';
-  summary: string | null;
-  keyLearnings: string[] | null;
-  createdAt: string;
-  endedAt: string | null;
-  startedAt: string | null;
-  retryCount: number;
-  error: string | null;
-}
 
 // ── Message meta + detail card ────────────────────────────────────────────────
 //
@@ -234,6 +198,10 @@ let requestIdSeq = 0;
 
 export default function PlaygroundPage() {
   const [apiKey, setApiKey] = useState('');
+  const client = useMemo(
+    () => new MemorySodaClient({ baseUrl: API_URL, apiKey }),
+    [apiKey],
+  );
   const [showKey, setShowKey] = useState(false);
   const [userId, setUserId] = useState(
     () => `usr_${Math.random().toString(36).slice(2, 10)}`,
@@ -242,10 +210,13 @@ export default function PlaygroundPage() {
 
   const [threadId, setThreadId] = useState<string | null>(null);
   // projectId is captured for potential future use (e.g. thread-scoped ops)
-  const [, setProjectId] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [threadStartedAt, setThreadStartedAt] = useState<number | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [rightTab, setRightTab] = useState<'ops' | 'episodes'>('ops');
+  const [semanticFacts, setSemanticFacts] = useState<SemanticFact[]>([]);
+  const [loadingFacts, setLoadingFacts] = useState(false);
+  const [factsQuery, setFactsQuery] = useState('');
+  const [rightTab, setRightTab] = useState<'ops' | 'episodes' | 'facts'>('ops');
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const currentRequestId = useRef<number>(0);
@@ -255,11 +226,19 @@ export default function PlaygroundPage() {
     autoEpisodeIntervalMs: 10_000,
     maxMessages: 100,
     maxRetries: 3,
-    contextEpisodes: 3,
-    similarityWeight: 0.7,
+    episodesInContext: 3,
     recencyWeight: 0.3,
   });
   const [episodicSettingsOpen, setEpisodicSettingsOpen] = useState(true);
+  const [semanticSettings, setSemanticSettings] = useState<ProjectSemanticSettings>({
+    enabled: true,
+    factsInContext: 5,
+    entitySimilarityThreshold: 0.95,
+    maxRetries: 3,
+    minUserFacts: 2,
+    minConfidence: 0.5,
+  });
+  const [semanticSettingsOpen, setSemanticSettingsOpen] = useState(false);
 
   const [settings, setSettings] = useState<WMSettings>({
     autoCompactEnabled: false,
@@ -289,6 +268,26 @@ export default function PlaygroundPage() {
     opsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [ops]);
 
+  // Hydrate episodic + semantic settings from project when projectId becomes available
+  useEffect(() => {
+    if (!projectId) return;
+    fetch(`${API_URL}/dashboard/projects/${projectId}/settings`)
+      .then((r) => r.json())
+      .then((data: { settings: { episodic?: Partial<typeof episodicSettings>; semantic?: Partial<typeof semanticSettings> } }) => {
+        if (data.settings?.episodic) setEpisodicSettings((s) => ({ ...s, ...data.settings.episodic }));
+        if (data.settings?.semantic) setSemanticSettings((s) => ({ ...s, ...data.settings.semantic }));
+      })
+      .catch(() => {/* ignore — defaults remain */});
+  }, [projectId]);
+
+  // Auto-poll episodes when the episodes tab is active and a thread exists
+  useEffect(() => {
+    if (rightTab !== 'episodes' || !apiKey.trim() || !userId.trim()) return;
+    const id = setInterval(() => { void fetchEpisodes(); }, 8_000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rightTab, apiKey, userId]);
+
   function addOp(type: OpType, data: unknown, durationMs?: number) {
     setOps((prev) => [...prev, { id: ++opIdSeq, type, ts: Date.now(), durationMs, data }]);
   }
@@ -298,12 +297,9 @@ export default function PlaygroundPage() {
     return `+${((ts - threadStartedAt) / 1000).toFixed(1)}s`;
   }
 
-  async function refreshMessages(key: string, tid: string) {
-    const result = await wmFetch<{ messages: ChatMessage[] }>(
-      key,
-      `/threads/${tid}/messages?limit=100&order=asc`,
-    );
-    setMessages(result.messages);
+  async function refreshMessages(tid: string) {
+    const result = await client.listMessages(tid, { limit: 100, order: 'asc' });
+    setMessages(result.messages as ChatMessage[]);
   }
 
   async function sendMessage() {
@@ -323,21 +319,22 @@ export default function PlaygroundPage() {
 
       if (!tid) {
         const threadT0 = Date.now();
-        const threadRes = await apiFetch<{ threadId: string; projectId: string }>(
-          THREADS_BASE,
-          apiKey,
-          '',
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              userId: userId.trim() || undefined,
-              autoCompactThreshold: settings.autoCompactEnabled
-                ? settings.autoCompactThreshold
-                : undefined,
-              settings: { episodic: episodicSettings },
-            }),
+        const threadRes = await client.createThread({
+          userId: userId.trim() || undefined,
+          tags: ['playground'],
+          metadata: {
+            source: 'playground',
+            ...(systemPrompt.trim() ? { systemPrompt: systemPrompt.trim() } : {}),
+            messageLimit: settings.messageLimit,
+            autoCompact: settings.autoCompactEnabled
+              ? { enabled: true, threshold: settings.autoCompactThreshold }
+              : { enabled: false },
           },
-        );
+          autoCompactThreshold: settings.autoCompactEnabled
+            ? settings.autoCompactThreshold
+            : undefined,
+          settings: { episodic: episodicSettings },
+        });
         tid = threadRes.threadId;
         setThreadId(tid);
         setProjectId(threadRes.projectId);
@@ -370,69 +367,90 @@ export default function PlaygroundPage() {
         },
       ]);
 
-      const chatT0 = Date.now();
-      const chatRes = await wmFetch<{
-        userMessage: {
-          messageId: string;
-          sequenceNumber: number;
-          role: string;
-          createdAt: string;
-        };
-        assistantMessage: {
-          messageId: string;
-          sequenceNumber: number;
-          role: string;
-          content: string;
-          createdAt: string;
-        };
-        compacted: boolean;
-        prepare: {
-          messageCount: number;
-          truncated: boolean;
-          compacted: boolean;
-          context: any | null;
-        };
-      }>(apiKey, `/threads/${tid}/chat`, {
-        method: 'POST',
-        body: JSON.stringify({
-          content,
-          systemPrompt: systemPrompt.trim() || undefined,
-          messageLimit: settings.messageLimit,
-        }),
-      });
-      const chatDuration = Date.now() - chatT0;
-
+      // Step 1: store the user message
+      const msgT0 = Date.now();
+      const msgRes = await client.addMessage(tid, { role: 'user', content });
       addOp('message_added', {
         role: 'user',
-        sequenceNumber: chatRes.userMessage.sequenceNumber,
-        compacted: chatRes.compacted,
-      }, chatDuration);
-      addOp('prepare', {
-        messageCount: chatRes.prepare.messageCount,
-        truncated: chatRes.prepare.truncated,
-        compacted: chatRes.prepare.compacted,
-        episodes: chatRes.prepare.context?.episodeCount || 0,
-      }, chatDuration);
-      addOp('ai_replied', {
-        sequenceNumber: chatRes.assistantMessage.sequenceNumber,
-        preview: chatRes.assistantMessage.content.slice(0, 120),
-      }, chatDuration);
+        sequenceNumber: msgRes.sequenceNumber,
+        compacted: msgRes.compacted,
+      }, Date.now() - msgT0);
 
-      if (chatRes.compacted) {
-        addOp('auto_compacted', {
-          triggered: true,
-          summary: 'Auto-compaction triggered after message threshold',
-        });
+      if (msgRes.compacted) {
+        addOp('auto_compacted', { triggered: true });
       }
+
+      // Step 2: prepare cross-memory context (working memory + episodes + facts)
+      const prepT0 = Date.now();
+      const prepRes = await client.prepare(tid, {
+        query: content,
+        messageLimit: settings.messageLimit,
+      });
+      addOp('prepare', {
+        messageCount: prepRes.messageCount,
+        truncated: prepRes.truncated,
+        compacted: prepRes.compacted,
+        episodes: prepRes.episodes?.episodeCount ?? 0,
+        facts: prepRes.facts?.factCount ?? 0,
+        contextPreview: prepRes.messages
+          .map((m) => `[${m.role}]: ${m.content.slice(0, 80)}${m.content.length > 80 ? '…' : ''}`)
+          .join('\n'),
+      }, Date.now() - prepT0);
+
+      // eslint-disable-next-line no-console
+      console.log('[LLM TESTING] prepare output', JSON.stringify({
+        query: content,
+        messageCount: prepRes.messageCount,
+        truncated: prepRes.truncated,
+        compacted: prepRes.compacted,
+        messages: prepRes.messages,
+        episodes: prepRes.episodes,
+        facts: prepRes.facts,
+      }, null, 2));
+
+      // Step 3: call the LLM — pass prepared context to the backend generate route.
+      // This mirrors what any SDK consumer would do with their own LLM client.
+      const genT0 = Date.now();
+      const genRes = await fetch(`${API_URL}/dashboard/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: prepRes.messages,
+          systemPrompt: systemPrompt.trim() || undefined,
+          episodes: prepRes.episodes,
+          facts: prepRes.facts,
+        }),
+      });
+      if (!genRes.ok) throw new Error('LLM generation failed');
+      const { content: replyContent, model, latencyMs: llmLatency } =
+        await genRes.json() as { content: string; model: string; latencyMs: number };
+      // eslint-disable-next-line no-console
+      console.log('[LLM TESTING] generate output', JSON.stringify({
+        query: content,
+        model,
+        latencyMs: llmLatency,
+        response: replyContent,
+      }, null, 2));
+
+      addOp('ai_replied', { model, latencyMs: llmLatency, preview: replyContent }, Date.now() - genT0);
+
+      // Step 4: store the assistant reply
+      await client.addMessage(tid, {
+        role: 'assistant',
+        content: replyContent,
+        model,
+        latencyMs: llmLatency,
+      });
 
       addOp('episode_scheduled', {
         note: 'Auto-episode timer reset — episode will generate after inactivity window',
       });
 
+      setTimeout(() => { void fetchEpisodes(); }, 12_000);
+
       if (requestId === currentRequestId.current) {
-        // Remove optimistic message before refreshing with real data
         setMessages((prev) => prev.filter((m) => m.messageId !== optimisticId));
-        await refreshMessages(apiKey, tid);
+        await refreshMessages(tid);
       }
     } catch (err: unknown) {
       if (requestId === currentRequestId.current) {
@@ -460,25 +478,12 @@ export default function PlaygroundPage() {
 
     try {
       const compactT0 = Date.now();
-      const result = await wmFetch<{
-        summaryMessageId: string;
-        compactedCount: number;
-        fromSequence: number;
-        toSequence: number;
-      }>(apiKey, `/threads/${threadId}/compact`, { method: 'POST' });
+      const result = await client.compact(threadId);
       const compactDuration = Date.now() - compactT0;
 
       // Fetch summary text from prepare
       const prepT0 = Date.now();
-      const prepRes = await wmFetch<{
-        messages: { role: string; content: string }[];
-        messageCount: number;
-        truncated: boolean;
-        compacted: boolean;
-      }>(apiKey, `/threads/${threadId}/prepare`, {
-        method: 'POST',
-        body: JSON.stringify({ messageLimit: settings.messageLimit }),
-      });
+      const prepRes = await client.prepare(threadId, { messageLimit: settings.messageLimit });
       const prepDuration = Date.now() - prepT0;
 
       const summary = prepRes.messages.find((m) => m.role === 'system');
@@ -504,7 +509,7 @@ export default function PlaygroundPage() {
       }, prepDuration);
 
       if (requestId === currentRequestId.current) {
-        await refreshMessages(apiKey, threadId);
+        await refreshMessages(threadId);
       }
     } catch (err: unknown) {
       if (requestId === currentRequestId.current) {
@@ -529,10 +534,7 @@ export default function PlaygroundPage() {
 
     try {
       const endT0 = Date.now();
-      const ended = await apiFetch<{
-        threadId: string;
-        episodeQueued: boolean;
-      }>(THREADS_BASE, apiKey, `/${threadId}/end`, { method: 'POST' });
+      const ended = await client.endThread(threadId);
       addOp('thread_ended', ended, Date.now() - endT0);
     } catch (err: unknown) {
       if (requestId === currentRequestId.current) {
@@ -547,16 +549,26 @@ export default function PlaygroundPage() {
     }
   }
 
+  async function fetchFacts(query?: string) {
+    if (!apiKey.trim() || !userId.trim() || loadingFacts) return;
+    setLoadingFacts(true);
+    try {
+      const res = await client.getFacts(userId, { query: query?.trim() || undefined, limit: 30 });
+      setSemanticFacts(res.facts ?? []);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load facts';
+      addOp('error', { message: msg });
+    } finally {
+      setLoadingFacts(false);
+    }
+  }
+
   async function fetchEpisodes() {
     if (!apiKey.trim() || !userId.trim() || loadingEpisodes) return;
     setLoadingEpisodes(true);
     try {
       const episodesT0 = Date.now();
-      const res = await apiFetch<{ episodes: Episode[] }>(
-        API_URL,
-        apiKey,
-        `/v1/memory/episodic/users/${encodeURIComponent(userId)}/episodes?status=completed&limit=20`,
-      );
+      const res = await client.listEpisodes(userId, { limit: 20 });
       setEpisodes(res.episodes ?? []);
       addOp('episodes_loaded', { count: (res.episodes ?? []).length }, Date.now() - episodesT0);
     } catch (err) {
@@ -567,6 +579,19 @@ export default function PlaygroundPage() {
     }
   }
 
+  async function saveSemanticSettings() {
+    if (!projectId) return;
+    try {
+      await fetch(`${API_URL}/dashboard/projects/${projectId}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ semantic: semanticSettings }),
+      });
+    } catch {
+      // silent — settings will apply next restart
+    }
+  }
+
   function newThread() {
     setThreadId(null);
     setProjectId(null);
@@ -574,6 +599,7 @@ export default function PlaygroundPage() {
     setMessages([]);
     setOps([]);
     setEpisodes([]);
+    setSemanticFacts([]);
     setError(null);
     setInput('');
     setEpisodicSettings({
@@ -581,8 +607,7 @@ export default function PlaygroundPage() {
       autoEpisodeIntervalMs: 10_000,
       maxMessages: 100,
       maxRetries: 3,
-      contextEpisodes: 3,
-      similarityWeight: 0.7,
+      episodesInContext: 3,
       recencyWeight: 0.3,
     });
   }
@@ -667,13 +692,6 @@ export default function PlaygroundPage() {
             End thread
           </button>
           <button
-            onClick={() => { setRightTab('episodes'); void fetchEpisodes(); }}
-            disabled={!apiKey.trim() || !userId.trim()}
-            className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors"
-          >
-            View episodes
-          </button>
-          <button
             onClick={newThread}
             disabled={sending || compacting}
             className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity"
@@ -753,7 +771,35 @@ export default function PlaygroundPage() {
                           compact summary
                         </span>
                       )}
-                      <span className="whitespace-pre-wrap">{msg.content}</span>
+                      <Markdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                          em: ({ children }) => <em className="italic">{children}</em>,
+                          code: ({ children, className }) => {
+                            const isBlock = className?.includes('language-');
+                            return isBlock
+                              ? <code className={`block bg-black/10 dark:bg-white/10 rounded px-3 py-2 text-[0.8em] font-mono overflow-x-auto my-1.5 whitespace-pre ${className ?? ''}`}>{children}</code>
+                              : <code className="bg-black/10 dark:bg-white/10 rounded px-1 py-0.5 text-[0.85em] font-mono">{children}</code>;
+                          },
+                          pre: ({ children }) => <>{children}</>,
+                          ul: ({ children }) => <ul className="list-disc pl-4 mb-1.5 space-y-0.5">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-1.5 space-y-0.5">{children}</ol>,
+                          li: ({ children }) => <li>{children}</li>,
+                          blockquote: ({ children }) => <blockquote className="border-l-2 border-current/30 pl-3 italic opacity-80 my-1.5">{children}</blockquote>,
+                          a: ({ children, href }) => <a href={href} target="_blank" rel="noreferrer" className="underline underline-offset-2 opacity-80 hover:opacity-100">{children}</a>,
+                          h1: ({ children }) => <h1 className="text-base font-bold mb-1">{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-sm font-bold mb-1">{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
+                          hr: () => <hr className="my-2 border-current/20" />,
+                          table: ({ children }) => <div className="overflow-x-auto my-1.5"><table className="text-xs border-collapse">{children}</table></div>,
+                          th: ({ children }) => <th className="border border-current/20 px-2 py-1 font-semibold text-left">{children}</th>,
+                          td: ({ children }) => <td className="border border-current/20 px-2 py-1">{children}</td>,
+                        }}
+                      >
+                        {msg.content}
+                      </Markdown>
                       {msg.compactedAt && (
                         <span
                           className="block text-[10px] text-muted-foreground mt-1 no-underline"
@@ -1050,51 +1096,36 @@ export default function PlaygroundPage() {
                     min={1}
                     max={20}
                     disabled={hasThread}
-                    value={episodicSettings.contextEpisodes}
+                    value={episodicSettings.episodesInContext}
                     onChange={(e) =>
                       setEpisodicSettings((s) => ({
                         ...s,
-                        contextEpisodes: Math.max(1, parseInt(e.target.value, 10) || 3),
+                        episodesInContext: Math.max(1, parseInt(e.target.value, 10) || 3),
                       }))
                     }
                     className="w-20 text-right rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
                   />
                 </div>
 
-                {/* Similarity weight */}
+                {/* Recency bias */}
                 <div className="flex items-center justify-between">
                   <label className="text-xs text-muted-foreground">
-                    Similarity weight
-                    <span className="block text-[10px] opacity-60">semantic vs recency (0–1)</span>
+                    Recency bias
+                    <span className="block text-[10px] opacity-60">recent vs similarity (0–1); similarity = 1 − recency</span>
                   </label>
                   <input
                     type="number"
                     min={0}
                     max={1}
-                    step={0.1}
+                    step={0.05}
                     disabled={hasThread}
-                    value={episodicSettings.similarityWeight}
+                    value={episodicSettings.recencyWeight}
                     onChange={(e) => {
                       const val = Math.min(1, Math.max(0, parseFloat(e.target.value) || 0));
-                      setEpisodicSettings((s) => ({
-                        ...s,
-                        similarityWeight: val,
-                        recencyWeight: Number((1 - val).toFixed(1)),
-                      }));
+                      setEpisodicSettings((s) => ({ ...s, recencyWeight: val }));
                     }}
                     className="w-20 text-right rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
                   />
-                </div>
-
-                {/* Recency weight — derived */}
-                <div className="flex items-center justify-between opacity-60">
-                  <label className="text-xs text-muted-foreground">
-                    Recency weight
-                    <span className="block text-[10px]">auto (1 − similarity)</span>
-                  </label>
-                  <span className="text-xs font-mono text-muted-foreground w-20 text-right pr-1">
-                    {episodicSettings.recencyWeight.toFixed(1)}
-                  </span>
                 </div>
 
                 {hasThread && (
@@ -1102,6 +1133,98 @@ export default function PlaygroundPage() {
                     Thread active — settings frozen at creation.
                   </p>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Semantic Memory Settings */}
+          <div className="border-b border-border shrink-0">
+            <button
+              onClick={() => setSemanticSettingsOpen((v) => !v)}
+              className="w-full px-4 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors bg-card"
+            >
+              <span className="font-mono">{semanticSettingsOpen ? '▾' : '▸'}</span>
+              Semantic Memory
+            </button>
+
+            {semanticSettingsOpen && (
+              <div className="px-4 pb-4 pt-1 bg-card space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-muted-foreground">Enabled</label>
+                  <button
+                    onClick={() => setSemanticSettings((s) => ({ ...s, enabled: !s.enabled }))}
+                    className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${semanticSettings.enabled ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}
+                  >
+                    {semanticSettings.enabled ? 'On' : 'Off'}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-xs text-muted-foreground shrink-0">
+                    Facts per prepare
+                    <span className="block text-[10px] opacity-60">injected into LLM context</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range" min={1} max={20} step={1}
+                      value={semanticSettings.factsInContext}
+                      onChange={(e) => setSemanticSettings((s) => ({ ...s, factsInContext: Number(e.target.value) }))}
+                      className="w-20 accent-primary"
+                    />
+                    <span className="text-xs font-mono w-4 text-right">{semanticSettings.factsInContext}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-xs text-muted-foreground shrink-0">
+                    Entity merge threshold
+                    <span className="block text-[10px] opacity-60">cosine similarity for dedup</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range" min={0.5} max={1} step={0.01}
+                      value={semanticSettings.entitySimilarityThreshold}
+                      onChange={(e) => setSemanticSettings((s) => ({ ...s, entitySimilarityThreshold: Number(e.target.value) }))}
+                      className="w-20 accent-primary"
+                    />
+                    <span className="text-xs font-mono w-8 text-right">{semanticSettings.entitySimilarityThreshold.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-xs text-muted-foreground shrink-0">
+                    Min user facts to process
+                    <span className="block text-[10px] opacity-60">skip episode if below</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range" min={1} max={10} step={1}
+                      value={semanticSettings.minUserFacts}
+                      onChange={(e) => setSemanticSettings((s) => ({ ...s, minUserFacts: Number(e.target.value) }))}
+                      className="w-20 accent-primary"
+                    />
+                    <span className="text-xs font-mono w-4 text-right">{semanticSettings.minUserFacts}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-muted-foreground">Facts loaded</label>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {semanticFacts.length > 0 ? semanticFacts.length : '—'}
+                  </span>
+                </div>
+
+                <p className="text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1.5 leading-relaxed">
+                  Settings apply project-wide. Changes take effect on the next episode processed.
+                </p>
+
+                <button
+                  onClick={() => void saveSemanticSettings()}
+                  disabled={!projectId}
+                  className="w-full text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors text-center"
+                >
+                  {projectId ? 'Save to project' : 'Send a message first to save'}
+                </button>
               </div>
             )}
           </div>
@@ -1119,6 +1242,12 @@ export default function PlaygroundPage() {
               className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${rightTab === 'episodes' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Episodes {episodes.length > 0 ? `(${episodes.length})` : ''}
+            </button>
+            <button
+              onClick={() => { setRightTab('facts'); void fetchFacts(factsQuery); }}
+              className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${rightTab === 'facts' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Facts {semanticFacts.length > 0 ? `(${semanticFacts.length})` : ''}
             </button>
           </div>
 
@@ -1175,8 +1304,114 @@ export default function PlaygroundPage() {
               )}
             </div>
           )}
+
+          {/* Semantic Facts panel */}
+          {rightTab === 'facts' && (
+            <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+              <div className="p-2 border-b border-border space-y-2 shrink-0">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={factsQuery}
+                    onChange={(e) => setFactsQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void fetchFacts(factsQuery);
+                    }}
+                    placeholder="Search facts… (Enter)"
+                    className="flex-1 min-w-0 rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring font-mono"
+                  />
+                  <button
+                    onClick={() => void fetchFacts(factsQuery)}
+                    disabled={loadingFacts || !apiKey.trim() || !userId.trim()}
+                    className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors shrink-0"
+                  >
+                    {loadingFacts ? '…' : '↻'}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground">
+                    {loadingFacts ? 'Loading…' : `${semanticFacts.length} fact${semanticFacts.length !== 1 ? 's' : ''}`}
+                  </span>
+                  {factsQuery.trim() && (
+                    <button
+                      onClick={() => { setFactsQuery(''); void fetchFacts(); }}
+                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      clear search
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {semanticFacts.length === 0 && !loadingFacts ? (
+                <div className="flex items-center justify-center flex-1 text-xs text-muted-foreground text-center px-4">
+                  {apiKey.trim() && userId.trim()
+                    ? 'No facts yet. Facts are extracted from completed episodes automatically.'
+                    : 'Enter your API key and User ID above to view facts.'}
+                </div>
+              ) : (
+                <div className="p-2 space-y-1.5 flex-1">
+                  {semanticFacts.map((fact, i) => (
+                    <FactCard key={fact.factId ?? i} fact={fact} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Fact Card ────────────────────────────────────────────────────────────────
+
+function FactCard({ fact }: { fact: SemanticFact }) {
+  const [expanded, setExpanded] = useState(false);
+  const conf = Math.round(fact.confidence * 100);
+  const confColor =
+    conf >= 90 ? 'text-emerald-600 dark:text-emerald-400' :
+    conf >= 70 ? 'text-blue-600 dark:text-blue-400' :
+                 'text-amber-600 dark:text-amber-400';
+
+  return (
+    <div
+      className="rounded-md border border-border text-xs cursor-pointer select-none hover:bg-muted/40 transition-colors"
+      onClick={() => setExpanded((v) => !v)}
+    >
+      <div className="flex items-start gap-2 px-3 py-2">
+        <div className="flex-1 min-w-0 space-y-0.5">
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span className="font-medium text-foreground">{fact.subject}</span>
+            <span className="text-muted-foreground">{fact.predicate}</span>
+            <span className={`font-medium ${fact.objectIsEntity ? 'text-blue-600 dark:text-blue-400' : 'text-foreground'}`}>
+              {fact.object}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+            <span className={`font-mono font-medium ${confColor}`}>{conf}%</span>
+            {fact.relevanceScore !== undefined && (
+              <span className="font-mono">score: {fact.relevanceScore.toFixed(2)}</span>
+            )}
+            {fact.invalidAt && (
+              <span className="text-red-500 dark:text-red-400">invalidated</span>
+            )}
+          </div>
+        </div>
+        <span className="text-muted-foreground text-[10px] shrink-0 mt-0.5">
+          {expanded ? '▾' : '▸'}
+        </span>
+      </div>
+
+      {expanded && (
+        <div className="border-t border-border/50 mx-3 mb-2 pt-2 space-y-1">
+          <div className="text-[10px] font-mono text-muted-foreground space-y-0.5">
+            <div>factId: {fact.factId}</div>
+            <div>valid at: {new Date(fact.validAt).toLocaleString()}</div>
+            {fact.episodeId && <div>episode: {fact.episodeId.slice(0, 12)}…</div>}
+            {fact.objectIsEntity && <div className="text-blue-500">object is entity</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1322,19 +1557,21 @@ function opMeta(op: Operation): {
           'bg-blue-50/60 dark:bg-blue-950/20 hover:bg-blue-50 dark:hover:bg-blue-950/30',
         icon: '→',
       };
-    case 'ai_replied':
+    case 'ai_replied': {
+      const preview = d['preview'] ? String(d['preview']) : '';
       return {
         label: 'AI replied',
-        subtitle: `seq: ${d['sequenceNumber']} · ${String(d['preview']).slice(0, 55)}${String(d['preview']).length > 55 ? '…' : ''}`,
+        subtitle: `${d['model']} · ${d['latencyMs']}ms${preview ? ` · ${preview.slice(0, 50)}${preview.length > 50 ? '…' : ''}` : ''}`,
         borderColor: 'border-teal-400 dark:border-teal-600',
         bgColor:
           'bg-teal-50/60 dark:bg-teal-950/20 hover:bg-teal-50 dark:hover:bg-teal-950/30',
         icon: '✦',
       };
+    }
     case 'prepare':
       return {
         label: 'Prepare',
-        subtitle: `${d['messageCount']} msgs · compacted: ${d['compacted']}${d['truncated'] ? ' · truncated' : ''}${d['episodes'] ? ` · ${d['episodes']} episodes` : ''}`,
+        subtitle: `${d['messageCount']} msgs · compacted: ${d['compacted']}${d['truncated'] ? ' · truncated' : ''}${d['episodes'] ? ` · ${d['episodes']} episodes` : ''}${d['facts'] ? ` · ${d['facts']} facts` : ''}`,
         borderColor: 'border-violet-400 dark:border-violet-600',
         bgColor:
           'bg-violet-50/60 dark:bg-violet-950/20 hover:bg-violet-50 dark:hover:bg-violet-950/30',
@@ -1343,9 +1580,7 @@ function opMeta(op: Operation): {
     case 'auto_compacted':
       return {
         label: 'Auto-compacted',
-        subtitle:
-          String(d['summary']).slice(0, 60) +
-          (String(d['summary']).length > 60 ? '…' : ''),
+        subtitle: 'Message threshold reached — thread compacted',
         borderColor: 'border-orange-400 dark:border-orange-600',
         bgColor:
           'bg-orange-50/60 dark:bg-orange-950/20 hover:bg-orange-50 dark:hover:bg-orange-950/30',

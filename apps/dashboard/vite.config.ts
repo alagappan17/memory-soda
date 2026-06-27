@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, './src'),
       },
+      conditions: ['@memory-soda/source'],
     },
     define: {
       'import.meta.env.VITE_API_URL': JSON.stringify(
