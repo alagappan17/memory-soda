@@ -2,7 +2,8 @@ import { eq, and, desc, lt, count, sql, isNull, inArray, isNotNull, ne } from 'd
 import { db } from '../db/postgres.js';
 import { episodes, messages, projects, threads } from '../db/schema.js';
 import type { EpisodeRow } from '../db/schema.js';
-import { extractEpisode, embedText } from '../lib/gemini.js';
+import { extractEpisode, embedText, generateThreadTitle } from '../lib/gemini.js';
+import { processSemanticMemory } from './semantic-memory.service.js';
 import type {
   Episode,
   EpisodeContext,
@@ -41,12 +42,12 @@ function activeEpisodesFilter(userId: string, projectId: string) {
 function computeRelevanceScore(
   similarityScore: number,
   endedAt: Date | string | null,
-  similarityWeight: number,
   recencyWeight: number,
 ): number {
   const endedAtMs = endedAt ? new Date(endedAt).getTime() : Date.now();
   const daysSince = (Date.now() - endedAtMs) / 86_400_000;
   const recencyScore = 1 / (1 + daysSince);
+  const similarityWeight = 1 - recencyWeight;
   return similarityScore * similarityWeight + recencyScore * recencyWeight;
 }
 
@@ -61,6 +62,8 @@ function rowToEpisode(row: EpisodeRow): Episode {
     status: row.status as Episode['status'],
     summary: row.summary,
     keyLearnings: row.keyLearnings as string[] | null,
+    userFacts: row.userFacts as string[] | null,
+    assistantActions: row.assistantActions as string[] | null,
     messageCount: row.messageCount,
     tokenCount: row.tokenCount,
     startedAt: row.startedAt?.toISOString() ?? null,
@@ -158,6 +161,8 @@ export async function processEpisode(episodeId: string): Promise<void> {
         status: 'completed',
         summary: 'No messages in this thread.',
         keyLearnings: [],
+        userFacts: [],
+        assistantActions: [],
         processingCompletedAt: now,
         updatedAt: now,
       })
@@ -170,16 +175,22 @@ export async function processEpisode(episodeId: string): Promise<void> {
   // LLM extraction
   let summary: string;
   let keyLearnings: string[];
+  let userFacts: string[];
+  let assistantActions: string[];
   try {
     const result = await extractEpisode(msgRows, settings.maxMessages);
     summary = result.summary;
     keyLearnings = result.keyLearnings;
+    userFacts = result.userFacts;
+    assistantActions = result.assistantActions;
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error('[episodic] extraction failed for episode', episodeId, errMsg);
     await db
       .update(episodes)
       .set({
         status: 'failed',
-        error: err instanceof Error ? err.message : String(err),
+        error: errMsg,
         updatedAt: now,
       })
       .where(eq(episodes.id, episodeId));
@@ -203,6 +214,8 @@ export async function processEpisode(episodeId: string): Promise<void> {
         status: 'failed',
         summary,
         keyLearnings,
+        userFacts,
+        assistantActions,
         error: `Embedding failed: ${embeddingError}`,
         updatedAt: now,
       })
@@ -216,12 +229,18 @@ export async function processEpisode(episodeId: string): Promise<void> {
       status: 'completed',
       summary,
       keyLearnings,
+      userFacts,
+      assistantActions,
       embedding,
       processingCompletedAt: now,
       error: null,
       updatedAt: now,
     })
     .where(eq(episodes.id, episodeId));
+
+  processSemanticMemory(episodeId).catch((err) => {
+    console.error('[semantic] processing failed for episode', episodeId, err);
+  });
 }
 
 // ── Retry job ─────────────────────────────────────────────────────────────────
@@ -286,8 +305,7 @@ export async function getEpisodicContext(
   userId: string,
   projectId: string,
   query: string | undefined,
-  contextEpisodes: number,
-  similarityWeight: number,
+  episodesInContext: number,
   recencyWeight: number,
 ): Promise<EpisodeContext> {
   if (!query) {
@@ -298,7 +316,7 @@ export async function getEpisodicContext(
         .from(episodes)
         .where(activeEpisodesFilter(userId, projectId))
         .orderBy(desc(episodes.endedAt))
-        .limit(contextEpisodes),
+        .limit(episodesInContext),
     ]);
     const episodeCount = totalRows[0]?.count ?? 0;
     if (episodeCount === 0) return { episodes: null, episodeCount: 0 };
@@ -322,6 +340,7 @@ export async function getEpisodicContext(
       id: episodes.id,
       summary: episodes.summary,
       keyLearnings: episodes.keyLearnings,
+      userFacts: episodes.userFacts,
       startedAt: episodes.startedAt,
       endedAt: episodes.endedAt,
       similarityScore: sql<number>`1 - (${episodes.embedding} <=> ${vectorLiteral}::vector)`,
@@ -339,18 +358,18 @@ export async function getEpisodicContext(
       relevanceScore: computeRelevanceScore(
         row.similarityScore,
         row.endedAt,
-        similarityWeight,
         recencyWeight,
       ),
     }))
     .sort((a, b) => b.relevanceScore - a.relevanceScore)
-    .slice(0, contextEpisodes);
+    .slice(0, episodesInContext);
 
   return {
     episodes: scored.map((r) => ({
       episodeId: r.id,
       summary: r.summary ?? '',
       keyLearnings: (r.keyLearnings as string[] | null) ?? [],
+      userFacts: (r.userFacts as string[] | null) ?? [],
       startedAt: r.startedAt?.toISOString() ?? '',
       endedAt: r.endedAt?.toISOString() ?? '',
       relevanceScore: r.relevanceScore,
@@ -367,6 +386,7 @@ function rowToContextItem(
     episodeId: row.id,
     summary: row.summary ?? '',
     keyLearnings: (row.keyLearnings as string[] | null) ?? [],
+    userFacts: (row.userFacts as string[] | null) ?? [],
     startedAt: row.startedAt?.toISOString() ?? '',
     endedAt: row.endedAt?.toISOString() ?? '',
     relevanceScore,
@@ -378,12 +398,21 @@ function rowToContextItem(
 export async function listUserEpisodes(
   userId: string,
   projectId: string,
-  opts: { limit: number; before?: string; status: string },
-): Promise<{ episodes: Episode[]; total: number; hasMore: boolean }> {
+  opts: { limit: number; before?: string; status?: string },
+): Promise<{
+  episodes: Episode[];
+  total: number;
+  hasMore: boolean;
+  nextCursor: string | null;
+}> {
+  const statusFilter = opts.status
+    ? eq(episodes.status, opts.status as EpisodeRow['status'])
+    : ne(episodes.status, 'deleted' as EpisodeRow['status']);
+
   const whereBase = and(
     eq(episodes.userId, userId),
     eq(episodes.projectId, projectId),
-    eq(episodes.status, opts.status as EpisodeRow['status']),
+    statusFilter,
   );
 
   const whereWithCursor = opts.before
@@ -401,10 +430,16 @@ export async function listUserEpisodes(
   ]);
 
   const hasMore = rows.length > opts.limit;
+  const page = rows.slice(0, opts.limit).map(rowToEpisode);
+  // `before` filters endedAt < cursor; ordered newest-first, so the next page
+  // continues from the oldest endedAt in this page.
+  const last = page[page.length - 1];
+  const nextCursor = hasMore && last ? last.endedAt : null;
   return {
-    episodes: rows.slice(0, opts.limit).map(rowToEpisode),
+    episodes: page,
     total: totalRows[0]?.count ?? 0,
     hasMore,
+    nextCursor,
   };
 }
 
@@ -471,8 +506,7 @@ export async function searchEpisodes(
   projectId: string,
   query: string,
   limit: number,
-  similarityWeight = 0.7,
-  recencyWeight = 0.3,
+  recencyWeight: number,
 ): Promise<EpisodeWithRelevance[]> {
   const queryEmbedding = await embedText(query);
   const vectorLiteral = `[${queryEmbedding.join(',')}]`;
@@ -495,7 +529,6 @@ export async function searchEpisodes(
       relevanceScore: computeRelevanceScore(
         similarityScore,
         row.endedAt,
-        similarityWeight,
         recencyWeight,
       ),
     }))
@@ -529,7 +562,7 @@ export async function processScheduledEpisodes(): Promise<void> {
 
   const uniqueThreadIds = [...new Set(dueRows.map((r) => r.thread_id))];
   const threadRows = await db
-    .select({ id: threads.id, userId: threads.userId, messageCount: threads.messageCount, createdAt: threads.createdAt })
+    .select({ id: threads.id, userId: threads.userId, messageCount: threads.messageCount, createdAt: threads.createdAt, title: threads.title })
     .from(threads)
     .where(inArray(threads.id, uniqueThreadIds));
   const threadMap = new Map(threadRows.map((r) => [r.id, r]));
@@ -552,5 +585,18 @@ export async function processScheduledEpisodes(): Promise<void> {
     })
       .then((episode) => processEpisode(episode.id))
       .catch((err) => console.error('[episodic] scheduled episode failed:', err));
+
+    if (!threadRow.title) {
+      db.select({ role: messages.role, content: messages.content })
+        .from(messages)
+        .where(and(eq(messages.threadId, row.thread_id), isNull(messages.compactedAt)))
+        .orderBy(sql`${messages.sequenceNumber} ASC`)
+        .limit(6)
+        .then((msgs) => generateThreadTitle(msgs))
+        .then((title) =>
+          db.update(threads).set({ title }).where(eq(threads.id, row.thread_id)),
+        )
+        .catch((err) => console.error('[episodic] title generation failed:', err));
+    }
   }
 }

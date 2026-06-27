@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateQuery } from '../middleware/validate.js';
+import { asyncHandler } from '../middleware/async-handler.js';
+import { NotFoundError, BadRequestError } from '../lib/errors.js';
+import { logger } from '../lib/logger.js';
 import {
   listUserEpisodes,
   getEpisode,
@@ -8,6 +11,7 @@ import {
   resetEpisodeForRetry,
   searchEpisodes,
   processEpisode,
+  getProjectEpisodicSettings,
 } from '../services/episodic-memory.service.js';
 
 const router = Router();
@@ -16,8 +20,8 @@ const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
   before: z.string().datetime().optional(),
   status: z
-    .enum(['pending', 'processing', 'completed', 'failed'])
-    .default('completed'),
+    .enum(['pending', 'processing', 'completed', 'failed', 'archived'])
+    .optional(),
 });
 
 const searchQuerySchema = z.object({
@@ -32,20 +36,15 @@ const searchQuerySchema = z.object({
 router.get(
   '/users/:userId/episodes',
   validateQuery(listQuerySchema),
-  async (req, res) => {
-    try {
-      const { limit, before, status } = req.query as unknown as z.infer<typeof listQuerySchema>;
-      const result = await listUserEpisodes(req.params.userId, req.projectId!, {
-        limit,
-        before,
-        status,
-      });
-      res.json(result);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Failed to list episodes' });
-    }
-  },
+  asyncHandler(async (req, res) => {
+    const { limit, before, status } = req.query as unknown as z.infer<typeof listQuerySchema>;
+    const result = await listUserEpisodes(req.params.userId, req.projectId!, {
+      limit,
+      before,
+      status,
+    });
+    res.json(result);
+  }),
 );
 
 /**
@@ -55,78 +54,61 @@ router.get(
 router.get(
   '/users/:userId/episodes/search',
   validateQuery(searchQuerySchema),
-  async (req, res) => {
-    try {
-      const { q, limit } = req.query as unknown as z.infer<typeof searchQuerySchema>;
-      const episodes = await searchEpisodes(
-        req.params.userId,
-        req.projectId!,
-        q,
-        limit,
-      );
-      res.json({ episodes });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Failed to search episodes' });
-    }
-  },
+  asyncHandler(async (req, res) => {
+    const { q, limit } = req.query as unknown as z.infer<typeof searchQuerySchema>;
+    const settings = await getProjectEpisodicSettings(req.projectId!);
+    const episodes = await searchEpisodes(
+      req.params.userId,
+      req.projectId!,
+      q,
+      limit,
+      settings.recencyWeight,
+    );
+    res.json({ episodes });
+  }),
 );
 
 /**
  * @route GET /v1/memory/episodic/episodes/:episodeId
  * @description Get a single episode by ID.
  */
-router.get('/episodes/:episodeId', async (req, res) => {
-  try {
+router.get(
+  '/episodes/:episodeId',
+  asyncHandler(async (req, res) => {
     const episode = await getEpisode(req.params.episodeId, req.projectId!);
-    if (!episode) {
-      res.status(404).json({ error: 'Episode not found' });
-      return;
-    }
+    if (!episode) throw new NotFoundError('Episode not found', 'EPISODE_NOT_FOUND');
     res.json({ episode });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to get episode' });
-  }
-});
+  }),
+);
 
 /**
  * @route DELETE /v1/memory/episodic/episodes/:episodeId
  * @description Soft delete an episode. Clears summary, key_learnings, and embedding.
  */
-router.delete('/episodes/:episodeId', async (req, res) => {
-  try {
+router.delete(
+  '/episodes/:episodeId',
+  asyncHandler(async (req, res) => {
     const existing = await getEpisode(req.params.episodeId, req.projectId!);
-    if (!existing) {
-      res.status(404).json({ error: 'Episode not found' });
-      return;
-    }
+    if (!existing) throw new NotFoundError('Episode not found', 'EPISODE_NOT_FOUND');
     if (existing.status === 'archived') {
-      res.status(400).json({ error: 'Episode is already archived' });
-      return;
+      throw new BadRequestError('Episode is already archived');
     }
     await softDeleteEpisode(req.params.episodeId, req.projectId!);
     res.json({ episodeId: req.params.episodeId, deleted: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete episode' });
-  }
-});
+  }),
+);
 
 /**
  * @route POST /v1/memory/episodic/episodes/:episodeId/retry
  * @description Re-trigger extraction for a failed episode.
  */
-router.post('/episodes/:episodeId/retry', async (req, res) => {
-  try {
+router.post(
+  '/episodes/:episodeId/retry',
+  asyncHandler(async (req, res) => {
     const existing = await getEpisode(req.params.episodeId, req.projectId!);
-    if (!existing) {
-      res.status(404).json({ error: 'Episode not found' });
-      return;
-    }
+    if (!existing) throw new NotFoundError('Episode not found', 'EPISODE_NOT_FOUND');
     if (existing.status !== 'failed') {
-      res.status(400).json({ error: 'Only failed episodes can be retried' });
-      return;
+      throw new BadRequestError('Only failed episodes can be retried');
     }
     const updated = await resetEpisodeForRetry(
       req.params.episodeId,
@@ -134,14 +116,11 @@ router.post('/episodes/:episodeId/retry', async (req, res) => {
     );
     if (updated) {
       processEpisode(updated.episodeId).catch((err) => {
-        console.error('[episodic] retry processEpisode failed:', err);
+        logger.error({ err }, '[episodic] retry processEpisode failed');
       });
     }
     res.json({ episodeId: req.params.episodeId, status: 'pending' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to retry episode' });
-  }
-});
+  }),
+);
 
 export default router;
