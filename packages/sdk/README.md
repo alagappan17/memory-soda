@@ -1,6 +1,8 @@
 # @memory-soda/sdk
 
-Memory layer SDK for AI agents. Store, retrieve, and manage user memories across conversations.
+TypeScript client for [memory-soda](https://github.com/your-org/memory-soda) — the memory layer for AI agents. Send conversation messages to a **thread**; get working, episodic, and semantic memory back in a single `prepare` call before each LLM turn.
+
+Ships dual ESM + CJS. Requires Node.js 18+ (uses native `fetch`).
 
 ## Installation
 
@@ -8,72 +10,106 @@ Memory layer SDK for AI agents. Store, retrieve, and manage user memories across
 npm install @memory-soda/sdk
 ```
 
-Requires Node.js 18+ (uses native `fetch`).
-
 ## Quick start
 
 ```ts
 import { MemorySodaClient } from '@memory-soda/sdk';
 
-const memory = new MemorySodaClient({
+const client = new MemorySodaClient({
   baseUrl: 'http://localhost:3004',
-  apiKey: 'your-api-key',
+  apiKey: 'ms_your_key_here',
 });
 
-// Store a memory
-await memory.store('user-123', 'The user prefers concise responses');
+// Opening turn: create thread + add message + prepare, in one call
+const { threadId, prepare } = await client.startConversation({
+  userId: 'user_123',
+  firstMessage: { role: 'user', content: 'Book me a table for two tonight' },
+});
 
-// Retrieve relevant memories for a query
-const results = await memory.retrieve('user-123', 'communication style');
-// results[0].memory.content => 'The user prefers concise responses'
-// results[0].score => 0.92
+// `prepare.messages` is ready to hand to any LLM.
+const reply = await llm.chat({ messages: prepare.messages });
 
-// List all memories for a user
-const all = await memory.list('user-123');
+// Record the reply (idempotency key attached automatically)
+await client.workingMemory.addMessage(threadId, {
+  role: 'assistant',
+  content: reply.text,
+});
 
-// Delete a specific memory
-await memory.delete('user-123', memoryId);
-
-// Delete all memories for a user
-await memory.deleteAll('user-123');
+// Every subsequent turn: prepare before calling the LLM
+const ctx = await client.memory.prepare(threadId, { query: 'allergies?' });
+// ctx.messages, ctx.context (episodic), ctx.semanticContext (graph facts)
 ```
 
 ## Configuration
 
-### Direct instantiation
+```ts
+const client = new MemorySodaClient({
+  baseUrl: 'https://your-memory-server.com',
+  apiKey: 'ms_your_key_here',
+  timeout: 60_000, // optional, default 60s
+});
+
+// Or from MEMORY_SODA_BASE_URL + MEMORY_SODA_API_KEY:
+const client = MemorySodaClient.fromEnv();
+```
+
+## Client surface
+
+| Namespace              | Methods                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| `client.threads`       | `create`, `list`, `get`, `update`, `end`                                             |
+| `client.workingMemory` | `addMessage`, `listMessages`, `compact`, `getThreadStats`                            |
+| `client.memory`        | `prepare`, `chat`, `facts`, `entities`, `entityFacts`, `relationships`, `deleteFact` |
+| `client`               | `startConversation`, `health`, `ping`                                                |
+
+There is no per-memory-type namespace — working/episodic/semantic memory are derived server-side and surfaced through `prepare`/`chat`; query the semantic graph directly via `client.memory.*`.
+
+## Per-thread settings
+
+Override project defaults for any memory tier at creation; omitted fields inherit the project default:
 
 ```ts
-const memory = new MemorySodaClient({
-  baseUrl: 'https://your-memory-server.com',
-  apiKey: 'your-api-key',
-  timeout: 30_000, // optional, default 30s
+await client.threads.create({
+  userId: 'user_123',
+  settings: {
+    working: { autoCompactThreshold: 60 },
+    episodic: { recencyWeight: 0.5 },
+    semantic: { minConfidence: 0.8 },
+  },
 });
 ```
 
-### From environment variables
+## Resilience
+
+- **Automatic retries** on network errors / `429` / `5xx` with exponential backoff + jitter (honors `Retry-After`); configurable per call via `maxRetries`.
+- **Idempotency** — `addMessage` and `chat` attach an `Idempotency-Key` automatically, so retries never double-write.
+- **Per-call overrides** — pass `{ timeoutMs, signal }` as the last argument to any method.
 
 ```ts
-// Reads MEMORY_SODA_BASE_URL and MEMORY_SODA_API_KEY from process.env
-const memory = MemorySodaClient.fromEnv();
+await client.memory.chat(threadId, { content }, { timeoutMs: 120_000 });
 ```
 
-## Running the server
+## Error handling
 
-### Local development (Docker)
+```ts
+import { ApiError, AuthError, NetworkError } from '@memory-soda/sdk';
 
-```bash
-git clone https://github.com/your-org/memory-soda
-cd memory-soda
-docker compose up -d                    # databases
-npm install && npm run dev              # api + dashboard
+try {
+  await client.threads.get(threadId);
+} catch (err) {
+  if (err instanceof ApiError) {
+    err.status; // 404
+    err.code; // 'THREAD_NOT_FOUND'
+    err.requestId; // correlate with server logs
+  }
+}
 ```
 
-### Self-hosted production
+## Documentation
 
-```bash
-cp .env.prod.example .env.prod          # fill in secrets
-docker compose -f docker/docker-compose.prod.yml up -d
-```
+Full guides and reference live in the [developer docs](../../docs/index.md):
 
-Dashboard is available at `http://localhost:3000`.
-API is available at `http://localhost:3004`.
+- [API Conventions](../../docs/api-conventions.md) — errors, idempotency, pagination
+- [Working Memory](../../docs/working-memory/index.md) — threads, messages, prepare, compact
+- [Project Settings](../../docs/project-settings/index.md) — memory defaults & overrides
+- [SDK Reference](../../docs/working-memory/sdk/index.md)

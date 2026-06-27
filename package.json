@@ -31,6 +31,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/uuid": "^10.0.0",
     "autoprefixer": "10.4.13",
     "drizzle-kit": "^0.31.10",
     "esbuild": "^0.19.2",
@@ -47,13 +48,13 @@
     "apps/*"
   ],
   "dependencies": {
+    "@ai-sdk/google": "^1.0.0",
+    "ai": "^4.0.0",
     "drizzle-orm": "^0.45.2",
     "express": "^4.21.2",
     "ioredis": "^5.10.1",
     "neo4j-driver": "^6.0.1",
     "next": "~16.1.6",
-    "@ai-sdk/google": "^1.0.0",
-    "ai": "^4.0.0",
     "pg": "^8.20.0",
     "pgvector": "^0.2.1",
     "react": "^19.0.0",
