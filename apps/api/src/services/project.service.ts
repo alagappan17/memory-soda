@@ -1,12 +1,13 @@
 import { db } from '../db/postgres.js';
 import { projects } from '../db/schema.js';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type {
   Project,
   ProjectSettings,
   ProjectSettingsPatch,
 } from '@memory-soda/types';
 import { mergeWithDefaults } from '../lib/project-settings.js';
+import { NotFoundError } from '../lib/errors.js';
 
 function rowToProject(row: typeof projects.$inferSelect): Project {
   return {
@@ -66,7 +67,7 @@ export async function updateProject(
     .set({ name, description })
     .where(eq(projects.id, id))
     .returning();
-  if (!row) throw new Error('Project not found');
+  if (!row) throw new NotFoundError('Project not found', 'PROJECT_NOT_FOUND');
   return rowToProject(row);
 }
 
@@ -75,27 +76,43 @@ export async function getProjectSettings(id: string): Promise<ProjectSettings> {
     .select({ settings: projects.settings })
     .from(projects)
     .where(eq(projects.id, id));
-  if (!row) throw new Error('Project not found');
+  if (!row) throw new NotFoundError('Project not found', 'PROJECT_NOT_FOUND');
   const raw = row.settings as ProjectSettingsPatch | null;
   return mergeWithDefaults(raw);
 }
 
 export async function updateProjectSettings(
   id: string,
-  settings: ProjectSettingsPatch,
+  patch: ProjectSettingsPatch,
 ): Promise<ProjectSettings> {
-  const episodicPatch = JSON.stringify(settings.episodic ?? {});
-  const [updated] = await db
-    .update(projects)
-    .set({
-      settings: sql`jsonb_set(
-        COALESCE(${projects.settings}, '{}'::jsonb),
-        '{episodic}',
-        COALESCE(${projects.settings}->'episodic', '{}'::jsonb) || ${episodicPatch}::jsonb
-      )`,
-    })
-    .where(eq(projects.id, id))
-    .returning();
-  if (!updated) throw new Error('Project not found');
-  return mergeWithDefaults(updated.settings as ProjectSettingsPatch);
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ settings: projects.settings })
+      .from(projects)
+      .where(eq(projects.id, id))
+      .for('update');
+    if (!row) throw new NotFoundError('Project not found', 'PROJECT_NOT_FOUND');
+
+    const stored = (row.settings as ProjectSettingsPatch | null) ?? {};
+    // Shallow-merge each provided tier; leave unspecified tiers untouched.
+    const next: ProjectSettingsPatch = {
+      ...stored,
+      ...(patch.episodic && {
+        episodic: { ...stored.episodic, ...patch.episodic },
+      }),
+      ...(patch.semantic && {
+        semantic: { ...stored.semantic, ...patch.semantic },
+      }),
+      ...(patch.working && {
+        working: { ...stored.working, ...patch.working },
+      }),
+    };
+
+    const [updated] = await tx
+      .update(projects)
+      .set({ settings: next })
+      .where(eq(projects.id, id))
+      .returning();
+    return mergeWithDefaults(updated!.settings as ProjectSettingsPatch);
+  });
 }

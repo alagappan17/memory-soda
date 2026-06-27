@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateBody } from '../middleware/validate.js';
+import { asyncHandler } from '../middleware/async-handler.js';
 import { createApiKey, listApiKeys, revokeApiKey } from '../services/api-key.service.js';
 
 const router = Router();
@@ -15,15 +16,13 @@ const createBodySchema = z.object({
  * @description List all API keys (name, preview, projectId). Full key values are never returned.
  * @returns {{ apiKeys: ApiKey[] }}
  */
-router.get('/', async (_req, res) => {
-  try {
+router.get(
+  '/',
+  asyncHandler(async (_req, res) => {
     const keys = await listApiKeys();
     res.json({ apiKeys: keys });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to list API keys' });
-  }
-});
+  }),
+);
 
 /**
  * @route POST /dashboard/api-keys
@@ -31,16 +30,15 @@ router.get('/', async (_req, res) => {
  * @body {{ name: string, projectId?: string }}
  * @returns {{ key: string, keyId: string, preview: string, name: string, projectId?: string, createdAt: string }}
  */
-router.post('/', validateBody(createBodySchema), async (req, res) => {
-  try {
+router.post(
+  '/',
+  validateBody(createBodySchema),
+  asyncHandler(async (req, res) => {
     const { name, projectId } = req.body as z.infer<typeof createBodySchema>;
     const result = await createApiKey(name, projectId);
     res.status(201).json(result);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create API key' });
-  }
-});
+  }),
+);
 
 /**
  * @route DELETE /dashboard/api-keys/:id
@@ -48,14 +46,12 @@ router.post('/', validateBody(createBodySchema), async (req, res) => {
  * @param {string} id - The key ID (not the key value).
  * @returns 204 No Content
  */
-router.delete('/:id', async (req, res) => {
-  try {
+router.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
     await revokeApiKey(req.params['id']!);
     res.status(204).send();
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to revoke API key' });
-  }
-});
+  }),
+);
 
 export default router;
