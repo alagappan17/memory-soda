@@ -183,6 +183,20 @@ Copy `.env.example` for local development. See `.env.prod.example` for productio
 
 ---
 
+## Data & Privacy
+
+Memory-soda stores end users' conversation history. If you integrate it into a product with real users, **you are the Data Controller** under GDPR, CCPA, and equivalent laws — you are responsible for consent, disclosure, and honouring deletion requests.
+
+See [docs/privacy-and-compliance.md](docs/privacy-and-compliance.md) for:
+- The three-party data model (your app → memory-soda → AI provider)
+- A compliance checklist and launch checklist
+- How to implement user deletion (right to erasure)
+- A Privacy Policy template you can adapt
+
+See [docs/user-pathways.md](docs/user-pathways.md) (Pathway 5) for the recommended architecture when shipping to end users.
+
+---
+
 ## Publishing the SDK
 
 The SDK publishes to npm automatically when a `v*` tag is pushed. Requires `NPM_TOKEN` set as a GitHub Actions secret.

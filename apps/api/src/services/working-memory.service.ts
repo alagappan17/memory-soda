@@ -2,14 +2,9 @@ import { eq, and, lt, desc, asc, sql, max, inArray, isNull } from 'drizzle-orm';
 import { summarizeMessages } from '../lib/gemini.js';
 import { db } from '../db/postgres.js';
 import { threads, messages, scheduledEpisodes } from '../db/schema.js';
-import {
-  getEpisodicContext,
-  getProjectEpisodicSettings,
-} from './episodic-memory.service.js';
-import type {
-  EpisodeContext,
-  ProjectEpisodicSettings,
-} from '@memory-soda/types';
+import { getProjectEpisodicSettings } from './episodic-memory.service.js';
+import { getProjectSettings } from './project-settings.service.js';
+import { NotFoundError } from '../lib/errors.js';
 import { type Thread, rowToThread } from './thread.service.js';
 
 export type { Thread };
@@ -26,16 +21,6 @@ export interface Message {
   metadata: Record<string, unknown> | null;
   compactedAt: string | null;
   createdAt: string;
-}
-
-export interface PrepareResult {
-  threadId: string;
-  messages: { role: string; content: string }[];
-  context: EpisodeContext | null;
-  messageCount: number;
-  truncated: boolean;
-  compacted: boolean;
-  warning?: string;
 }
 
 export interface CompactResult {
@@ -95,7 +80,7 @@ export async function addMessage(
       .for('update');
 
     if (!threadRow) {
-      throw Object.assign(new Error('Thread not found'), { code: 'NOT_FOUND' });
+      throw new NotFoundError('Thread not found', 'THREAD_NOT_FOUND');
     }
 
     const [seqRow] = await tx
@@ -148,10 +133,21 @@ export async function addMessage(
 
   let compacted = false;
   const { thread } = result;
-  if (
-    thread.autoCompactThreshold !== null &&
-    uncompactedCount >= thread.autoCompactThreshold
-  ) {
+
+  // Working settings are frozen on the thread at creation; null threshold means
+  // auto-compaction is disabled. Legacy threads (no workingSettings) fall back to
+  // the legacy column, then to the project default.
+  let effectiveThreshold: number | null;
+  if (thread.workingSettings) {
+    effectiveThreshold = thread.workingSettings.autoCompactThreshold;
+  } else if (thread.autoCompactThreshold !== null) {
+    effectiveThreshold = thread.autoCompactThreshold;
+  } else {
+    effectiveThreshold = (await getProjectSettings(projectId)).working
+      .autoCompactThreshold;
+  }
+
+  if (effectiveThreshold !== null && uncompactedCount >= effectiveThreshold) {
     // Keep the message that triggered compaction verbatim so the next LLM
     // turn sees the user's actual words, not a paraphrase in the summary.
     const compactResult = await compactThread(threadId, projectId, {
@@ -185,7 +181,12 @@ export async function listMessages(
     before?: number;
     order: 'asc' | 'desc';
   },
-): Promise<{ messages: Message[]; total: number; hasMore: boolean } | null> {
+): Promise<{
+  messages: Message[];
+  total: number;
+  hasMore: boolean;
+  nextCursor: number | null;
+} | null> {
   const [threadRow] = await db
     .select({ id: threads.id })
     .from(threads)
@@ -212,10 +213,18 @@ export async function listMessages(
   ]);
 
   const hasMore = rows.length > opts.limit;
+  const page = rows.slice(0, opts.limit).map(rowToMessage);
+  // `before` filters sequenceNumber < cursor, so the next-older page starts at
+  // the smallest sequence in this page regardless of sort order.
+  const nextCursor =
+    hasMore && page.length > 0
+      ? Math.min(...page.map((m) => m.sequenceNumber))
+      : null;
   return {
-    messages: rows.slice(0, opts.limit).map(rowToMessage),
+    messages: page,
     total: totalRows[0]?.count ?? 0,
     hasMore,
+    nextCursor,
   };
 }
 
@@ -363,102 +372,6 @@ export async function compactThread(
     compactedCount: targetRows.length,
     fromSequence: fromSeq,
     toSequence: toSeq,
-  };
-}
-
-// ── Prepare ───────────────────────────────────────────────────────────────────
-
-export async function prepareThread(
-  threadId: string,
-  projectId: string,
-  messageLimit: number,
-  query?: string,
-): Promise<PrepareResult | null> {
-  const [threadRow] = await db
-    .select({
-      id: threads.id,
-      userId: threads.userId,
-      episodicSettings: threads.episodicSettings,
-      autoCompactThreshold: threads.autoCompactThreshold,
-    })
-    .from(threads)
-    .where(and(eq(threads.id, threadId), eq(threads.projectId, projectId)));
-  if (!threadRow) return null;
-
-  // The active compact summary is always included first and never counts
-  // against messageLimit — shrinking the limit can't drop compacted context.
-  const fetchMessages = async () => {
-    const realMsgWhere = and(
-      eq(messages.threadId, threadId),
-      isNull(messages.compactedAt),
-      notSummarySql,
-    );
-    const [summaryRows, [totalRow], realRows] = await Promise.all([
-      db
-        .select({ role: messages.role, content: messages.content })
-        .from(messages)
-        .where(
-          and(
-            eq(messages.threadId, threadId),
-            isNull(messages.compactedAt),
-            isSummarySql,
-          ),
-        )
-        .orderBy(asc(messages.sequenceNumber)),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(messages)
-        .where(realMsgWhere),
-      db
-        .select({ role: messages.role, content: messages.content })
-        .from(messages)
-        .where(realMsgWhere)
-        .orderBy(desc(messages.sequenceNumber))
-        .limit(messageLimit),
-    ]);
-    const realCount = totalRow?.count ?? 0;
-    realRows.reverse();
-    return { summaryRows, realRows, realCount };
-  };
-
-  const fetchContext = async (): Promise<EpisodeContext | null> => {
-    try {
-      const settings =
-        (threadRow.episodicSettings as ProjectEpisodicSettings | null) ??
-        (await getProjectEpisodicSettings(projectId));
-      if (!settings.enabled) return null;
-      return await getEpisodicContext(
-        threadRow.userId,
-        projectId,
-        query,
-        settings.contextEpisodes,
-        settings.similarityWeight,
-        settings.recencyWeight,
-      );
-    } catch {
-      return null;
-    }
-  };
-
-  const [{ summaryRows, realRows, realCount }, context] = await Promise.all([
-    fetchMessages(),
-    fetchContext(),
-  ]);
-
-  const threshold = threadRow.autoCompactThreshold ?? null;
-  const warning =
-    threshold !== null && messageLimit < threshold
-      ? `messageLimit (${messageLimit}) is less than autoCompactThreshold (${threshold}). Messages between the compact summary and the retrieved tail may be missing. Set messageLimit >= autoCompactThreshold to ensure full context.`
-      : undefined;
-
-  return {
-    threadId,
-    messages: [...summaryRows, ...realRows],
-    context,
-    messageCount: realCount,
-    truncated: realCount > messageLimit,
-    compacted: summaryRows.length > 0,
-    warning,
   };
 }
 
