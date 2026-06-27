@@ -8,6 +8,8 @@ export interface Episode {
   status: EpisodeStatus;
   summary: string | null;
   keyLearnings: string[] | null;
+  userFacts: string[] | null;
+  assistantActions: string[] | null;
   messageCount: number;
   tokenCount: number | null;
   startedAt: string | null;
@@ -29,6 +31,7 @@ export interface EpisodeContextItem {
   episodeId: string;
   summary: string;
   keyLearnings: string[];
+  userFacts: string[];
   startedAt: string;
   endedAt: string;
   relevanceScore: number;
@@ -49,6 +52,7 @@ export interface EpisodesListResponse {
   episodes: Episode[];
   total: number;
   hasMore: boolean;
+  nextCursor: string | null;
 }
 
 export interface EpisodesSearchResponse {

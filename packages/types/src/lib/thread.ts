@@ -1,8 +1,14 @@
-import type { ProjectEpisodicSettings } from './project-settings.js';
+import type {
+  ProjectEpisodicSettings,
+  ProjectSemanticSettings,
+  ProjectWorkingSettings,
+} from './project-settings.js';
 
 export interface WMThreadSettings {
   autoCompactThreshold: number | null;
   episodic: ProjectEpisodicSettings;
+  semantic: ProjectSemanticSettings;
+  working: ProjectWorkingSettings;
 }
 
 export interface WMThread {
@@ -26,6 +32,8 @@ export interface WMCreateThreadRequest {
   settings?: {
     /** Overrides project defaults for this thread. Omit to use project defaults. */
     episodic?: Partial<ProjectEpisodicSettings>;
+    semantic?: Partial<ProjectSemanticSettings>;
+    working?: Partial<ProjectWorkingSettings>;
   };
 }
 
@@ -35,6 +43,7 @@ export interface WMPatchThreadRequest {
 
 export interface WMCreateThreadResponse {
   threadId: string;
+  projectId: string;
   userId: string;
   createdAt: string;
   settings: WMThreadSettings;
