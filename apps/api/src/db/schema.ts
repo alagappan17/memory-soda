@@ -27,28 +27,6 @@ const vector = customType<{ data: number[]; driverData: string }>({
   },
 });
 
-export const memories = pgTable(
-  'memories',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: text('user_id').notNull(),
-    content: text('content').notNull(),
-    source: text('source').notNull().default('USER'),
-    metadata: jsonb('metadata').notNull().default({}),
-    embedding: vector('embedding', { dimensions: 3072 }),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (t) => [index('memories_user_id_idx').on(t.userId)],
-);
-
-export type MemoryRow = typeof memories.$inferSelect;
-export type NewMemoryRow = typeof memories.$inferInsert;
-
 export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
@@ -117,8 +95,11 @@ export const threads = pgTable(
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
+    title: text('title'),
     autoCompactThreshold: integer('auto_compact_threshold'),
     episodicSettings: jsonb('episodic_settings'),
+    semanticSettings: jsonb('semantic_settings'),
+    workingSettings: jsonb('working_settings'),
     lastCompactedAt: timestamp('last_compacted_at', { withTimezone: true }),
     lastCompactedSequence: integer('last_compacted_sequence')
       .notNull()
@@ -184,6 +165,14 @@ export const episodeStatusEnum = pgEnum('episode_status', [
   'archived',
 ]);
 
+export const semanticStatusEnum = pgEnum('semantic_status', [
+  'pending',
+  'processing',
+  'completed',
+  'failed',
+  'skipped',
+]);
+
 export const episodes = pgTable(
   'episodes',
   {
@@ -196,6 +185,8 @@ export const episodes = pgTable(
     status: episodeStatusEnum('status').notNull().default('pending'),
     summary: text('summary'),
     keyLearnings: jsonb('key_learnings'),
+    userFacts: jsonb('user_facts'),
+    assistantActions: jsonb('assistant_actions'),
     embedding: vector('embedding', { dimensions: 768 }),
     messageCount: integer('message_count').notNull().default(0),
     tokenCount: integer('token_count'),
@@ -209,6 +200,10 @@ export const episodes = pgTable(
     }),
     error: text('error'),
     retryCount: integer('retry_count').notNull().default(0),
+    semanticStatus: semanticStatusEnum('semantic_status')
+      .notNull()
+      .default('pending'),
+    semanticRetryCount: integer('semantic_retry_count').notNull().default(0),
     metadata: jsonb('metadata'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
@@ -226,6 +221,7 @@ export const episodes = pgTable(
     index('episodes_user_created_idx').on(t.userId, t.createdAt),
     index('episodes_thread_idx').on(t.threadId),
     index('episodes_status_created_idx').on(t.status, t.createdAt),
+    index('episodes_semantic_status_idx').on(t.semanticStatus, t.status),
   ],
 );
 
@@ -254,3 +250,27 @@ export const scheduledEpisodes = pgTable(
 );
 
 export type ScheduledEpisodeRow = typeof scheduledEpisodes.$inferSelect;
+
+export const idempotencyKeys = pgTable(
+  'idempotency_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    method: text('method').notNull(),
+    path: text('path').notNull(),
+    status: integer('status').notNull(),
+    response: jsonb('response').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('idempotency_project_key_idx').on(t.projectId, t.key),
+    index('idempotency_created_at_idx').on(t.createdAt),
+  ],
+);
+
+export type IdempotencyKeyRow = typeof idempotencyKeys.$inferSelect;

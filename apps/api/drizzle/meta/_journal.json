@@ -15,6 +15,48 @@
       "when": 1781497874324,
       "tag": "0001_broad_william_stryker",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781671542160,
+      "tag": "0002_wakeful_felicia_hardy",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781860341804,
+      "tag": "0003_steady_morlocks",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781932791703,
+      "tag": "0004_known_golden_guardian",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782045380802,
+      "tag": "0005_stiff_lightspeed",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782063772622,
+      "tag": "0006_open_hercules",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782100000000,
+      "tag": "0007_drop_memories",
+      "breakpoints": true
     }
   ]
 }
