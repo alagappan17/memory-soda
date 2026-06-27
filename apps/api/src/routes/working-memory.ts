@@ -1,14 +1,16 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { validateBody } from '../middleware/validate.js';
+import { validateBody, validateQuery } from '../middleware/validate.js';
+import { asyncHandler } from '../middleware/async-handler.js';
+import { idempotency } from '../middleware/idempotency.js';
+import { NotFoundError } from '../lib/errors.js';
 import {
   addMessage,
   listMessages,
-  prepareThread,
   compactThread,
   getThreadStats,
 } from '../services/working-memory.service.js';
-import { generateReply } from '../lib/gemini.js';
+import { prepareThread } from '../services/memory.service.js';
 
 const router = Router();
 
@@ -41,210 +43,99 @@ const listMessagesSchema = z.object({
 });
 
 const prepareSchema = z.object({
-  messageLimit: z.number().int().min(1).max(100).default(20),
+  messageLimit: z.number().int().min(1).max(100).optional(),
   query: z.string().max(1000).optional(),
-});
-
-const chatSchema = z.object({
-  content: z.string().min(1),
-  systemPrompt: z.string().optional(),
-  messageLimit: z.number().int().min(1).max(100).default(20),
 });
 
 // ── Message routes ────────────────────────────────────────────────────────────
 
 router.post(
-  '/threads/:threadId/messages',
+  '/:threadId/messages',
+  idempotency,
   validateBody(addMessageSchema),
-  async (req, res) => {
-    try {
-      const { role, content, tokenCount, model, latencyMs, metadata } =
-        req.body as z.infer<typeof addMessageSchema>;
-      const { message, compacted } = await addMessage(
-        req.params.threadId,
-        req.projectId!,
-        role,
-        content,
-        tokenCount,
-        model,
-        latencyMs,
-        metadata,
-      );
-      res.status(201).json({
-        messageId: message.messageId,
-        threadId: message.threadId,
-        sequenceNumber: message.sequenceNumber,
-        role: message.role,
-        createdAt: message.createdAt,
-        compacted,
-      });
-    } catch (err: unknown) {
-      const code = (err as { code?: string }).code;
-      if (code === 'NOT_FOUND') {
-        res.status(404).json({ error: 'Thread not found' });
-        return;
-      }
-      console.error(err);
-      res.status(500).json({ error: 'Failed to add message' });
-    }
-  },
+  asyncHandler(async (req, res) => {
+    const { role, content, tokenCount, model, latencyMs, metadata } =
+      req.body as z.infer<typeof addMessageSchema>;
+    const { message, compacted } = await addMessage(
+      req.params.threadId,
+      req.projectId!,
+      role,
+      content,
+      tokenCount,
+      model,
+      latencyMs,
+      metadata,
+    );
+    res.status(201).json({
+      messageId: message.messageId,
+      threadId: message.threadId,
+      sequenceNumber: message.sequenceNumber,
+      role: message.role,
+      createdAt: message.createdAt,
+      compacted,
+    });
+  }),
 );
 
-router.get('/threads/:threadId/messages', async (req, res) => {
-  const parsed = listMessagesSchema.safeParse(req.query);
-  if (!parsed.success) {
-    res
-      .status(400)
-      .json({ error: 'Validation error', issues: parsed.error.issues });
-    return;
-  }
-  try {
-    const { limit, before, order } = parsed.data;
+router.get(
+  '/:threadId/messages',
+  validateQuery(listMessagesSchema),
+  asyncHandler(async (req, res) => {
+    const { limit, before, order } = req.query as unknown as z.infer<
+      typeof listMessagesSchema
+    >;
     const result = await listMessages(req.params.threadId, req.projectId!, {
       limit,
       before,
       order,
     });
-    if (!result) {
-      res.status(404).json({ error: 'Thread not found' });
-      return;
-    }
+    if (!result) throw new NotFoundError('Thread not found', 'THREAD_NOT_FOUND');
     res.json(result);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to list messages' });
-  }
-});
+  }),
+);
 
 // ── Prepare ───────────────────────────────────────────────────────────────────
 
 router.post(
-  '/threads/:threadId/prepare',
+  '/:threadId/prepare',
   validateBody(prepareSchema.partial()),
-  async (req, res) => {
-    try {
-      const parsed = prepareSchema.parse(req.body ?? {});
-      const result = await prepareThread(
-        req.params.threadId,
-        req.projectId!,
-        parsed.messageLimit,
-        parsed.query,
-      );
-      if (!result) {
-        res.status(404).json({ error: 'Thread not found' });
-        return;
-      }
-      res.json(result);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Failed to prepare thread' });
-    }
-  },
-);
-
-// ── Chat ──────────────────────────────────────────────────────────────────────
-
-router.post(
-  '/threads/:threadId/chat',
-  validateBody(chatSchema),
-  async (req, res) => {
-    try {
-      const { content, systemPrompt, messageLimit } = req.body as z.infer<
-        typeof chatSchema
-      >;
-      const projectId = req.projectId!;
-      const threadId = req.params.threadId;
-
-      const { message: userMessage } = await addMessage(
-        threadId,
-        projectId,
-        'user',
-        content,
-      );
-
-      const prepared = await prepareThread(threadId, projectId, messageLimit, content);
-      if (!prepared) {
-        res.status(404).json({ error: 'Thread not found' });
-        return;
-      }
-
-      const replyContent = await generateReply(prepared.messages, systemPrompt, prepared.context);
-
-      const { message: assistantMessage, compacted: assistantCompacted } =
-        await addMessage(threadId, projectId, 'assistant', replyContent);
-
-      res.status(201).json({
-        userMessage: {
-          messageId: userMessage.messageId,
-          sequenceNumber: userMessage.sequenceNumber,
-          role: userMessage.role,
-          createdAt: userMessage.createdAt,
-        },
-        assistantMessage: {
-          messageId: assistantMessage.messageId,
-          sequenceNumber: assistantMessage.sequenceNumber,
-          role: assistantMessage.role,
-          content: assistantMessage.content,
-          createdAt: assistantMessage.createdAt,
-        },
-        compacted: assistantCompacted,
-        prepare: {
-          messageCount: prepared.messageCount,
-          truncated: prepared.truncated,
-          compacted: prepared.compacted,
-          context: prepared.context
-            ? { episodeCount: prepared.context.episodeCount }
-            : null,
-        },
-      });
-    } catch (err: unknown) {
-      const code = (err as { code?: string }).code;
-      if (code === 'NOT_FOUND') {
-        res.status(404).json({ error: 'Thread not found' });
-        return;
-      }
-      console.error(err);
-      res.status(500).json({ error: 'Failed to generate reply' });
-    }
-  },
+  asyncHandler(async (req, res) => {
+    const parsed = prepareSchema.parse(req.body ?? {});
+    const result = await prepareThread(
+      req.params.threadId,
+      req.projectId!,
+      parsed.messageLimit,
+      parsed.query,
+    );
+    if (!result) throw new NotFoundError('Thread not found', 'THREAD_NOT_FOUND');
+    res.json(result);
+  }),
 );
 
 // ── Compact ───────────────────────────────────────────────────────────────────
 
-router.post('/threads/:threadId/compact', async (req, res) => {
-  try {
+router.post(
+  '/:threadId/compact',
+  asyncHandler(async (req, res) => {
     const result = await compactThread(req.params.threadId, req.projectId!);
-    if (result === null) {
-      res.status(404).json({ error: 'Thread not found' });
-      return;
-    }
+    if (result === null) throw new NotFoundError('Thread not found', 'THREAD_NOT_FOUND');
     if (result === false) {
-      res
-        .status(200)
-        .json({ ok: true, compacted: false, message: 'Nothing to compact' });
+      res.status(200).json({ ok: true, compacted: false, message: 'Nothing to compact' });
       return;
     }
     res.json(result);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to compact thread' });
-  }
-});
+  }),
+);
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 
-router.get('/threads/:threadId/stats', async (req, res) => {
-  try {
+router.get(
+  '/:threadId/stats',
+  asyncHandler(async (req, res) => {
     const result = await getThreadStats(req.params.threadId, req.projectId!);
-    if (!result) {
-      res.status(404).json({ error: 'Thread not found' });
-      return;
-    }
+    if (!result) throw new NotFoundError('Thread not found', 'THREAD_NOT_FOUND');
     res.json(result);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to get thread stats' });
-  }
-});
+  }),
+);
 
 export default router;

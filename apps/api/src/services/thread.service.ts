@@ -1,4 +1,4 @@
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, desc, lt } from 'drizzle-orm';
 import { generateUserId } from '../lib/generate-user-id.js';
 import { db } from '../db/postgres.js';
 import { threads } from '../db/schema.js';
@@ -7,7 +7,12 @@ import {
   createPendingEpisode,
   processEpisode,
 } from './episodic-memory.service.js';
-import type { ProjectEpisodicSettings } from '@memory-soda/types';
+import { getProjectSettings } from './project-settings.service.js';
+import type {
+  ProjectEpisodicSettings,
+  ProjectSemanticSettings,
+  ProjectWorkingSettings,
+} from '@memory-soda/types';
 
 // ── Internal type ─────────────────────────────────────────────────────────────
 
@@ -23,6 +28,8 @@ export interface Thread {
   lastActivityAt: string;
   autoCompactThreshold: number | null;
   episodicSettings: ProjectEpisodicSettings | null;
+  semanticSettings: ProjectSemanticSettings | null;
+  workingSettings: ProjectWorkingSettings | null;
   lastCompactedAt: string | null;
   lastCompactedSequence: number;
 }
@@ -43,6 +50,10 @@ export function rowToThread(row: typeof threads.$inferSelect): Thread {
     autoCompactThreshold: row.autoCompactThreshold ?? null,
     episodicSettings:
       (row.episodicSettings as ProjectEpisodicSettings | null) ?? null,
+    semanticSettings:
+      (row.semanticSettings as ProjectSemanticSettings | null) ?? null,
+    workingSettings:
+      (row.workingSettings as ProjectWorkingSettings | null) ?? null,
     lastCompactedAt: row.lastCompactedAt?.toISOString() ?? null,
     lastCompactedSequence: row.lastCompactedSequence,
   };
@@ -56,12 +67,32 @@ export async function createThread(
   tags?: string[],
   metadata?: Record<string, unknown>,
   autoCompactThreshold?: number,
-  episodicOverride?: Partial<ProjectEpisodicSettings>,
+  overrides?: {
+    episodic?: Partial<ProjectEpisodicSettings>;
+    semantic?: Partial<ProjectSemanticSettings>;
+    working?: Partial<ProjectWorkingSettings>;
+  },
 ): Promise<Thread> {
-  const projectSettings = await getProjectEpisodicSettings(projectId);
-  const resolvedEpisodic: ProjectEpisodicSettings = episodicOverride
-    ? { ...projectSettings, ...episodicOverride }
-    : projectSettings;
+  const projectSettings = await getProjectSettings(projectId);
+
+  // Top-level autoCompactThreshold is a shorthand for working.autoCompactThreshold.
+  const workingOverride: Partial<ProjectWorkingSettings> = {
+    ...(overrides?.working ?? {}),
+    ...(autoCompactThreshold !== undefined ? { autoCompactThreshold } : {}),
+  };
+
+  const resolvedEpisodic: ProjectEpisodicSettings = {
+    ...projectSettings.episodic,
+    ...(overrides?.episodic ?? {}),
+  };
+  const resolvedSemantic: ProjectSemanticSettings = {
+    ...projectSettings.semantic,
+    ...(overrides?.semantic ?? {}),
+  };
+  const resolvedWorking: ProjectWorkingSettings = {
+    ...projectSettings.working,
+    ...workingOverride,
+  };
 
   const [row] = await db
     .insert(threads)
@@ -70,11 +101,39 @@ export async function createThread(
       projectId,
       tags: tags ?? [],
       metadata: metadata ?? null,
-      autoCompactThreshold: autoCompactThreshold ?? null,
+      autoCompactThreshold: resolvedWorking.autoCompactThreshold,
       episodicSettings: resolvedEpisodic,
+      semanticSettings: resolvedSemantic,
+      workingSettings: resolvedWorking,
     })
     .returning();
   return rowToThread(row!);
+}
+
+export async function listThreadsByProject(
+  projectId: string,
+  opts: { userId?: string; limit: number; cursor?: string },
+): Promise<{ threads: Thread[]; hasMore: boolean; nextCursor: string | null }> {
+  const conditions = [eq(threads.projectId, projectId)];
+  if (opts.userId) conditions.push(eq(threads.userId, opts.userId));
+  if (opts.cursor)
+    conditions.push(lt(threads.lastActivityAt, new Date(opts.cursor)));
+
+  const rows = await db
+    .select()
+    .from(threads)
+    .where(and(...conditions))
+    .orderBy(desc(threads.lastActivityAt))
+    .limit(opts.limit + 1);
+
+  const hasMore = rows.length > opts.limit;
+  const page = rows.slice(0, opts.limit);
+  const last = page[page.length - 1];
+  return {
+    threads: page.map(rowToThread),
+    hasMore,
+    nextCursor: hasMore && last ? last.lastActivityAt.toISOString() : null,
+  };
 }
 
 export async function getThread(

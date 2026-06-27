@@ -6,6 +6,7 @@ export interface DashboardThread {
   threadId: string;
   userId: string;
   projectId: string;
+  title: string | null;
   tags: string[];
   messageCount: number;
   metadata: unknown;
@@ -32,6 +33,7 @@ function mapThread(row: typeof threads.$inferSelect): DashboardThread {
     threadId: row.id,
     userId: row.userId,
     projectId: row.projectId,
+    title: row.title ?? null,
     tags: row.tags ?? [],
     messageCount: row.messageCount,
     metadata: row.metadata,

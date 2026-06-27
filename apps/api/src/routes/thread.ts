@@ -1,13 +1,20 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { validateBody } from '../middleware/validate.js';
+import { validateBody, validateQuery } from '../middleware/validate.js';
+import { asyncHandler } from '../middleware/async-handler.js';
+import { NotFoundError } from '../lib/errors.js';
 import {
   createThread,
   getThread,
   updateThreadMetadata,
   endThread,
+  listThreadsByProject,
 } from '../services/thread.service.js';
-import { DEFAULT_EPISODIC_SETTINGS } from '../lib/project-settings.js';
+import {
+  DEFAULT_EPISODIC_SETTINGS,
+  DEFAULT_SEMANTIC_SETTINGS,
+  DEFAULT_WORKING_SETTINGS,
+} from '../lib/project-settings.js';
 import type { WMThreadSettings } from '@memory-soda/types';
 import type { Thread } from '../services/thread.service.js';
 
@@ -20,9 +27,22 @@ const episodicOverrideSchema = z.object({
   autoEpisodeIntervalMs: z.number().min(1_000).nullable().optional(),
   maxMessages: z.number().int().min(1).max(1000).optional(),
   maxRetries: z.number().int().min(0).max(10).optional(),
-  contextEpisodes: z.number().int().min(1).max(20).optional(),
-  similarityWeight: z.number().min(0).max(1).optional(),
+  episodesInContext: z.number().int().min(1).max(20).optional(),
   recencyWeight: z.number().min(0).max(1).optional(),
+});
+
+const semanticOverrideSchema = z.object({
+  enabled: z.boolean().optional(),
+  factsInContext: z.number().int().min(1).max(50).optional(),
+  entitySimilarityThreshold: z.number().min(0.5).max(1).optional(),
+  maxRetries: z.number().int().min(0).max(10).optional(),
+  minUserFacts: z.number().int().min(1).max(10).optional(),
+  minConfidence: z.number().min(0).max(1).optional(),
+});
+
+const workingOverrideSchema = z.object({
+  autoCompactThreshold: z.number().int().min(2).nullable().optional(),
+  messageLimit: z.number().int().min(1).max(100).optional(),
 });
 
 const createThreadSchema = z.object({
@@ -33,6 +53,8 @@ const createThreadSchema = z.object({
   settings: z
     .object({
       episodic: episodicOverrideSchema.optional(),
+      semantic: semanticOverrideSchema.optional(),
+      working: workingOverrideSchema.optional(),
     })
     .optional(),
 });
@@ -41,12 +63,20 @@ const patchThreadSchema = z.object({
   metadata: z.record(z.unknown()),
 });
 
+const listThreadsSchema = z.object({
+  userId: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.string().datetime().optional(),
+});
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function threadSettings(thread: Thread): WMThreadSettings {
   return {
     autoCompactThreshold: thread.autoCompactThreshold,
     episodic: thread.episodicSettings ?? DEFAULT_EPISODIC_SETTINGS,
+    semantic: thread.semanticSettings ?? DEFAULT_SEMANTIC_SETTINGS,
+    working: thread.workingSettings ?? DEFAULT_WORKING_SETTINGS,
   };
 }
 
@@ -67,8 +97,30 @@ function serializeThread(thread: Thread) {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-router.post('/', validateBody(createThreadSchema), async (req, res) => {
-  try {
+router.get(
+  '/',
+  validateQuery(listThreadsSchema),
+  asyncHandler(async (req, res) => {
+    const { userId, limit, cursor } = req.query as unknown as z.infer<
+      typeof listThreadsSchema
+    >;
+    const result = await listThreadsByProject(req.projectId!, {
+      userId,
+      limit,
+      cursor,
+    });
+    res.json({
+      threads: result.threads.map(serializeThread),
+      hasMore: result.hasMore,
+      nextCursor: result.nextCursor,
+    });
+  }),
+);
+
+router.post(
+  '/',
+  validateBody(createThreadSchema),
+  asyncHandler(async (req, res) => {
     const { userId, tags, metadata, autoCompactThreshold, settings } =
       req.body as z.infer<typeof createThreadSchema>;
     const thread = await createThread(
@@ -77,7 +129,7 @@ router.post('/', validateBody(createThreadSchema), async (req, res) => {
       tags,
       metadata,
       autoCompactThreshold,
-      settings?.episodic,
+      settings,
     );
     res.status(201).json({
       threadId: thread.threadId,
@@ -86,64 +138,43 @@ router.post('/', validateBody(createThreadSchema), async (req, res) => {
       createdAt: thread.createdAt,
       settings: threadSettings(thread),
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create thread' });
-  }
-});
+  }),
+);
 
-router.get('/:threadId', async (req, res) => {
-  try {
+router.get(
+  '/:threadId',
+  asyncHandler(async (req, res) => {
     const thread = await getThread(req.params.threadId, req.projectId!);
-    if (!thread) {
-      res.status(404).json({ error: 'Thread not found' });
-      return;
-    }
+    if (!thread) throw new NotFoundError('Thread not found', 'THREAD_NOT_FOUND');
     res.json(serializeThread(thread));
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to get thread' });
-  }
-});
+  }),
+);
 
 router.patch(
   '/:threadId',
   validateBody(patchThreadSchema),
-  async (req, res) => {
-    try {
-      const { metadata } = req.body as z.infer<typeof patchThreadSchema>;
-      const thread = await updateThreadMetadata(
-        req.params.threadId,
-        req.projectId!,
-        metadata,
-      );
-      if (!thread) {
-        res.status(404).json({ error: 'Thread not found' });
-        return;
-      }
-      res.json(serializeThread(thread));
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Failed to update thread' });
-    }
-  },
+  asyncHandler(async (req, res) => {
+    const { metadata } = req.body as z.infer<typeof patchThreadSchema>;
+    const thread = await updateThreadMetadata(
+      req.params.threadId,
+      req.projectId!,
+      metadata,
+    );
+    if (!thread) throw new NotFoundError('Thread not found', 'THREAD_NOT_FOUND');
+    res.json(serializeThread(thread));
+  }),
 );
 
-router.post('/:threadId/end', async (req, res) => {
-  try {
+router.post(
+  '/:threadId/end',
+  asyncHandler(async (req, res) => {
     const result = await endThread(req.params.threadId, req.projectId!);
-    if (!result) {
-      res.status(404).json({ error: 'Thread not found' });
-      return;
-    }
+    if (!result) throw new NotFoundError('Thread not found', 'THREAD_NOT_FOUND');
     res.json({
       threadId: result.thread.threadId,
       episodeQueued: result.episodeQueued,
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to end thread' });
-  }
-});
+  }),
+);
 
 export default router;
