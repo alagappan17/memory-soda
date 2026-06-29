@@ -13,6 +13,7 @@ import type {
   ProjectSettingsPatch,
 } from '@memory-soda/types';
 import { mergeWithDefaults } from '../lib/project-settings.js';
+import { processSemanticMemory } from './semantic-memory.service.js';
 
 // ── Project settings ──────────────────────────────────────────────────────────
 
@@ -222,6 +223,11 @@ export async function processEpisode(episodeId: string): Promise<void> {
       updatedAt: now,
     })
     .where(eq(episodes.id, episodeId));
+
+  // Fire-and-forget semantic extraction on the now-completed episode.
+  processSemanticMemory(episodeId).catch((err) => {
+    console.error('[episodic] semantic trigger failed:', err);
+  });
 }
 
 // ── Retry job ─────────────────────────────────────────────────────────────────

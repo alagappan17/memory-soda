@@ -3,4 +3,5 @@ export * from './lib/auth.js';
 export * from './lib/thread.js';
 export * from './lib/working-memory.js';
 export * from './lib/episodic-memory.js';
+export * from './lib/semantic-memory.js';
 export * from './lib/project-settings.js';

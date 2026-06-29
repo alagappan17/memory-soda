@@ -18,12 +18,34 @@ export const DEFAULT_EPISODIC_SETTINGS: ProjectEpisodicSettings = {
   recencyWeight: 0.3,
 };
 
+export interface ProjectSemanticSettings {
+  enabled: boolean;
+  /** Extraction confidence floor — facts below this are dropped. */
+  minConfidence: number;
+  /** How many facts to retrieve into prepare() context. */
+  factsInContext: number;
+  /** Cosine similarity above which two entities are merged during resolution. */
+  entityResolutionThreshold: number;
+  /** Cosine similarity above which a new fact is treated as a duplicate. */
+  factDedupThreshold: number;
+}
+
+export const DEFAULT_SEMANTIC_SETTINGS: ProjectSemanticSettings = {
+  enabled: true,
+  minConfidence: 0.5,
+  factsInContext: 8,
+  entityResolutionThreshold: 0.88,
+  factDedupThreshold: 0.95,
+};
+
 export interface ProjectSettings {
   episodic: ProjectEpisodicSettings;
+  semantic: ProjectSemanticSettings;
 }
 
 export interface ProjectSettingsPatch {
   episodic?: Partial<ProjectEpisodicSettings>;
+  semantic?: Partial<ProjectSemanticSettings>;
 }
 
 export function mergeWithDefaults(
@@ -31,5 +53,6 @@ export function mergeWithDefaults(
 ): ProjectSettings {
   return {
     episodic: { ...DEFAULT_EPISODIC_SETTINGS, ...(raw?.episodic ?? {}) },
+    semantic: { ...DEFAULT_SEMANTIC_SETTINGS, ...(raw?.semantic ?? {}) },
   };
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "threads" ADD COLUMN "semantic_settings" jsonb;
