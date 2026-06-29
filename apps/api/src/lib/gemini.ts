@@ -207,3 +207,47 @@ export async function embedText(text: string): Promise<number[]> {
   );
   return res.data.embedding.values;
 }
+
+/**
+ * Embed many texts in a single batch call. Returns one 768-dim vector per input,
+ * in the same order. Used by the semantic write pipeline (entity + fact embedding).
+ */
+export async function batchEmbedTexts(
+  texts: string[],
+  opts: { timeoutMs?: number } = {},
+): Promise<number[][]> {
+  if (texts.length === 0) return [];
+  const res = await axios.post<{ embeddings: { values: number[] }[] }>(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents',
+    {
+      requests: texts.map((text) => ({
+        model: 'models/gemini-embedding-001',
+        content: { parts: [{ text }] },
+        outputDimensionality: 768,
+      })),
+    },
+    {
+      headers: { 'x-goog-api-key': apiKey },
+      timeout: opts.timeoutMs ?? GEMINI_TIMEOUT_MS,
+    },
+  );
+  return res.data.embeddings.map((e) => e.values);
+}
+
+const SYNTHESIS_SYSTEM = `You summarize what is known about a user into a brief, natural-language paragraph that an AI assistant can use as background context. Be concise and factual. Only use the facts provided — never invent details. If there is nothing meaningful, return an empty string.`;
+
+/**
+ * Produce a short prose summary of a rendered context block. Opt-in read-path
+ * step (include: ['synthesis']) — mirrors Zep's "summary" mode.
+ */
+export async function synthesizeContext(contextBlock: string): Promise<string> {
+  const { text } = await generateTextWithTimeout((signal) =>
+    generateText({
+      model: google('gemini-2.5-flash'),
+      system: SYNTHESIS_SYSTEM,
+      prompt: contextBlock,
+      abortSignal: signal,
+    }),
+  );
+  return text.trim();
+}

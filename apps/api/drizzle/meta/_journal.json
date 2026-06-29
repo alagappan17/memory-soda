@@ -22,6 +22,13 @@
       "when": 1782717558333,
       "tag": "0002_fast_firestar",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782718165328,
+      "tag": "0003_short_metal_master",
+      "breakpoints": true
     }
   ]
 }

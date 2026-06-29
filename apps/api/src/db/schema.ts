@@ -121,6 +121,7 @@ export const threads = pgTable(
       .defaultNow(),
     autoCompactThreshold: integer('auto_compact_threshold'),
     episodicSettings: jsonb('episodic_settings'),
+    semanticSettings: jsonb('semantic_settings'),
     lastCompactedAt: timestamp('last_compacted_at', { withTimezone: true }),
     lastCompactedSequence: integer('last_compacted_sequence')
       .notNull()
