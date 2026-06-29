@@ -50,7 +50,6 @@
     "drizzle-orm": "^0.45.2",
     "express": "^4.21.2",
     "ioredis": "^5.10.1",
-    "neo4j-driver": "^6.0.1",
     "next": "~16.1.6",
     "@ai-sdk/google": "^1.0.0",
     "ai": "^4.0.0",

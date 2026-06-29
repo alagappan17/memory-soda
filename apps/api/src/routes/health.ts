@@ -1,19 +1,14 @@
 import { Router } from 'express';
 import Redis from 'ioredis';
 import { pool } from '../db/postgres.js';
-import neo4j from 'neo4j-driver';
 import type { HealthResponse, ServiceStatus } from '@memory-soda/types';
 
 const router = Router();
 
 router.get('/', async (_req, res) => {
-  const [postgres, redis, neo4jStatus] = await Promise.all([
-    checkPostgres(),
-    checkRedis(),
-    checkNeo4j(),
-  ]);
+  const [postgres, redis] = await Promise.all([checkPostgres(), checkRedis()]);
 
-  const services = { postgres, redis, neo4j: neo4jStatus };
+  const services = { postgres, redis };
   const status: ServiceStatus = Object.values(services).every((s) => s === 'ok') ? 'ok' : 'error';
 
   const body: HealthResponse = { status, services };
@@ -42,24 +37,6 @@ async function checkRedis(): Promise<ServiceStatus> {
     return 'error';
   } finally {
     client.disconnect();
-  }
-}
-
-async function checkNeo4j(): Promise<ServiceStatus> {
-  const driver = neo4j.driver(
-    process.env.NEO4J_URI ?? 'bolt://localhost:7687',
-    neo4j.auth.basic(
-      process.env.NEO4J_USERNAME ?? 'neo4j',
-      process.env.NEO4J_PASSWORD ?? 'password'
-    )
-  );
-  try {
-    await driver.verifyConnectivity();
-    return 'ok';
-  } catch {
-    return 'error';
-  } finally {
-    await driver.close();
   }
 }
 

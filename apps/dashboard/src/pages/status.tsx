@@ -8,14 +8,12 @@ interface HealthData {
   services: {
     postgres: 'ok' | 'error';
     redis: 'ok' | 'error';
-    neo4j: 'ok' | 'error';
   };
 }
 
 const SERVICE_LABELS: Record<string, string> = {
   postgres: 'Postgres',
   redis: 'Redis',
-  neo4j: 'Neo4j',
 };
 
 function StatusDot({ status }: { status: ServiceStatus }) {
@@ -60,7 +58,7 @@ export default function StatusPage() {
 
   const services = health
     ? Object.entries(health.services)
-    : [['postgres', null], ['redis', null], ['neo4j', null]];
+    : [['postgres', null], ['redis', null]];
 
   return (
     <div className="max-w-lg mx-auto px-6 py-12">

@@ -6,7 +6,6 @@ networks:
 
 volumes:
   pg_data:
-  neo4j_data:
   redis_data:
 
 services:
@@ -27,24 +26,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  neo4j:
-    image: neo4j:5.18-community
-    environment:
-      NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-memory_pass}
-      NEO4J_PLUGINS: '["apoc"]'
-    volumes:
-      - neo4j_data:/data
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    networks:
-      - memory-soda-net
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
   redis:
     image: redis:7-alpine
@@ -67,7 +48,6 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-memory_user}:${POSTGRES_PASSWORD:-memory_pass}@postgres:5432/memory_db
       REDIS_URL: redis://redis:6379
-      NEO4J_URI: bolt://neo4j:7687
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       MIGRATE_ON_START: "true"
     ports:
@@ -78,8 +58,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      neo4j:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3004/health || exit 1"]

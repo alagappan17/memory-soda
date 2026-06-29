@@ -6,7 +6,6 @@ name: memory-soda-dev
 
 volumes:
   pg_data_dev:
-  neo4j_data_dev:
   redis_data_dev:
 
 services:
@@ -25,22 +24,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  neo4j:
-    image: neo4j:5.18-community
-    environment:
-      NEO4J_AUTH: neo4j/memory_pass
-      NEO4J_PLUGINS: '["apoc"]'
-    volumes:
-      - neo4j_data_dev:/data
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
   redis:
     image: redis:7-alpine

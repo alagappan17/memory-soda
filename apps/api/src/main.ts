@@ -11,7 +11,6 @@ import workingMemoryRouter from './routes/working-memory.js';
 import episodicMemoryRouter from './routes/episodic-memory.js';
 import threadRouter from './routes/thread.js';
 import threadsRouter from './routes/threads.js';
-import { initNeo4j } from './db/neo4j-init.js';
 import { db, checkPostgres } from './db/postgres.js';
 import { listApiKeys, createApiKey } from './services/api-key.service.js';
 import {
@@ -57,8 +56,6 @@ async function bootstrap(): Promise<void> {
     await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
     console.log('[ db ] migrations applied');
   }
-
-  await initNeo4j();
 
   const existingKeys = await listApiKeys();
   if (existingKeys.length === 0) {
