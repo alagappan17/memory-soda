@@ -9,6 +9,7 @@ import projectsRouter from './routes/projects.js';
 import { requireApiKey } from './middleware/auth.js';
 import workingMemoryRouter from './routes/working-memory.js';
 import episodicMemoryRouter from './routes/episodic-memory.js';
+import semanticMemoryRouter from './routes/semantic-memory.js';
 import threadRouter from './routes/thread.js';
 import threadsRouter from './routes/threads.js';
 import { db, checkPostgres } from './db/postgres.js';
@@ -47,6 +48,7 @@ app.use(requireApiKey);
 app.use('/v1/threads', threadRouter);
 app.use('/v1/memory/working', workingMemoryRouter);
 app.use('/v1/memory/episodic', episodicMemoryRouter);
+app.use('/v1/memory/semantic', semanticMemoryRouter);
 
 async function bootstrap(): Promise<void> {
   await checkPostgres();
