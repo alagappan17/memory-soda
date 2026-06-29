@@ -1,6 +1,7 @@
 import { request } from './http.js';
 import { ThreadClient } from './thread.js';
 import { WorkingMemoryClient } from './working-memory.js';
+import { SemanticMemoryClient } from './semantic-memory.js';
 import type { HealthResponse } from '@memory-soda/types';
 
 export interface MemorySodaConfig {
@@ -30,6 +31,9 @@ export class MemorySodaClient {
   /** Working Memory — conversation history, message storage, and LLM context preparation. */
   readonly workingMemory: WorkingMemoryClient;
 
+  /** Semantic Memory — durable facts and resolved entities learned about a user. */
+  readonly semantic: SemanticMemoryClient;
+
   constructor(config: MemorySodaConfig) {
     this.baseUrl = config.baseUrl;
     this.apiKey = config.apiKey;
@@ -42,6 +46,11 @@ export class MemorySodaClient {
       this.apiKey,
       () => this.signal(),
       this.threads,
+    );
+    this.semantic = new SemanticMemoryClient(
+      this.baseUrl,
+      this.apiKey,
+      () => this.signal(),
     );
   }
 
