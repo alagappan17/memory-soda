@@ -2,6 +2,7 @@ export { MemorySodaClient } from './client.js';
 export type { MemorySodaConfig } from './client.js';
 export { ThreadClient } from './thread.js';
 export { WorkingMemoryClient } from './working-memory.js';
+export { SemanticMemoryClient } from './semantic-memory.js';
 export {
   ApiError,
   AuthError,
@@ -32,7 +33,17 @@ export type {
   WMAddMessageResponse,
   WMListMessagesResponse,
   WMPrepareResponse,
+  // Prepare context block
+  RankedContextGroup,
   // Episodic context (surfaced in prepare response)
   EpisodeContextItem,
   EpisodeContext,
+  // Semantic memory
+  EntityType,
+  SemanticFact,
+  SemanticEntity,
+  SemanticContext,
+  SemanticFactsResponse,
+  SemanticEntitiesResponse,
+  SemanticEntityFactsResponse,
 } from '@memory-soda/types';
