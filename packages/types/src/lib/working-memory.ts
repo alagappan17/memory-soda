@@ -1,5 +1,3 @@
-import type { EpisodeContext } from './episodic-memory.js';
-
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool';
 
 export interface WMMessageMetadata {
@@ -44,11 +42,6 @@ export interface WMListMessagesQuery {
   order?: 'asc' | 'desc';
 }
 
-export interface WMPrepareRequest {
-  messageLimit?: number;
-  query?: string;
-}
-
 // ── Response shapes ───────────────────────────────────────────────────────────
 
 export interface WMAddMessageResponse {
@@ -66,13 +59,3 @@ export interface WMListMessagesResponse {
   hasMore: boolean;
 }
 
-export interface WMPrepareResponse {
-  threadId: string;
-  messages: { role: string; content: string }[];
-  context: EpisodeContext | null;
-  messageCount: number;
-  truncated: boolean;
-  compacted: boolean;
-  /** Present when messageLimit < autoCompactThreshold — callers risk a context gap between the compact summary and the retrieved tail. */
-  warning?: string;
-}

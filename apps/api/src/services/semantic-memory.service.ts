@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql, inArray } from 'drizzle-orm';
+import { and, eq, isNull, isNotNull, or, desc, sql, inArray } from 'drizzle-orm';
 import { db } from '../db/postgres.js';
 import { episodes, facts, entities, messages, projects, threads } from '../db/schema.js';
 import type { NewFactRow } from '../db/schema.js';
@@ -13,6 +13,10 @@ import { mergeWithDefaults } from '../lib/project-settings.js';
 import type {
   ProjectSemanticSettings,
   ProjectSettingsPatch,
+  SemanticContext,
+  SemanticEntity,
+  SemanticFact,
+  RankedContextGroup,
 } from '@memory-soda/types';
 
 // ── Settings ──────────────────────────────────────────────────────────────────
@@ -383,4 +387,371 @@ export async function retryFailedSemanticMemory(): Promise<void> {
       console.error('[semantic] retry failed:', row.id, err);
     });
   }
+}
+
+// ── Retrieval (read path) ────────────────────────────────────────────────────
+
+const FACT_COLUMNS = {
+  id: facts.id,
+  subject: facts.subject,
+  predicate: facts.predicate,
+  object: facts.object,
+  objectIsEntity: facts.objectIsEntity,
+  confidence: facts.confidence,
+  contextEntityName: facts.contextEntityName,
+  validAt: facts.validAt,
+  ingestionAt: facts.ingestionAt,
+  invalidAt: facts.invalidAt,
+  episodeId: facts.episodeId,
+} as const;
+
+type FactSelect = {
+  id: string;
+  subject: string;
+  predicate: string;
+  object: string;
+  objectIsEntity: boolean;
+  confidence: number;
+  contextEntityName: string | null;
+  validAt: Date;
+  ingestionAt: Date;
+  invalidAt: Date | null;
+  episodeId: string | null;
+};
+
+function rowToSemanticFact(r: FactSelect, relevanceScore?: number): SemanticFact {
+  return {
+    factId: r.id,
+    subject: r.subject,
+    predicate: r.predicate,
+    object: r.object,
+    objectIsEntity: r.objectIsEntity,
+    confidence: r.confidence,
+    contextEntityName: r.contextEntityName,
+    validAt: r.validAt.toISOString(),
+    ingestionAt: r.ingestionAt.toISOString(),
+    invalidAt: r.invalidAt ? r.invalidAt.toISOString() : null,
+    episodeId: r.episodeId,
+    ...(relevanceScore !== undefined ? { relevanceScore } : {}),
+  };
+}
+
+/** Reciprocal Rank Fusion across ranked id lists. Higher score = more relevant. */
+function reciprocalRankFusion(lists: string[][], k = 60): Map<string, number> {
+  const scores = new Map<string, number>();
+  for (const list of lists) {
+    list.forEach((id, idx) => {
+      scores.set(id, (scores.get(id) ?? 0) + 1 / (k + idx + 1));
+    });
+  }
+  return scores;
+}
+
+/**
+ * Hybrid fact retrieval: vector similarity + entity-anchored lookup + keyword
+ * (full-text), fused with Reciprocal Rank Fusion. Entity-anchor is the reliability
+ * net — it surfaces facts tied to a named entity even when no lexical/semantic
+ * bridge exists (e.g. "trip to Thailand" → "favorite food is mango sticky rice").
+ */
+export async function getSemanticContext(
+  userId: string,
+  projectId: string,
+  query: string | undefined,
+  limit: number,
+  queryEmbedding?: number[] | null,
+): Promise<SemanticContext> {
+  const tenant = and(
+    eq(facts.userId, userId),
+    eq(facts.projectId, projectId),
+    isNull(facts.invalidAt),
+  );
+  const scan = Math.max(limit * 4, 20);
+  const byId = new Map<string, FactSelect>();
+  const record = (rows: FactSelect[]) => rows.forEach((r) => byId.set(r.id, r));
+
+  // No query → most recent live facts.
+  if (!query || query.trim().length === 0) {
+    const rows = (await db
+      .select(FACT_COLUMNS)
+      .from(facts)
+      .where(tenant)
+      .orderBy(desc(facts.validAt))
+      .limit(limit)) as FactSelect[];
+    return {
+      facts: rows.map((r) => rowToSemanticFact(r, 1)),
+      factCount: rows.length,
+    };
+  }
+
+  const lists: string[][] = [];
+
+  // Signal 1 — vector similarity.
+  if (queryEmbedding && queryEmbedding.length > 0) {
+    const vectorLiteral = `[${queryEmbedding.join(',')}]`;
+    const rows = (await db
+      .select(FACT_COLUMNS)
+      .from(facts)
+      .where(and(tenant, isNotNull(facts.embedding)))
+      .orderBy(sql`${facts.embedding} <=> ${vectorLiteral}::vector`)
+      .limit(scan)) as FactSelect[];
+    record(rows);
+    lists.push(rows.map((r) => r.id));
+  }
+
+  // Signal 2 — entity-anchored lookup. Resolve entities whose name appears in the
+  // query, then pull every live fact anchored to those names.
+  const anchorRows = await db
+    .select({ name: entities.name })
+    .from(entities)
+    .where(
+      and(
+        eq(entities.userId, userId),
+        eq(entities.projectId, projectId),
+        sql`position(lower(${entities.name}) in lower(${query})) > 0`,
+      ),
+    );
+  const anchors = anchorRows.map((r) => r.name);
+  if (anchors.length > 0) {
+    const rows = (await db
+      .select(FACT_COLUMNS)
+      .from(facts)
+      .where(
+        and(
+          tenant,
+          or(
+            inArray(facts.subject, anchors),
+            inArray(facts.object, anchors),
+            inArray(facts.contextEntityName, anchors),
+          ),
+        ),
+      )
+      .limit(scan)) as FactSelect[];
+    record(rows);
+    lists.push(rows.map((r) => r.id));
+  }
+
+  // Signal 3 — keyword / full-text. Expression matches the facts_tsv_idx index.
+  const tsv = sql`to_tsvector('english', coalesce(${facts.subject}, '') || ' ' || coalesce(${facts.predicate}, '') || ' ' || coalesce(${facts.object}, '') || ' ' || coalesce(${facts.contextEntityName}, ''))`;
+  const tsquery = sql`plainto_tsquery('english', ${query})`;
+  const kwRows = (await db
+    .select(FACT_COLUMNS)
+    .from(facts)
+    .where(and(tenant, sql`${tsv} @@ ${tsquery}`))
+    .orderBy(sql`ts_rank(${tsv}, ${tsquery}) DESC`)
+    .limit(scan)) as FactSelect[];
+  record(kwRows);
+  lists.push(kwRows.map((r) => r.id));
+
+  // Fuse and take the top `limit`.
+  const fused = reciprocalRankFusion(lists);
+  const ranked = [...fused.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+
+  const resultFacts = ranked
+    .map(([id, score]) => {
+      const row = byId.get(id);
+      return row ? rowToSemanticFact(row, score) : null;
+    })
+    .filter((f): f is SemanticFact => f !== null);
+
+  return { facts: resultFacts, factCount: resultFacts.length };
+}
+
+// ── Context assembly + render ────────────────────────────────────────────────
+
+/** Group facts by contextEntityName (anchor), sorted by relevance. */
+export function assembleContext(factList: SemanticFact[]): RankedContextGroup[] {
+  const groupMap = new Map<string, RankedContextGroup>();
+  for (const fact of factList) {
+    const key = fact.contextEntityName ?? '__global';
+    let group = groupMap.get(key);
+    if (!group) {
+      group = { entityName: key, facts: [], groupRelevance: 0 };
+      groupMap.set(key, group);
+    }
+    const score = fact.relevanceScore ?? 1;
+    group.facts.push({
+      subject: fact.subject,
+      predicate: fact.predicate,
+      object: fact.object,
+      confidence: fact.confidence,
+      validAt: fact.validAt,
+      invalidAt: fact.invalidAt,
+      relevanceScore: score,
+    });
+    if (score > group.groupRelevance) group.groupRelevance = score;
+  }
+  const groups = [...groupMap.values()];
+  for (const g of groups) g.facts.sort((a, b) => b.relevanceScore - a.relevanceScore);
+  groups.sort((a, b) => b.groupRelevance - a.groupRelevance);
+  return groups;
+}
+
+function formatDate(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+/**
+ * Render grouped facts into a prompt-ready text block (the primary prepare()
+ * output). Deterministic, no LLM. Mirrors Zep's basic context-block shape.
+ */
+export function renderContext(
+  groups: RankedContextGroup[],
+  entityList: SemanticEntity[] = [],
+): string {
+  if (groups.length === 0) return '';
+
+  const lines: string[] = [
+    'Known facts about the user, most relevant first.',
+    '',
+    '# FACTS  (format: fact (valid: from – to))',
+  ];
+  for (const g of groups) {
+    for (const f of g.facts) {
+      const until = f.invalidAt ? formatDate(f.invalidAt) : 'present';
+      lines.push(
+        `- ${f.subject} ${f.predicate} ${f.object}  (valid: ${formatDate(f.validAt)} – ${until})`,
+      );
+    }
+  }
+
+  const named = entityList.filter((e) => e.name !== '__global');
+  if (named.length > 0) {
+    lines.push('', '# ENTITIES');
+    for (const e of named) {
+      const attrs = Object.entries(e.attributes ?? {})
+        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : String(v)}`)
+        .join('; ');
+      lines.push(`- ${e.name} (${e.type})${attrs ? `: ${attrs}` : ''}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/** Fetch entity records for a set of names (for the ENTITIES render section). */
+export async function getEntitiesByName(
+  userId: string,
+  projectId: string,
+  names: string[],
+): Promise<SemanticEntity[]> {
+  const wanted = names.filter((n) => n && n !== '__global');
+  if (wanted.length === 0) return [];
+  const rows = await db
+    .select({
+      id: entities.id,
+      name: entities.name,
+      type: entities.type,
+      attributes: entities.attributes,
+      factCount: entities.factCount,
+    })
+    .from(entities)
+    .where(
+      and(
+        eq(entities.userId, userId),
+        eq(entities.projectId, projectId),
+        inArray(entities.name, wanted),
+      ),
+    );
+  return rows.map((r) => ({
+    entityId: r.id,
+    name: r.name,
+    type: r.type as SemanticEntity['type'],
+    attributes: (r.attributes as Record<string, unknown>) ?? {},
+    factCount: r.factCount,
+  }));
+}
+
+// ── Dashboard / SDK read APIs ────────────────────────────────────────────────
+
+export async function querySemanticFacts(
+  userId: string,
+  projectId: string,
+  opts: { q?: string; limit?: number; includeInvalidated?: boolean } = {},
+): Promise<{ facts: SemanticFact[]; total: number }> {
+  const limit = opts.limit ?? 50;
+  const conds = [eq(facts.userId, userId), eq(facts.projectId, projectId)];
+  if (!opts.includeInvalidated) conds.push(isNull(facts.invalidAt));
+  if (opts.q && opts.q.trim().length > 0) {
+    const tsv = sql`to_tsvector('english', coalesce(${facts.subject}, '') || ' ' || coalesce(${facts.predicate}, '') || ' ' || coalesce(${facts.object}, '') || ' ' || coalesce(${facts.contextEntityName}, ''))`;
+    conds.push(sql`${tsv} @@ plainto_tsquery('english', ${opts.q})`);
+  }
+  const rows = (await db
+    .select(FACT_COLUMNS)
+    .from(facts)
+    .where(and(...conds))
+    .orderBy(desc(facts.validAt))
+    .limit(limit)) as FactSelect[];
+  return { facts: rows.map((r) => rowToSemanticFact(r)), total: rows.length };
+}
+
+export async function listEntities(
+  userId: string,
+  projectId: string,
+): Promise<SemanticEntity[]> {
+  const rows = await db
+    .select({
+      id: entities.id,
+      name: entities.name,
+      type: entities.type,
+      attributes: entities.attributes,
+      factCount: entities.factCount,
+    })
+    .from(entities)
+    .where(and(eq(entities.userId, userId), eq(entities.projectId, projectId)))
+    .orderBy(desc(entities.updatedAt));
+  return rows.map((r) => ({
+    entityId: r.id,
+    name: r.name,
+    type: r.type as SemanticEntity['type'],
+    attributes: (r.attributes as Record<string, unknown>) ?? {},
+    factCount: r.factCount,
+  }));
+}
+
+export async function listEntityFacts(
+  userId: string,
+  projectId: string,
+  name: string,
+): Promise<SemanticFact[]> {
+  const rows = (await db
+    .select(FACT_COLUMNS)
+    .from(facts)
+    .where(
+      and(
+        eq(facts.userId, userId),
+        eq(facts.projectId, projectId),
+        isNull(facts.invalidAt),
+        or(
+          eq(facts.subject, name),
+          eq(facts.object, name),
+          eq(facts.contextEntityName, name),
+        ),
+      ),
+    )
+    .orderBy(desc(facts.validAt))) as FactSelect[];
+  return rows.map((r) => rowToSemanticFact(r));
+}
+
+/** Soft-delete a fact by stamping invalidAt. Returns false if not found. */
+export async function softDeleteFact(
+  userId: string,
+  projectId: string,
+  factId: string,
+): Promise<boolean> {
+  const now = new Date();
+  const updated = await db
+    .update(facts)
+    .set({ invalidAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(facts.id, factId),
+        eq(facts.userId, userId),
+        eq(facts.projectId, projectId),
+        isNull(facts.invalidAt),
+      ),
+    )
+    .returning({ id: facts.id });
+  return updated.length > 0;
 }

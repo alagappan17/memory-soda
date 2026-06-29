@@ -45,8 +45,14 @@ export async function generateReply(
   contextMessages: { role: string; content: string }[],
   systemPrompt?: string,
   episodicContext?: EpisodeContext | null,
+  contextBlock?: string,
 ): Promise<string> {
   const systemParts: string[] = [];
+
+  // Rendered semantic fact block (what we know about the user).
+  if (contextBlock && contextBlock.trim().length > 0) {
+    systemParts.push(contextBlock);
+  }
 
   // Inject past episode memories as the first system block so the AI has
   // cross-thread context (e.g. from a previous chat session).
