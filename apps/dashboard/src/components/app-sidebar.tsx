@@ -8,6 +8,7 @@ import {
   KeyRound,
   Activity,
   FlaskConical,
+  Brain,
   Settings,
   ChevronsUpDown,
   Plus,
@@ -48,6 +49,7 @@ const navItems = [
   { to: '/projects', label: 'Projects', icon: Folder },
   { to: '/conversations', label: 'Conversations', icon: MessagesSquare },
   { to: '/playground', label: 'Playground', icon: FlaskConical },
+  { to: '/memory', label: 'Memory', icon: Brain },
   { to: '/api-keys', label: 'API Keys', icon: KeyRound },
   { to: '/status', label: 'Status', icon: Activity },
 ];
