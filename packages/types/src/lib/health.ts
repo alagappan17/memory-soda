@@ -5,6 +5,5 @@ export interface HealthResponse {
   services: {
     postgres: ServiceStatus;
     redis: ServiceStatus;
-    neo4j: ServiceStatus;
   };
 }

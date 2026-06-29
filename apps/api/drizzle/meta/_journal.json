@@ -15,6 +15,13 @@
       "when": 1781497874324,
       "tag": "0001_broad_william_stryker",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782717558333,
+      "tag": "0002_fast_firestar",
+      "breakpoints": true
     }
   ]
 }

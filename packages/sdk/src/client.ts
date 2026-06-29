@@ -64,7 +64,7 @@ export class MemorySodaClient {
   }
 
   /**
-   * Check the health of the API and its backing services (Postgres, Redis, Neo4j).
+   * Check the health of the API and its backing services (Postgres, Redis).
    * @returns Health status per service.
    */
   async health(): Promise<HealthResponse> {
@@ -84,7 +84,6 @@ export class MemorySodaClient {
       services: {
         postgres: h.services.postgres,
         redis: h.services.redis,
-        neo4j: h.services.neo4j,
       },
     };
   }
