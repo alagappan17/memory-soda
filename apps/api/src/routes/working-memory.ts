@@ -43,6 +43,7 @@ const listMessagesSchema = z.object({
 const prepareSchema = z.object({
   messageLimit: z.number().int().min(1).max(100).default(20),
   query: z.string().max(1000).optional(),
+  include: z.array(z.enum(['episodes', 'synthesis', 'raw'])).optional(),
 });
 
 const chatSchema = z.object({
@@ -124,12 +125,11 @@ router.post(
   async (req, res) => {
     try {
       const parsed = prepareSchema.parse(req.body ?? {});
-      const result = await prepareThread(
-        req.params.threadId,
-        req.projectId!,
-        parsed.messageLimit,
-        parsed.query,
-      );
+      const result = await prepareThread(req.params.threadId, req.projectId!, {
+        messageLimit: parsed.messageLimit,
+        query: parsed.query,
+        include: parsed.include,
+      });
       if (!result) {
         res.status(404).json({ error: 'Thread not found' });
         return;
@@ -162,13 +162,22 @@ router.post(
         content,
       );
 
-      const prepared = await prepareThread(threadId, projectId, messageLimit, content);
+      const prepared = await prepareThread(threadId, projectId, {
+        messageLimit,
+        query: content,
+        include: ['episodes'],
+      });
       if (!prepared) {
         res.status(404).json({ error: 'Thread not found' });
         return;
       }
 
-      const replyContent = await generateReply(prepared.messages, systemPrompt, prepared.context);
+      const replyContent = await generateReply(
+        prepared.messages,
+        systemPrompt,
+        prepared.episodes,
+        prepared.context,
+      );
 
       const { message: assistantMessage, compacted: assistantCompacted } =
         await addMessage(threadId, projectId, 'assistant', replyContent);
@@ -192,9 +201,8 @@ router.post(
           messageCount: prepared.messageCount,
           truncated: prepared.truncated,
           compacted: prepared.compacted,
-          context: prepared.context
-            ? { episodeCount: prepared.context.episodeCount }
-            : null,
+          episodeCount: prepared.episodes?.episodeCount ?? 0,
+          hasContext: prepared.context.length > 0,
         },
       });
     } catch (err: unknown) {
