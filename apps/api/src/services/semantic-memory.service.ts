@@ -135,7 +135,12 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
     const graph = await extractGraph(transcript, settings.minConfidence);
 
     // Step 2 — resolve entities (dedup the entities table)
-    await resolveEntities(episode.userId, episode.projectId, graph.entities, settings);
+    const canonical = await resolveEntities(
+      episode.userId,
+      episode.projectId,
+      graph.entities,
+      settings,
+    );
 
     // Steps 3–5 — dedup, evolve contradictions, write
     await writeFacts(
@@ -147,6 +152,7 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
       graph,
       settings,
       now,
+      canonical,
     );
 
     await db
@@ -169,8 +175,10 @@ async function resolveEntities(
   projectId: string,
   extracted: ExtractedEntity[],
   settings: ProjectSemanticSettings,
-): Promise<void> {
-  if (extracted.length === 0) return;
+): Promise<Map<string, string>> {
+  // raw extracted name → canonical stored name, so fact writes can converge aliases.
+  const canonical = new Map<string, string>();
+  if (extracted.length === 0) return canonical;
 
   const existing = await db
     .select({
@@ -194,15 +202,16 @@ async function resolveEntities(
         .update(entities)
         .set({ attributes: ent.attributes, updatedAt: new Date() })
         .where(eq(entities.id, exact.id));
+      canonical.set(ent.name, exact.name);
       continue;
     }
 
     // Nearest existing entity by embedding.
-    let best: { id: string; score: number } | null = null;
+    let best: { id: string; name: string; score: number } | null = null;
     for (const x of existing) {
       if (!x.embedding) continue;
       const score = cosine(emb, x.embedding as number[]);
-      if (!best || score > best.score) best = { id: x.id, score };
+      if (!best || score > best.score) best = { id: x.id, name: x.name, score };
     }
 
     if (best && best.score >= settings.entityResolutionThreshold) {
@@ -210,8 +219,11 @@ async function resolveEntities(
         .update(entities)
         .set({ attributes: ent.attributes, updatedAt: new Date() })
         .where(eq(entities.id, best.id));
+      canonical.set(ent.name, best.name);
     } else {
-      const [inserted] = await db
+      // Upsert — concurrent semantic workers may insert the same
+      // (userId, projectId, name); the unique index would otherwise fail the job.
+      const [row] = await db
         .insert(entities)
         .values({
           userId,
@@ -221,10 +233,17 @@ async function resolveEntities(
           attributes: ent.attributes,
           embedding: emb,
         })
-        .returning({ id: entities.id });
-      existing.push({ id: inserted.id, name: ent.name, embedding: emb });
+        .onConflictDoUpdate({
+          target: [entities.userId, entities.projectId, entities.name],
+          set: { attributes: ent.attributes, updatedAt: new Date() },
+        })
+        .returning({ id: entities.id, name: entities.name });
+      existing.push({ id: row.id, name: row.name, embedding: emb });
+      canonical.set(ent.name, row.name);
     }
   }
+
+  return canonical;
 }
 
 // ── Steps 3–5: dedup, evolve, write ─────────────────────────────────────────────
@@ -242,22 +261,26 @@ async function writeFacts(
   graph: ExtractedGraph,
   settings: ProjectSemanticSettings,
   now: Date,
+  canonical: Map<string, string>,
 ): Promise<void> {
   const { userId, projectId, episodeId } = ctx;
+  const canon = (name: string) => canonical.get(name) ?? name;
 
-  // Literal facts + relationships flow into the same table.
+  // Literal facts + relationships flow into the same table. Subject/object are
+  // rewritten to their canonical entity name so aliases (e.g. "bob"/"robert")
+  // converge and stay discoverable via entity-anchored retrieval.
   const candidates: FactCandidate[] = [
     ...graph.literalFacts.map((f) => ({
-      subject: f.subject,
+      subject: canon(f.subject),
       predicate: f.predicate,
       object: f.value,
       objectIsEntity: false,
       confidence: f.confidence,
     })),
     ...graph.relationships.map((r) => ({
-      subject: r.subject,
+      subject: canon(r.subject),
       predicate: r.predicate,
-      object: r.object,
+      object: canon(r.object),
       objectIsEntity: true,
       confidence: r.confidence,
     })),
@@ -301,7 +324,10 @@ async function writeFacts(
     ),
   );
 
-  const invalidated = new Set<string>();
+  // LLM contradiction reasoning runs here, outside any transaction (it makes
+  // external calls). We only collect the ids to invalidate and rows to insert,
+  // then apply them atomically below.
+  const invalidatedIds = new Set<string>();
   const toInsert: NewFactRow[] = [];
 
   for (let i = 0; i < deduped.length; i++) {
@@ -311,7 +337,7 @@ async function writeFacts(
     // Step 3b — near-duplicate by embedding similarity.
     let isDup = false;
     for (const f of live) {
-      if (invalidated.has(f.id) || !f.embedding) continue;
+      if (invalidatedIds.has(f.id) || !f.embedding) continue;
       if (cosine(emb, f.embedding as number[]) >= settings.factDedupThreshold) {
         isDup = true;
         break;
@@ -322,13 +348,14 @@ async function writeFacts(
     // Step 4 — contradiction: same subject+predicate, different object.
     const conflicts = live.filter(
       (f) =>
-        !invalidated.has(f.id) &&
+        !invalidatedIds.has(f.id) &&
         f.subject === c.subject &&
         f.predicate === c.predicate &&
         f.object !== c.object,
     );
     let supersededByOld = false;
     for (const old of conflicts) {
+      // verdict is the fact to invalidate: 'old' = new supersedes old.
       const verdict = await resolveContradiction(
         c.subject,
         c.predicate,
@@ -338,11 +365,7 @@ async function writeFacts(
         now.toISOString(),
       );
       if (verdict === 'old') {
-        await db
-          .update(facts)
-          .set({ invalidAt: now, updatedAt: now })
-          .where(eq(facts.id, old.id));
-        invalidated.add(old.id);
+        invalidatedIds.add(old.id);
       } else if (verdict === 'new') {
         // Existing fact still correct — skip inserting the new one.
         supersededByOld = true;
@@ -368,9 +391,25 @@ async function writeFacts(
     });
   }
 
-  if (toInsert.length > 0) {
-    await db.insert(facts).values(toInsert);
-  }
+  if (invalidatedIds.size === 0 && toInsert.length === 0) return;
+
+  // Apply atomically, serialized per tenant via an advisory lock so concurrent
+  // episode jobs can't interleave their invalidate/insert. The live-facts partial
+  // unique index + ON CONFLICT DO NOTHING is the final backstop against duplicates.
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext(${`${userId}:${projectId}`}))`,
+    );
+    if (invalidatedIds.size > 0) {
+      await tx
+        .update(facts)
+        .set({ invalidAt: now, updatedAt: now })
+        .where(inArray(facts.id, [...invalidatedIds]));
+    }
+    if (toInsert.length > 0) {
+      await tx.insert(facts).values(toInsert).onConflictDoNothing();
+    }
+  });
 }
 
 // ── Retry job ───────────────────────────────────────────────────────────────────
@@ -592,6 +631,11 @@ function formatDate(iso: string): string {
   return iso.slice(0, 10);
 }
 
+/** Collapse control characters so fact text can't break out of the rendered block. */
+function oneLine(value: unknown): string {
+  return String(value).replace(/[\r\n\t]+/g, ' ').trim();
+}
+
 /**
  * Render grouped facts into a prompt-ready text block (the primary prepare()
  * output). Deterministic, no LLM. Mirrors Zep's basic context-block shape.
@@ -611,7 +655,7 @@ export function renderContext(
     for (const f of g.facts) {
       const until = f.invalidAt ? formatDate(f.invalidAt) : 'present';
       lines.push(
-        `- ${f.subject} ${f.predicate} ${f.object}  (valid: ${formatDate(f.validAt)} – ${until})`,
+        `- ${oneLine(f.subject)} ${oneLine(f.predicate)} ${oneLine(f.object)}  (valid: ${formatDate(f.validAt)} – ${until})`,
       );
     }
   }
@@ -621,14 +665,26 @@ export function renderContext(
     lines.push('', '# ENTITIES');
     for (const e of named) {
       const attrs = Object.entries(e.attributes ?? {})
-        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : String(v)}`)
+        .map(([k, v]) => `${oneLine(k)}: ${oneLine(Array.isArray(v) ? v.join(', ') : v)}`)
         .join('; ');
-      lines.push(`- ${e.name} (${e.type})${attrs ? `: ${attrs}` : ''}`);
+      lines.push(`- ${oneLine(e.name)} (${oneLine(e.type)})${attrs ? `: ${attrs}` : ''}`);
     }
   }
 
   return lines.join('\n');
 }
+
+// Derived live-fact count for an entity — the stored counter is not maintained,
+// so we compute it at read time to keep API/SDK/dashboard counts honest.
+const entityFactCountExpr = sql<number>`(
+  SELECT count(*)::int FROM facts f
+  WHERE f.user_id = ${entities.userId}
+    AND f.project_id = ${entities.projectId}
+    AND f.invalid_at IS NULL
+    AND (f.subject = ${entities.name}
+      OR f.object = ${entities.name}
+      OR f.context_entity_name = ${entities.name})
+)`;
 
 /** Fetch entity records for a set of names (for the ENTITIES render section). */
 export async function getEntitiesByName(
@@ -644,7 +700,7 @@ export async function getEntitiesByName(
       name: entities.name,
       type: entities.type,
       attributes: entities.attributes,
-      factCount: entities.factCount,
+      factCount: entityFactCountExpr,
     })
     .from(entities)
     .where(
@@ -696,7 +752,7 @@ export async function listEntities(
       name: entities.name,
       type: entities.type,
       attributes: entities.attributes,
-      factCount: entities.factCount,
+      factCount: entityFactCountExpr,
     })
     .from(entities)
     .where(and(eq(entities.userId, userId), eq(entities.projectId, projectId)))

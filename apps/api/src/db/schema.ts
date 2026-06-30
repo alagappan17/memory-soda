@@ -333,6 +333,16 @@ export const facts = pgTable(
       t.contextEntityName,
     ),
     index('facts_episode_idx').on(t.episodeId),
+    // Entity-anchor retrieval also matches on `object`.
+    index('facts_user_project_object_idx').on(t.userId, t.projectId, t.object),
+    // No-query fallback: live facts ordered by recency.
+    index('facts_user_project_recency_idx')
+      .on(t.userId, t.projectId, t.validAt)
+      .where(sql`${t.invalidAt} IS NULL`),
+    // Backstop against duplicate live facts across concurrent episode jobs.
+    uniqueIndex('facts_live_exact_idx')
+      .on(t.userId, t.projectId, t.subject, t.predicate, t.object)
+      .where(sql`${t.invalidAt} IS NULL`),
   ],
 );
 

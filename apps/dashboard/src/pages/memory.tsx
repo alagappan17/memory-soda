@@ -64,15 +64,26 @@ export default function MemoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showInvalidated]);
 
+  // Reset any previously-loaded memory when the identity inputs change, so a
+  // failed reload can't show the last user's data under new identifiers.
+  function resetLoaded() {
+    setFacts([]);
+    setEntities([]);
+    setLoaded(false);
+    setError(null);
+  }
+
   async function remove(factId: string) {
     try {
       await clientFor(apiKey.trim()).semantic.deleteFact(userId.trim(), factId);
       setFacts((prev) =>
-        prev.map((f) =>
-          f.factId === factId
-            ? { ...f, invalidAt: new Date().toISOString() }
-            : f,
-        ),
+        showInvalidated
+          ? prev.map((f) =>
+              f.factId === factId
+                ? { ...f, invalidAt: new Date().toISOString() }
+                : f,
+            )
+          : prev.filter((f) => f.factId !== factId),
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete fact');
@@ -105,7 +116,10 @@ export default function MemoryPage() {
           <input
             type="password"
             value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            onChange={(e) => {
+              setApiKey(e.target.value);
+              resetLoaded();
+            }}
             placeholder="ms_..."
             className="w-64 rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
           />
@@ -114,7 +128,10 @@ export default function MemoryPage() {
           <span className="text-muted-foreground">User ID</span>
           <input
             value={userId}
-            onChange={(e) => setUserId(e.target.value)}
+            onChange={(e) => {
+              setUserId(e.target.value);
+              resetLoaded();
+            }}
             placeholder="user-123"
             className="w-48 rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
           />
