@@ -40,7 +40,7 @@ export class SemanticMemoryClient {
     return request(
       this.baseUrl,
       this.apiKey,
-      `${BASE}/users/${userId}/facts${qs}`,
+      `${BASE}/users/${encodeURIComponent(userId)}/facts${qs}`,
       { signal: this.signal() },
     );
   }
@@ -62,7 +62,7 @@ export class SemanticMemoryClient {
     return request(
       this.baseUrl,
       this.apiKey,
-      `${BASE}/users/${userId}/facts/${factId}`,
+      `${BASE}/users/${encodeURIComponent(userId)}/facts/${factId}`,
       { method: 'DELETE', signal: this.signal() },
     );
   }
@@ -72,7 +72,7 @@ export class SemanticMemoryClient {
     const res = await request<{ entities: SemanticEntity[] }>(
       this.baseUrl,
       this.apiKey,
-      `${BASE}/users/${userId}/entities`,
+      `${BASE}/users/${encodeURIComponent(userId)}/entities`,
       { signal: this.signal() },
     );
     return res.entities;
@@ -86,7 +86,7 @@ export class SemanticMemoryClient {
     const res = await request<{ facts: SemanticFact[] }>(
       this.baseUrl,
       this.apiKey,
-      `${BASE}/users/${userId}/entities/${encodeURIComponent(name)}/facts`,
+      `${BASE}/users/${encodeURIComponent(userId)}/entities/${encodeURIComponent(name)}/facts`,
       { signal: this.signal() },
     );
     return res.facts;

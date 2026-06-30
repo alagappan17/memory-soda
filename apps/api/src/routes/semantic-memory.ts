@@ -13,7 +13,12 @@ const router = Router();
 const factsQuerySchema = z.object({
   q: z.string().max(1000).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
-  includeInvalidated: z.coerce.boolean().default(false),
+  // z.coerce.boolean() treats any non-empty string (incl. "false") as true, so
+  // parse boolish query strings explicitly.
+  includeInvalidated: z.preprocess(
+    (v) => v === true || v === 'true' || v === '1',
+    z.boolean(),
+  ),
 });
 
 /**

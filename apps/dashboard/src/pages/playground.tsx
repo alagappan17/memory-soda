@@ -61,6 +61,7 @@ type OpType =
   | 'message_added'
   | 'ai_replied'
   | 'prepare'
+  | 'context_loaded'
   | 'auto_compacted'
   | 'compacted'
   | 'error'
@@ -593,7 +594,7 @@ export default function PlaygroundPage() {
       );
       setContextResult({ context: res.context, synthesis: res.synthesis });
       addOp(
-        'prepare',
+        'context_loaded',
         {
           context: res.context.length > 0 ? `${res.context.length} chars` : 'empty',
           synthesis: Boolean(res.synthesis),
@@ -615,6 +616,8 @@ export default function PlaygroundPage() {
     setMessages([]);
     setOps([]);
     setEpisodes([]);
+    setContextResult(null);
+    setLoadingContext(false);
     setError(null);
     setInput('');
     setEpisodicSettings({
@@ -655,6 +658,8 @@ export default function PlaygroundPage() {
               setThreadStartedAt(null);
               setMessages([]);
               setOps([]);
+              setContextResult(null);
+              setLoadingContext(false);
               setError(null);
             }}
             placeholder="ms_..."
@@ -1434,6 +1439,15 @@ function opMeta(op: Operation): {
       return {
         label: 'Prepare',
         subtitle: `${d['messageCount']} msgs · compacted: ${d['compacted']}${d['truncated'] ? ' · truncated' : ''}${d['episodes'] ? ` · ${d['episodes']} episodes` : ''}`,
+        borderColor: 'border-violet-400 dark:border-violet-600',
+        bgColor:
+          'bg-violet-50/60 dark:bg-violet-950/20 hover:bg-violet-50 dark:hover:bg-violet-950/30',
+        icon: '⟳',
+      };
+    case 'context_loaded':
+      return {
+        label: 'Context rendered',
+        subtitle: `${d['context']}${d['synthesis'] ? ' · synthesis' : ''}`,
         borderColor: 'border-violet-400 dark:border-violet-600',
         bgColor:
           'bg-violet-50/60 dark:bg-violet-950/20 hover:bg-violet-50 dark:hover:bg-violet-950/30',

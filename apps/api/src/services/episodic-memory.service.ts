@@ -157,6 +157,8 @@ export async function processEpisode(episodeId: string): Promise<void> {
       .update(episodes)
       .set({
         status: 'completed',
+        // Nothing to extract — keep semantic state from sticking at 'pending'.
+        semanticStatus: 'skipped',
         summary: 'No messages in this thread.',
         keyLearnings: [],
         processingCompletedAt: now,

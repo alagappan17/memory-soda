@@ -1,0 +1,3 @@
+CREATE INDEX "facts_user_project_object_idx" ON "facts" USING btree ("user_id","project_id","object");--> statement-breakpoint
+CREATE INDEX "facts_user_project_recency_idx" ON "facts" USING btree ("user_id","project_id","valid_at") WHERE "facts"."invalid_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "facts_live_exact_idx" ON "facts" USING btree ("user_id","project_id","subject","predicate","object") WHERE "facts"."invalid_at" IS NULL;
