@@ -26,16 +26,28 @@ export class SemanticMemoryClient {
    * @param opts.q - Optional keyword (full-text) filter.
    * @param opts.limit - Max facts to return (1–100, default 50).
    * @param opts.includeInvalidated - Include superseded/deleted facts.
+   * @param opts.asOf - Point-in-time filter: facts that were true at this
+   *   instant (ISO string or Date). Overrides includeInvalidated.
    */
   listFacts(
     userId: string,
-    opts: { q?: string; limit?: number; includeInvalidated?: boolean } = {},
+    opts: {
+      q?: string;
+      limit?: number;
+      includeInvalidated?: boolean;
+      asOf?: string | Date;
+    } = {},
   ): Promise<SemanticFactsResponse> {
     const params = new URLSearchParams();
     if (opts.q !== undefined) params.set('q', opts.q);
     if (opts.limit !== undefined) params.set('limit', String(opts.limit));
     if (opts.includeInvalidated !== undefined)
       params.set('includeInvalidated', String(opts.includeInvalidated));
+    if (opts.asOf !== undefined)
+      params.set(
+        'asOf',
+        opts.asOf instanceof Date ? opts.asOf.toISOString() : opts.asOf,
+      );
     const qs = params.size > 0 ? `?${params}` : '';
     return request(
       this.baseUrl,
