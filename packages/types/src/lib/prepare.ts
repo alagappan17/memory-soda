@@ -2,8 +2,8 @@ import type { EpisodeContext } from './episodic-memory.js';
 import type { SemanticFact } from './semantic-memory.js';
 
 /**
- * A group of facts for a single anchor entity, sorted by relevance. Facts without
- * a contextEntityName are grouped under `'__global'`.
+ * A group of facts for a single anchor entity, sorted by relevance. The anchor
+ * is derived: the object when it is an entity, else the subject.
  */
 export interface RankedContextGroup {
   entityName: string;
@@ -11,9 +11,9 @@ export interface RankedContextGroup {
     subject: string;
     predicate: string;
     object: string;
-    confidence: number;
+    sourceQuote: string | null;
     validAt: string;
-    invalidAt: string | null;
+    validUntil: string | null;
     relevanceScore: number;
   }[];
   /** max(fact.relevanceScore) in the group — used to order groups. */

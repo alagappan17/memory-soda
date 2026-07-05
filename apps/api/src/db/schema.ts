@@ -8,7 +8,6 @@ import {
   uniqueIndex,
   integer,
   boolean,
-  real,
   pgEnum,
 } from 'drizzle-orm/pg-core';
 import { customType } from 'drizzle-orm/pg-core';
@@ -28,28 +27,6 @@ const vector = customType<{ data: number[]; driverData: string }>({
     return value.slice(1, -1).split(',').map(Number);
   },
 });
-
-export const memories = pgTable(
-  'memories',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: text('user_id').notNull(),
-    content: text('content').notNull(),
-    source: text('source').notNull().default('USER'),
-    metadata: jsonb('metadata').notNull().default({}),
-    embedding: vector('embedding', { dimensions: 3072 }),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (t) => [index('memories_user_id_idx').on(t.userId)],
-);
-
-export type MemoryRow = typeof memories.$inferSelect;
-export type NewMemoryRow = typeof memories.$inferInsert;
 
 export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -224,6 +201,11 @@ export const episodes = pgTable(
     }),
     error: text('error'),
     retryCount: integer('retry_count').notNull().default(0),
+    semanticRetryCount: integer('semantic_retry_count').notNull().default(0),
+    // Message range (inclusive sequence numbers) this episode covers. NULL on
+    // legacy episodes → extraction falls back to the whole uncompacted thread.
+    startSequence: integer('start_sequence'),
+    endSequence: integer('end_sequence'),
     metadata: jsonb('metadata'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
@@ -273,11 +255,20 @@ export type ScheduledEpisodeRow = typeof scheduledEpisodes.$inferSelect;
 // ── Semantic Memory ───────────────────────────────────────────────────────────
 //
 // A single `facts` table holds both literal facts (objectIsEntity=false, e.g.
-// "Alagappan likes mango sticky rice") and entity↔entity relationships
-// (objectIsEntity=true, e.g. "Alagappan works_at memory-soda"). This keeps
+// "user likes mango sticky rice") and entity↔entity relationships
+// (objectIsEntity=true, e.g. "user works_at memory-soda"). This keeps
 // multi-hop traversal possible later (recursive CTE over objectIsEntity rows)
-// without a second store. `invalidAt IS NULL` means the fact is currently true;
-// contradictions are resolved by stamping `invalidAt` on the superseded row.
+// without a second store.
+//
+// Bi-temporal semantics:
+//   valid time  — `validAt` → `validUntil`: when the fact is true in the world.
+//     `validUntil` may be in the future ("running daily for six months") or the
+//     past (a stated historical fact).
+//   belief time — `createdAt` → `invalidAt`: `invalidAt` means superseded by a
+//     contradiction or soft-deleted, ONLY. Never a stated end of validity.
+//
+// The fact's anchor entity is derived, not stored: object when objectIsEntity,
+// else subject.
 //
 // Specialised indexes — the ivfflat cosine index on `embedding` and the
 // expression GIN index for keyword search — are hand-added in the migration SQL
@@ -296,17 +287,15 @@ export const facts = pgTable(
     predicate: text('predicate').notNull(),
     object: text('object').notNull(),
     objectIsEntity: boolean('object_is_entity').notNull().default(false),
-    contextEntityName: text('context_entity_name'),
-    confidence: real('confidence').notNull().default(1),
+    /** Verbatim supporting quote from the source transcript (provenance). */
+    sourceQuote: text('source_quote'),
     episodeId: uuid('episode_id').references(() => episodes.id, {
       onDelete: 'set null',
     }),
     validAt: timestamp('valid_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
-    ingestionAt: timestamp('ingestion_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    validUntil: timestamp('valid_until', { withTimezone: true }),
     invalidAt: timestamp('invalid_at', { withTimezone: true }),
     embedding: vector('embedding', { dimensions: 768 }),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -327,11 +316,6 @@ export const facts = pgTable(
       t.projectId,
       t.subject,
     ),
-    index('facts_user_project_context_idx').on(
-      t.userId,
-      t.projectId,
-      t.contextEntityName,
-    ),
     index('facts_episode_idx').on(t.episodeId),
     // Entity-anchor retrieval also matches on `object`.
     index('facts_user_project_object_idx').on(t.userId, t.projectId, t.object),
@@ -349,6 +333,24 @@ export const facts = pgTable(
 export type FactRow = typeof facts.$inferSelect;
 export type NewFactRow = typeof facts.$inferInsert;
 
+/**
+ * SQL predicate for a "live" (currently-true) fact: not superseded/deleted AND
+ * its stated valid-time window (if any) has not ended. Use this everywhere we
+ * mean "currently true" instead of a bare `invalid_at IS NULL`. NOTE: `now()` is
+ * non-immutable, so the valid_until clause cannot be pushed into the partial
+ * indexes (`facts_live_exact_idx`, `facts_user_project_recency_idx`), which are
+ * keyed on `invalid_at IS NULL` and therefore cover a superset of live rows.
+ */
+export const isLiveFact = sql`(${facts.invalidAt} IS NULL AND (${facts.validUntil} IS NULL OR ${facts.validUntil} > now()))`;
+
+/**
+ * Point-in-time variant of {@link isLiveFact}: was the fact believed true at
+ * `asOf`? True when the valid-time window covered `asOf` and the row had not
+ * been superseded/deleted by then.
+ */
+export const isLiveFactAsOf = (asOf: Date) =>
+  sql`(${facts.validAt} <= ${asOf} AND (${facts.validUntil} IS NULL OR ${facts.validUntil} > ${asOf}) AND (${facts.invalidAt} IS NULL OR ${facts.invalidAt} > ${asOf}))`;
+
 export const entities = pgTable(
   'entities',
   {
@@ -359,9 +361,7 @@ export const entities = pgTable(
       .references(() => projects.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     type: text('type').notNull(),
-    attributes: jsonb('attributes').notNull().default({}),
     embedding: vector('embedding', { dimensions: 768 }),
-    factCount: integer('fact_count').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

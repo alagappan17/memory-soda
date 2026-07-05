@@ -36,6 +36,20 @@
       "when": 1782799948737,
       "tag": "0004_flowery_owl",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783164859669,
+      "tag": "0005_left_mad_thinker",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783164883729,
+      "tag": "0006_fine_sue_storm",
+      "breakpoints": true
     }
   ]
 }

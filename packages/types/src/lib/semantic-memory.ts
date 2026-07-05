@@ -3,21 +3,29 @@
 // Facts are stored as subject–predicate–object triples but surfaced to callers
 // primarily as rendered text (see `prepare.ts`). A single fact shape covers both
 // literal facts (objectIsEntity=false) and entity↔entity relationships
-// (objectIsEntity=true). `invalidAt === null` means the fact is currently true.
+// (objectIsEntity=true).
+//
+// Bi-temporal semantics: `validAt`→`validUntil` is when the fact is true in the
+// world (validUntil may be future or past); `invalidAt` means superseded by a
+// contradiction or soft-deleted. A fact is currently true when invalidAt is null
+// and validUntil is null or in the future.
 
-export type EntityType =
-  | 'PERSON'
-  | 'ORG'
-  | 'PLACE'
-  | 'PRODUCT'
-  | 'SKILL'
-  | 'TOPIC'
-  | 'EVENT'
-  | 'FOOD'
-  | 'ROLE'
-  | 'CONCEPT'
-  | 'THING'
-  | 'DATE';
+export const ENTITY_TYPES = [
+  'PERSON',
+  'ORG',
+  'PLACE',
+  'PRODUCT',
+  'SKILL',
+  'TOPIC',
+  'EVENT',
+  'FOOD',
+  'ROLE',
+  'CONCEPT',
+  'THING',
+  'DATE',
+] as const;
+
+export type EntityType = (typeof ENTITY_TYPES)[number];
 
 export interface SemanticFact {
   factId: string;
@@ -25,10 +33,10 @@ export interface SemanticFact {
   predicate: string;
   object: string;
   objectIsEntity: boolean;
-  confidence: number;
-  contextEntityName: string | null;
+  /** Verbatim supporting quote from the source transcript (provenance). */
+  sourceQuote: string | null;
   validAt: string;
-  ingestionAt: string;
+  validUntil: string | null;
   invalidAt: string | null;
   episodeId: string | null;
   /** Set on retrieval; the fused hybrid-retrieval relevance score. */
@@ -39,8 +47,6 @@ export interface SemanticEntity {
   entityId: string;
   name: string;
   type: EntityType;
-  attributes: Record<string, unknown>;
-  factCount: number;
 }
 
 /** Facts assembled for a single prepare() call (pre-render). */
@@ -53,6 +59,8 @@ export interface SemanticFactsQuery {
   q?: string;
   limit?: number;
   includeInvalidated?: boolean;
+  /** Point-in-time filter: return facts that were true at this instant (ISO). Overrides includeInvalidated. */
+  asOf?: string;
 }
 
 export interface SemanticFactsResponse {
@@ -65,6 +73,5 @@ export interface SemanticEntitiesResponse {
 }
 
 export interface SemanticEntityFactsResponse {
-  entity: SemanticEntity;
   facts: SemanticFact[];
 }
