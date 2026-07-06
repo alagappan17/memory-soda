@@ -12,9 +12,8 @@ import HomePage from './pages/home';
 import ApiKeysPage from './pages/api-keys';
 import StatusPage from './pages/status';
 import ProjectsPage from './pages/projects';
-import ConversationsPage from './pages/conversations';
+import UsersPage from './pages/users';
 import PlaygroundPage from './pages/playground';
-import MemoryPage from './pages/memory';
 import ProjectSettingsPage from './pages/project-settings';
 
 function DashboardHeader() {
@@ -23,9 +22,8 @@ function DashboardHeader() {
   const pathMap: Record<string, string> = {
     '/': 'Home',
     '/projects': 'Projects',
-    '/conversations': 'Conversations',
+    '/users': 'Users',
     '/playground': 'Playground',
-    '/memory': 'Memory',
     '/api-keys': 'API Keys',
     '/status': 'Status',
   };
@@ -82,10 +80,7 @@ export default function App() {
                         </div>
                       }
                     />
-                    <Route
-                      path="/conversations"
-                      element={<ConversationsPage />}
-                    />
+                    <Route path="/users" element={<UsersPage />} />
                     <Route
                       path="/api-keys"
                       element={
@@ -95,7 +90,6 @@ export default function App() {
                       }
                     />
                     <Route path="/playground" element={<PlaygroundPage />} />
-                    <Route path="/memory" element={<MemoryPage />} />
                     <Route
                       path="/status"
                       element={

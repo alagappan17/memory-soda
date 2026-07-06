@@ -1,6 +1,6 @@
-import { eq, and, desc, asc, sql } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
 import { db } from '../db/postgres.js';
-import { threads, messages } from '../db/schema.js';
+import { threads, messages, facts, isLiveFact } from '../db/schema.js';
 
 export interface DashboardThread {
   threadId: string;
@@ -83,6 +83,79 @@ export async function listThreads(opts: {
 
   return {
     threads: rows.map(mapThread),
+    total: totalRows[0]?.count ?? 0,
+  };
+}
+
+export interface DashboardUser {
+  userId: string;
+  threadCount: number;
+  factCount: number;
+  lastActivityAt: string | null;
+}
+
+/**
+ * Distinct users (subjects) for a project, derived from threads, with thread and
+ * live-fact counts. Powers the user-first admin hub.
+ */
+export async function listUsers(opts: {
+  projectId: string;
+  q?: string;
+  limit: number;
+  offset: number;
+}): Promise<{ users: DashboardUser[]; total: number }> {
+  const conditions = [eq(threads.projectId, opts.projectId)];
+  if (opts.q && opts.q.trim()) {
+    conditions.push(sql`${threads.userId} ILIKE ${`%${opts.q.trim()}%`}`);
+  }
+  const where = and(...conditions);
+
+  const [rows, totalRows] = await Promise.all([
+    db
+      .select({
+        userId: threads.userId,
+        threadCount: sql<number>`count(*)::int`,
+        lastActivityAt: sql<string>`max(${threads.lastActivityAt})`,
+      })
+      .from(threads)
+      .where(where)
+      .groupBy(threads.userId)
+      .orderBy(desc(sql`max(${threads.lastActivityAt})`))
+      .limit(opts.limit)
+      .offset(opts.offset),
+    db
+      .select({ count: sql<number>`count(distinct ${threads.userId})::int` })
+      .from(threads)
+      .where(where),
+  ]);
+
+  // Live-fact counts for the page of users, in one query.
+  const userIds = rows.map((r) => r.userId);
+  const factCounts = new Map<string, number>();
+  if (userIds.length > 0) {
+    const fc = await db
+      .select({ userId: facts.userId, c: sql<number>`count(*)::int` })
+      .from(facts)
+      .where(
+        and(
+          eq(facts.projectId, opts.projectId),
+          isLiveFact,
+          inArray(facts.userId, userIds),
+        ),
+      )
+      .groupBy(facts.userId);
+    for (const r of fc) factCounts.set(r.userId, r.c);
+  }
+
+  return {
+    users: rows.map((r) => ({
+      userId: r.userId,
+      threadCount: r.threadCount,
+      factCount: factCounts.get(r.userId) ?? 0,
+      lastActivityAt: r.lastActivityAt
+        ? new Date(r.lastActivityAt).toISOString()
+        : null,
+    })),
     total: totalRows[0]?.count ?? 0,
   };
 }

@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
+import { Markdown } from '../components/markdown';
+import { EPISODE_STATUS_STYLES } from '../lib/episode-status';
 import type { ProjectEpisodicSettings } from '@memory-soda/types';
 import { Card, CardContent } from '../components/ui/card';
 import { Separator } from '../components/ui/separator';
@@ -799,7 +801,11 @@ export default function PlaygroundPage() {
                           compact summary
                         </span>
                       )}
-                      <span className="whitespace-pre-wrap">{msg.content}</span>
+                      {msg.role === 'assistant' ? (
+                        <Markdown>{msg.content}</Markdown>
+                      ) : (
+                        <span className="whitespace-pre-wrap">{msg.content}</span>
+                      )}
                       {msg.compactedAt && (
                         <span
                           className="block text-[10px] text-muted-foreground mt-1 no-underline"
@@ -1287,17 +1293,16 @@ export default function PlaygroundPage() {
 
 // ── Episode Card ─────────────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<string, { dot: string; label: string }> = {
-  pending:    { dot: 'bg-yellow-400', label: 'Pending' },
-  processing: { dot: 'bg-blue-400 animate-pulse', label: 'Processing' },
-  completed:  { dot: 'bg-emerald-400', label: 'Completed' },
-  failed:     { dot: 'bg-red-400', label: 'Failed' },
-  archived:   { dot: 'bg-muted-foreground', label: 'Archived' },
+const VIOLET_OP_STYLE = {
+  borderColor: 'border-violet-400 dark:border-violet-600',
+  bgColor:
+    'bg-violet-50/60 dark:bg-violet-950/20 hover:bg-violet-50 dark:hover:bg-violet-950/30',
+  icon: '⟳',
 };
 
 function EpisodeCard({ episode }: { episode: Episode }) {
   const [expanded, setExpanded] = useState(false);
-  const s = STATUS_STYLES[episode.status] ?? STATUS_STYLES['pending'];
+  const s = EPISODE_STATUS_STYLES[episode.status] ?? EPISODE_STATUS_STYLES.pending;
 
   return (
     <div
@@ -1439,19 +1444,13 @@ function opMeta(op: Operation): {
       return {
         label: 'Prepare',
         subtitle: `${d['messageCount']} msgs · compacted: ${d['compacted']}${d['truncated'] ? ' · truncated' : ''}${d['episodes'] ? ` · ${d['episodes']} episodes` : ''}`,
-        borderColor: 'border-violet-400 dark:border-violet-600',
-        bgColor:
-          'bg-violet-50/60 dark:bg-violet-950/20 hover:bg-violet-50 dark:hover:bg-violet-950/30',
-        icon: '⟳',
+        ...VIOLET_OP_STYLE,
       };
     case 'context_loaded':
       return {
         label: 'Context rendered',
         subtitle: `${d['context']}${d['synthesis'] ? ' · synthesis' : ''}`,
-        borderColor: 'border-violet-400 dark:border-violet-600',
-        bgColor:
-          'bg-violet-50/60 dark:bg-violet-950/20 hover:bg-violet-50 dark:hover:bg-violet-950/30',
-        icon: '⟳',
+        ...VIOLET_OP_STYLE,
       };
     case 'auto_compacted':
       return {

@@ -23,9 +23,6 @@
   "exclude": ["node_modules", "dist"],
   "references": [
     {
-      "path": "../../packages/sdk"
-    },
-    {
       "path": "../../packages/types"
     }
   ]

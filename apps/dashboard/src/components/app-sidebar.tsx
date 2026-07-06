@@ -4,11 +4,10 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Home,
   Folder,
-  MessagesSquare,
   KeyRound,
   Activity,
   FlaskConical,
-  Brain,
+  Users,
   Settings,
   ChevronsUpDown,
   Plus,
@@ -47,9 +46,8 @@ import { useProject } from '@/providers/project-provider';
 const navItems = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/projects', label: 'Projects', icon: Folder },
-  { to: '/conversations', label: 'Conversations', icon: MessagesSquare },
+  { to: '/users', label: 'Users', icon: Users },
   { to: '/playground', label: 'Playground', icon: FlaskConical },
-  { to: '/memory', label: 'Memory', icon: Brain },
   { to: '/api-keys', label: 'API Keys', icon: KeyRound },
   { to: '/status', label: 'Status', icon: Activity },
 ];
