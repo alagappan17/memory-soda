@@ -165,18 +165,24 @@ router.post(
       const prepared = await prepareThread(threadId, projectId, {
         messageLimit,
         query: content,
-        include: ['episodes'],
+        include: ['episodes', 'synthesis', 'raw'],
       });
       if (!prepared) {
         res.status(404).json({ error: 'Thread not found' });
         return;
       }
 
+      // Synthesis (prose summary) leads, followed by the structured fact block —
+      // both are user-derived semantic memory and share the same framing.
+      const contextBlock = [prepared.synthesis, prepared.context]
+        .filter((part): part is string => Boolean(part && part.length > 0))
+        .join('\n\n');
+
       const replyContent = await generateReply(
         prepared.messages,
         systemPrompt,
         prepared.episodes,
-        prepared.context,
+        contextBlock,
       );
 
       const { message: assistantMessage, compacted: assistantCompacted } =
@@ -202,7 +208,9 @@ router.post(
           truncated: prepared.truncated,
           compacted: prepared.compacted,
           episodeCount: prepared.episodes?.episodeCount ?? 0,
+          factCount: prepared.facts?.length ?? 0,
           hasContext: prepared.context.length > 0,
+          hasSynthesis: Boolean(prepared.synthesis),
         },
       });
     } catch (err: unknown) {
