@@ -16,8 +16,9 @@ import {
 import type {
   EpisodeContext,
   ProjectEpisodicSettings,
+  ProjectSemanticSettings,
   SemanticFact,
-  RankedContextGroup,
+  WMPrepareResponse,
 } from '@memory-soda/types';
 import { type Thread, rowToThread } from './thread.service.js';
 
@@ -37,24 +38,8 @@ export interface Message {
   createdAt: string;
 }
 
-export interface PrepareResult {
-  threadId: string;
-  messages: { role: string; content: string }[];
-  /** Rendered, prompt-ready context block (primary output). */
-  context: string;
-  /** LLM prose summary — only when include: ['synthesis']. */
-  synthesis: string | null;
-  /** Raw facts — only when include: ['raw']. */
-  facts: SemanticFact[] | null;
-  /** Structured groups — only when include: ['raw']. */
-  groups: RankedContextGroup[] | null;
-  /** Episodic context — only when include: ['episodes']. */
-  episodes: EpisodeContext | null;
-  messageCount: number;
-  truncated: boolean;
-  compacted: boolean;
-  warning?: string;
-}
+// The prepare result shape is the shared response contract.
+export type PrepareResult = WMPrepareResponse;
 
 export interface CompactResult {
   threadId: string;
@@ -397,6 +382,11 @@ export async function prepareThread(
 ): Promise<PrepareResult | null> {
   const { messageLimit, query, include = [] } = opts;
 
+  console.log(
+    `[prepare] ── request ── thread=${threadId} project=${projectId}\n` +
+      JSON.stringify({ messageLimit, query, include }, null, 2),
+  );
+
   const [threadRow] = await db
     .select({
       id: threads.id,
@@ -469,6 +459,7 @@ export async function prepareThread(
         settings.contextEpisodes,
         settings.similarityWeight,
         settings.recencyWeight,
+        queryEmbedding, // reuse the embedding computed once above
       );
     } catch {
       return null;
@@ -477,7 +468,10 @@ export async function prepareThread(
 
   const fetchFacts = async (): Promise<SemanticFact[]> => {
     try {
-      const settings = await getEffectiveSemanticSettings(projectId, threadId);
+      const settings = await getEffectiveSemanticSettings(
+        projectId,
+        threadRow.semanticSettings as Partial<ProjectSemanticSettings> | null,
+      );
       if (!settings.enabled) return [];
       const ctx = await getSemanticContext(
         threadRow.userId,
@@ -520,7 +514,7 @@ export async function prepareThread(
       ? `messageLimit (${messageLimit}) is less than autoCompactThreshold (${threshold}). Messages between the compact summary and the retrieved tail may be missing. Set messageLimit >= autoCompactThreshold to ensure full context.`
       : undefined;
 
-  return {
+  const result = {
     threadId,
     messages: [...summaryRows, ...realRows],
     context,
@@ -533,6 +527,13 @@ export async function prepareThread(
     compacted: summaryRows.length > 0,
     warning,
   };
+
+  console.log(
+    `[prepare] ── response ── thread=${threadId}\n` +
+      JSON.stringify(result, null, 2),
+  );
+
+  return result;
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────────

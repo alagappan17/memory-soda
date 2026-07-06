@@ -99,6 +99,27 @@ export async function createPendingEpisode(payload: {
         ),
       );
 
+    // Stamp the message range this episode covers: from just after the last
+    // episode's end to the thread's current tail. Semantic extraction reads
+    // only this window, so successive episodes on one thread don't re-extract
+    // (and re-judge) each other's messages. Episodic summarisation still reads
+    // the whole thread — the archive-previous model above makes the latest
+    // episode the thread's rolling summary.
+    const [prev] = await tx
+      .select({
+        maxEnd: sql<number | null>`max(${episodes.endSequence})`,
+      })
+      .from(episodes)
+      .where(eq(episodes.threadId, payload.threadId));
+    const [tail] = await tx
+      .select({
+        maxSeq: sql<number | null>`max(${messages.sequenceNumber})`,
+      })
+      .from(messages)
+      .where(eq(messages.threadId, payload.threadId));
+    const startSequence = (prev?.maxEnd ?? 0) + 1;
+    const endSequence = tail?.maxSeq ?? 0;
+
     const [row] = await tx
       .insert(episodes)
       .values({
@@ -109,6 +130,8 @@ export async function createPendingEpisode(payload: {
         tokenCount: payload.tokenCount,
         startedAt: payload.startedAt,
         endedAt: payload.endedAt,
+        startSequence,
+        endSequence,
         status: 'pending',
       })
       .returning();
@@ -297,8 +320,19 @@ export async function getEpisodicContext(
   contextEpisodes: number,
   similarityWeight: number,
   recencyWeight: number,
+  precomputedEmbedding?: number[] | null,
 ): Promise<EpisodeContext> {
-  if (!query) {
+  // Reuse a caller-provided query embedding (prepareThread embeds the query once
+  // per turn) to avoid a second embedding call. `null` means the caller already
+  // tried and failed, so fall back to recency rather than re-embedding.
+  const queryEmbedding =
+    precomputedEmbedding !== undefined
+      ? precomputedEmbedding
+      : query
+        ? await embedText(query)
+        : null;
+
+  if (!queryEmbedding) {
     const [totalRows, rows] = await Promise.all([
       db.select({ count: count() }).from(episodes).where(activeEpisodesFilter(userId, projectId)),
       db
@@ -321,8 +355,7 @@ export async function getEpisodicContext(
 
   if (episodeCount === 0) return { episodes: null, episodeCount: 0 };
 
-  // Similarity search
-  const queryEmbedding = await embedText(query);
+  // Similarity search (uses the embedding resolved above).
   const vectorLiteral = `[${queryEmbedding.join(',')}]`;
 
   const rows = await db
@@ -388,11 +421,14 @@ export async function listUserEpisodes(
   projectId: string,
   opts: { limit: number; before?: string; status: string },
 ): Promise<{ episodes: Episode[]; total: number; hasMore: boolean }> {
-  const whereBase = and(
-    eq(episodes.userId, userId),
-    eq(episodes.projectId, projectId),
-    eq(episodes.status, opts.status as EpisodeRow['status']),
-  );
+  const whereBase =
+    opts.status === 'all'
+      ? and(eq(episodes.userId, userId), eq(episodes.projectId, projectId))
+      : and(
+          eq(episodes.userId, userId),
+          eq(episodes.projectId, projectId),
+          eq(episodes.status, opts.status as EpisodeRow['status']),
+        );
 
   const whereWithCursor = opts.before
     ? and(whereBase, lt(episodes.endedAt, new Date(opts.before)))

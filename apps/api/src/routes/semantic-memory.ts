@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { validateQuery } from '../middleware/validate.js';
+import { validateQuery, boolish } from '../middleware/validate.js';
 import {
   querySemanticFacts,
   listEntities,
@@ -13,12 +13,9 @@ const router = Router();
 const factsQuerySchema = z.object({
   q: z.string().max(1000).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
-  // z.coerce.boolean() treats any non-empty string (incl. "false") as true, so
-  // parse boolish query strings explicitly.
-  includeInvalidated: z.preprocess(
-    (v) => v === true || v === 'true' || v === '1',
-    z.boolean(),
-  ),
+  includeInvalidated: boolish,
+  /** Point-in-time filter: facts that were true at this instant. Overrides includeInvalidated. */
+  asOf: z.coerce.date().optional(),
 });
 
 /**
@@ -30,13 +27,12 @@ router.get(
   validateQuery(factsQuerySchema),
   async (req, res) => {
     try {
-      const { q, limit, includeInvalidated } = req.query as unknown as z.infer<
-        typeof factsQuerySchema
-      >;
+      const { q, limit, includeInvalidated, asOf } =
+        req.query as unknown as z.infer<typeof factsQuerySchema>;
       const result = await querySemanticFacts(
         req.params.userId,
         req.projectId!,
-        { q, limit, includeInvalidated },
+        { q, limit, includeInvalidated, asOf },
       );
       res.json(result);
     } catch (err) {

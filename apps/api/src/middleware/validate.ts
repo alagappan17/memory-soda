@@ -1,5 +1,14 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { ZodSchema } from 'zod';
+import { z, type ZodSchema } from 'zod';
+
+/**
+ * Parse a boolish query-string value. `z.coerce.boolean()` treats any non-empty
+ * string (including "false") as true, so only "true"/"1" count as true here.
+ */
+export const boolish = z.preprocess(
+  (v) => v === true || v === 'true' || v === '1',
+  z.boolean(),
+);
 
 export function validateBody<T>(schema: ZodSchema<T>) {
   return (req: Request, res: Response, next: NextFunction): void => {
