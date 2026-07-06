@@ -399,7 +399,9 @@ export default function PlaygroundPage() {
           truncated: boolean;
           compacted: boolean;
           episodeCount: number;
+          factCount: number;
           hasContext: boolean;
+          hasSynthesis: boolean;
         };
       }>(apiKey, `/threads/${tid}/chat`, {
         method: 'POST',
@@ -421,6 +423,8 @@ export default function PlaygroundPage() {
         truncated: chatRes.prepare.truncated,
         compacted: chatRes.prepare.compacted,
         episodes: chatRes.prepare.episodeCount || 0,
+        facts: chatRes.prepare.factCount || 0,
+        synthesis: chatRes.prepare.hasSynthesis,
       }, chatDuration);
       addOp('ai_replied', {
         sequenceNumber: chatRes.assistantMessage.sequenceNumber,
