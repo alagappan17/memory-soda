@@ -1,11 +1,35 @@
-import { and, eq, isNull, isNotNull, or, desc, sql, inArray } from 'drizzle-orm';
+import {
+  and,
+  eq,
+  isNull,
+  isNotNull,
+  or,
+  desc,
+  sql,
+  inArray,
+  gte,
+  lte,
+  lt,
+  gt,
+  count,
+} from 'drizzle-orm';
 import { db } from '../db/postgres.js';
-import { episodes, facts, entities, messages, projects, threads } from '../db/schema.js';
+import {
+  episodes,
+  facts,
+  entities,
+  messages,
+  projects,
+  threads,
+  isLiveFact,
+  isLiveFactAsOf,
+} from '../db/schema.js';
 import type { NewFactRow } from '../db/schema.js';
-import { batchEmbedTexts } from '../lib/gemini.js';
+import { batchEmbedTexts, buildTranscript } from '../lib/gemini.js';
 import {
   extractGraph,
-  resolveContradiction,
+  resolveContradictions,
+  type ContradictionPair,
   type ExtractedEntity,
   type ExtractedGraph,
 } from '../lib/semantic-extraction.js';
@@ -19,12 +43,38 @@ import type {
   RankedContextGroup,
 } from '@memory-soda/types';
 
+// Give up on an episode's semantic extraction after this many failures.
+const MAX_SEMANTIC_RETRIES = 3;
+
+// A 'processing' claim older than this is considered orphaned (the worker died
+// mid-extraction — crash, restart, deploy) and may be reclaimed.
+const STALE_PROCESSING_MS = 10 * 60 * 1000;
+
+// Contradiction candidates: live facts on the same anchor whose embedding
+// similarity to the candidate is at least this (but below the dedup threshold,
+// where they'd be near-duplicates instead). Catches paraphrased predicates
+// ("works at" vs "is employed by") that exact matching misses.
+const CONTRADICTION_BAND_MIN = 0.8;
+
+// Query→entity anchor matching by vector similarity: how similar an entity must
+// be to the query, and how many such entities to admit.
+const ANCHOR_VECTOR_MIN = 0.75;
+const ANCHOR_VECTOR_TOP_K = 3;
+
 // ── Settings ──────────────────────────────────────────────────────────────────
+
+/** Drop null/undefined values so a partial JSONB override can't erase project defaults. */
+function stripNullish<T extends object>(raw: Partial<T> | null | undefined): Partial<T> {
+  if (!raw) return {};
+  return Object.fromEntries(
+    Object.entries(raw).filter(([, v]) => v !== null && v !== undefined),
+  ) as Partial<T>;
+}
 
 /** Effective semantic settings: project defaults overlaid with any per-thread override. */
 export async function getEffectiveSemanticSettings(
   projectId: string,
-  threadId?: string | null,
+  threadOverride?: Partial<ProjectSemanticSettings> | null,
 ): Promise<ProjectSemanticSettings> {
   const [projRow] = await db
     .select({ settings: projects.settings })
@@ -33,30 +83,35 @@ export async function getEffectiveSemanticSettings(
   const base = mergeWithDefaults(
     projRow?.settings as ProjectSettingsPatch | null,
   ).semantic;
-
-  if (!threadId) return base;
-  const [tRow] = await db
-    .select({ semanticSettings: threads.semanticSettings })
-    .from(threads)
-    .where(eq(threads.id, threadId));
-  const override = tRow?.semanticSettings as Partial<ProjectSemanticSettings> | null;
-  return override ? { ...base, ...override } : base;
+  return { ...base, ...stripNullish(threadOverride) };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Enriched embedding string for a fact. Appending the context entity makes the
- * subject more prominent in vector space, improving entity-centric retrieval.
+ * The entity a fact is anchored to (derived, never stored): the object when it
+ * is an entity (user → interested in → asus rog anchors on "asus rog"), else
+ * the subject ("user") for literal attributes with no entity to anchor to.
+ */
+export function anchorFor(f: {
+  subject: string;
+  object: string;
+  objectIsEntity: boolean;
+}): string {
+  return f.objectIsEntity ? f.object : f.subject;
+}
+
+/**
+ * Enriched embedding string for a fact. Appending the anchor entity makes it
+ * more prominent in vector space, improving entity-centric retrieval.
  */
 export function buildFactEmbedString(f: {
   subject: string;
   predicate: string;
   object: string;
-  contextEntityName: string | null;
+  objectIsEntity: boolean;
 }): string {
-  const base = `${f.subject} ${f.predicate} ${f.object}.`;
-  return f.contextEntityName ? `${base} About: ${f.contextEntityName}.` : base;
+  return `${f.subject} ${f.predicate} ${f.object}. About: ${anchorFor(f)}.`;
 }
 
 function cosine(a: number[], b: number[]): number {
@@ -73,6 +128,8 @@ function cosine(a: number[], b: number[]): number {
 
 const factKey = (s: string, p: string, o: string) => `${s}|${p}|${o}`;
 
+const toVectorLiteral = (emb: number[]) => `[${emb.join(',')}]`;
+
 // ── Pipeline entry point ────────────────────────────────────────────────────────
 //
 // Five steps: extract → resolve entities → dedup → evolve (contradictions) → write.
@@ -81,24 +138,49 @@ const factKey = (s: string, p: string, o: string) => `${s}|${p}|${o}`;
 export async function processSemanticMemory(episodeId: string): Promise<void> {
   const now = new Date();
 
-  // Atomic claim: only one worker moves pending/failed → processing.
+  // Atomic claim: only one worker moves pending/failed → processing. A stale
+  // 'processing' row (worker died mid-extraction) may also be reclaimed.
+  const staleBefore = new Date(now.getTime() - STALE_PROCESSING_MS);
   const [episode] = await db
     .update(episodes)
     .set({ semanticStatus: 'processing', updatedAt: now })
     .where(
       and(
         eq(episodes.id, episodeId),
-        inArray(episodes.semanticStatus, ['pending', 'failed']),
+        or(
+          inArray(episodes.semanticStatus, ['pending', 'failed']),
+          and(
+            eq(episodes.semanticStatus, 'processing'),
+            lt(episodes.updatedAt, staleBefore),
+          ),
+        ),
       ),
     )
     .returning();
   if (!episode) return;
 
   try {
-    const settings = await getEffectiveSemanticSettings(
-      episode.projectId,
-      episode.threadId,
+    const [[projRow], [tRow]] = await Promise.all([
+      db
+        .select({ settings: projects.settings })
+        .from(projects)
+        .where(eq(projects.id, episode.projectId)),
+      episode.threadId
+        ? db
+            .select({ semanticSettings: threads.semanticSettings })
+            .from(threads)
+            .where(eq(threads.id, episode.threadId))
+        : Promise.resolve([]),
+    ]);
+    const projectSettings = mergeWithDefaults(
+      projRow?.settings as ProjectSettingsPatch | null,
     );
+    const settings: ProjectSemanticSettings = {
+      ...projectSettings.semantic,
+      ...stripNullish(
+        tRow?.semanticSettings as Partial<ProjectSemanticSettings> | null,
+      ),
+    };
     if (!settings.enabled) {
       await db
         .update(episodes)
@@ -107,17 +189,21 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
       return;
     }
 
-    // Raw messages in the episode's thread — direct signal beats the lossy summary.
+    // Raw messages — scoped to the episode's stamped sequence range so multiple
+    // episodes on one thread don't re-extract each other's messages. Legacy
+    // episodes (NULL range) fall back to the whole uncompacted thread.
+    const scope =
+      episode.startSequence !== null && episode.endSequence !== null
+        ? and(
+            gte(messages.sequenceNumber, episode.startSequence),
+            lte(messages.sequenceNumber, episode.endSequence),
+          )
+        : isNull(messages.compactedAt);
     const msgRows = episode.threadId
       ? await db
           .select({ role: messages.role, content: messages.content })
           .from(messages)
-          .where(
-            and(
-              eq(messages.threadId, episode.threadId),
-              isNull(messages.compactedAt),
-            ),
-          )
+          .where(and(eq(messages.threadId, episode.threadId), scope))
           .orderBy(sql`${messages.sequenceNumber} ASC`)
       : [];
 
@@ -129,10 +215,15 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
       return;
     }
 
-    const transcript = msgRows.map((m) => `${m.role}: ${m.content}`).join('\n');
+    // Bounded transcript — direct signal beats the lossy summary, but a long
+    // episode must not blow the extraction prompt (head + tail truncation).
+    const transcript = buildTranscript(
+      msgRows,
+      projectSettings.episodic.maxMessages,
+    );
 
-    // Step 1 — extract
-    const graph = await extractGraph(transcript, settings.minConfidence);
+    // Step 1 — extract (pass `now` as the anchor for resolving relative dates)
+    const graph = await extractGraph(transcript, settings.minConfidence, now);
 
     // Step 2 — resolve entities (dedup the entities table)
     const canonical = await resolveEntities(
@@ -157,13 +248,18 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
 
     await db
       .update(episodes)
-      .set({ semanticStatus: 'completed', updatedAt: new Date() })
+      .set({ semanticStatus: 'completed', error: null, updatedAt: new Date() })
       .where(eq(episodes.id, episodeId));
   } catch (err) {
     console.error('[semantic] processSemanticMemory failed:', episodeId, err);
     await db
       .update(episodes)
-      .set({ semanticStatus: 'failed', updatedAt: new Date() })
+      .set({
+        semanticStatus: 'failed',
+        semanticRetryCount: sql`${episodes.semanticRetryCount} + 1`,
+        error: `[semantic] ${err instanceof Error ? err.message : String(err)}`,
+        updatedAt: new Date(),
+      })
       .where(eq(episodes.id, episodeId));
   }
 }
@@ -180,46 +276,51 @@ async function resolveEntities(
   const canonical = new Map<string, string>();
   if (extracted.length === 0) return canonical;
 
-  const existing = await db
-    .select({
-      id: entities.id,
-      name: entities.name,
-      embedding: entities.embedding,
-    })
-    .from(entities)
-    .where(and(eq(entities.userId, userId), eq(entities.projectId, projectId)));
-
+  const tenant = and(
+    eq(entities.userId, userId),
+    eq(entities.projectId, projectId),
+  );
   const newEmbeds = await batchEmbedTexts(extracted.map((e) => e.name));
 
   for (let i = 0; i < extracted.length; i++) {
     const ent = extracted[i];
     const emb = newEmbeds[i];
 
-    // Exact name match → refresh attributes.
-    const exact = existing.find((x) => x.name === ent.name);
+    // Exact name match → this is the canonical entity.
+    const [exact] = await db
+      .select({ id: entities.id, name: entities.name })
+      .from(entities)
+      .where(and(tenant, eq(entities.name, ent.name)));
     if (exact) {
       await db
         .update(entities)
-        .set({ attributes: ent.attributes, updatedAt: new Date() })
+        .set({ updatedAt: new Date() })
         .where(eq(entities.id, exact.id));
       canonical.set(ent.name, exact.name);
       continue;
     }
 
-    // Nearest existing entity by embedding.
-    let best: { id: string; name: string; score: number } | null = null;
-    for (const x of existing) {
-      if (!x.embedding) continue;
-      const score = cosine(emb, x.embedding as number[]);
-      if (!best || score > best.score) best = { id: x.id, name: x.name, score };
-    }
+    // Nearest existing entity of the SAME TYPE via pgvector — type-aware so
+    // "apple" (ORG) never merges into "apple" (FOOD). `<=>` is cosine distance;
+    // similarity = 1 - distance.
+    const vec = toVectorLiteral(emb);
+    const [nearest] = await db
+      .select({
+        id: entities.id,
+        name: entities.name,
+        distance: sql<number>`${entities.embedding} <=> ${vec}::vector`,
+      })
+      .from(entities)
+      .where(and(tenant, eq(entities.type, ent.type), isNotNull(entities.embedding)))
+      .orderBy(sql`${entities.embedding} <=> ${vec}::vector`)
+      .limit(1);
 
-    if (best && best.score >= settings.entityResolutionThreshold) {
+    if (nearest && 1 - nearest.distance >= settings.entityResolutionThreshold) {
       await db
         .update(entities)
-        .set({ attributes: ent.attributes, updatedAt: new Date() })
-        .where(eq(entities.id, best.id));
-      canonical.set(ent.name, best.name);
+        .set({ updatedAt: new Date() })
+        .where(eq(entities.id, nearest.id));
+      canonical.set(ent.name, nearest.name);
     } else {
       // Upsert — concurrent semantic workers may insert the same
       // (userId, projectId, name); the unique index would otherwise fail the job.
@@ -230,15 +331,13 @@ async function resolveEntities(
           projectId,
           name: ent.name,
           type: ent.type,
-          attributes: ent.attributes,
           embedding: emb,
         })
         .onConflictDoUpdate({
           target: [entities.userId, entities.projectId, entities.name],
-          set: { attributes: ent.attributes, updatedAt: new Date() },
+          set: { updatedAt: new Date() },
         })
         .returning({ id: entities.id, name: entities.name });
-      existing.push({ id: row.id, name: row.name, embedding: emb });
       canonical.set(ent.name, row.name);
     }
   }
@@ -253,7 +352,10 @@ interface FactCandidate {
   predicate: string;
   object: string;
   objectIsEntity: boolean;
-  confidence: number;
+  sourceQuote: string | null;
+  /** Valid-time bounds (ISO strings) from extraction; null when open-ended. */
+  validFrom: string | null;
+  validUntil: string | null;
 }
 
 async function writeFacts(
@@ -275,36 +377,41 @@ async function writeFacts(
       predicate: f.predicate,
       object: f.value,
       objectIsEntity: false,
-      confidence: f.confidence,
+      sourceQuote: f.sourceQuote,
+      validFrom: f.validFrom,
+      validUntil: f.validUntil,
     })),
     ...graph.relationships.map((r) => ({
       subject: canon(r.subject),
       predicate: r.predicate,
       object: canon(r.object),
       objectIsEntity: true,
-      confidence: r.confidence,
+      sourceQuote: r.sourceQuote,
+      validFrom: r.validFrom,
+      validUntil: r.validUntil,
     })),
   ];
   if (candidates.length === 0) return;
 
+  const tenant = and(eq(facts.userId, userId), eq(facts.projectId, projectId));
+
   // Existing live facts for this tenant (the dedup/contradiction baseline).
+  // `snapshotAt` marks the read so the write transaction can detect facts a
+  // concurrent job committed while we were off calling the LLM.
+  const snapshotAt = new Date();
   const live = await db
     .select({
       id: facts.id,
       subject: facts.subject,
       predicate: facts.predicate,
       object: facts.object,
+      objectIsEntity: facts.objectIsEntity,
+      sourceQuote: facts.sourceQuote,
       validAt: facts.validAt,
       embedding: facts.embedding,
     })
     .from(facts)
-    .where(
-      and(
-        eq(facts.userId, userId),
-        eq(facts.projectId, projectId),
-        isNull(facts.invalidAt),
-      ),
-    );
+    .where(and(tenant, isLiveFact));
 
   // Step 3 — drop exact duplicates (vs live + within this batch).
   const liveExact = new Set(live.map((f) => factKey(f.subject, f.predicate, f.object)));
@@ -317,114 +424,229 @@ async function writeFacts(
   });
   if (deduped.length === 0) return;
 
-  // Embed candidates (enriched). contextEntityName doubles as the subject anchor.
-  const embeds = await batchEmbedTexts(
-    deduped.map((c) =>
-      buildFactEmbedString({ ...c, contextEntityName: c.subject }),
-    ),
-  );
+  // Valid-time bounds. Extraction already normalized these to ISO date strings or
+  // null, so parsing is safe.
+  const toDate = (iso: string | null): Date | null =>
+    iso ? new Date(iso) : null;
 
-  // LLM contradiction reasoning runs here, outside any transaction (it makes
-  // external calls). We only collect the ids to invalidate and rows to insert,
-  // then apply them atomically below.
-  const invalidatedIds = new Set<string>();
-  const toInsert: NewFactRow[] = [];
+  // Effective valid-from instant. validFrom is date-only, so "today" resolves to
+  // midnight — hours BEFORE facts recorded earlier the same day, which would make
+  // a brand-new statement look older than what it supersedes (and the judge would
+  // wrongly keep the old fact). A same-day validFrom therefore means "now".
+  const today = now.toISOString().slice(0, 10);
+  const effectiveValidAt = (validFrom: string | null): Date => {
+    const d = toDate(validFrom);
+    if (!d) return now;
+    return validFrom === today ? now : d;
+  };
 
-  for (let i = 0; i < deduped.length; i++) {
-    const c = deduped[i];
+  // Embed candidates (enriched with the derived anchor).
+  const embeds = await batchEmbedTexts(deduped.map(buildFactEmbedString));
+
+  // Step 3b — drop near-duplicates by embedding similarity (no LLM), against
+  // live facts AND earlier candidates in this batch (paraphrase pairs like
+  // "wants large screen" / "prefers big display" arrive together).
+  const survivors: { c: FactCandidate; emb: number[] }[] = [];
+  deduped.forEach((c, i) => {
     const emb = embeds[i];
-
-    // Step 3b — near-duplicate by embedding similarity.
-    let isDup = false;
-    for (const f of live) {
-      if (invalidatedIds.has(f.id) || !f.embedding) continue;
-      if (cosine(emb, f.embedding as number[]) >= settings.factDedupThreshold) {
-        isDup = true;
-        break;
-      }
-    }
-    if (isDup) continue;
-
-    // Step 4 — contradiction: same subject+predicate, different object.
-    const conflicts = live.filter(
+    const nearLive = live.some(
       (f) =>
-        !invalidatedIds.has(f.id) &&
-        f.subject === c.subject &&
-        f.predicate === c.predicate &&
-        f.object !== c.object,
+        f.embedding &&
+        cosine(emb, f.embedding as number[]) >= settings.factDedupThreshold,
     );
-    let supersededByOld = false;
-    for (const old of conflicts) {
-      // verdict is the fact to invalidate: 'old' = new supersedes old.
-      const verdict = await resolveContradiction(
-        c.subject,
-        c.predicate,
-        old.object,
-        old.validAt.toISOString(),
-        c.object,
-        now.toISOString(),
-      );
-      if (verdict === 'old') {
-        invalidatedIds.add(old.id);
-      } else if (verdict === 'new') {
-        // Existing fact still correct — skip inserting the new one.
-        supersededByOld = true;
-      }
-      // 'neither' — both coexist.
+    const nearBatch = survivors.some(
+      (s) => cosine(emb, s.emb) >= settings.factDedupThreshold,
+    );
+    if (!nearLive && !nearBatch) survivors.push({ c, emb });
+  });
+
+  // Step 4 — collect (survivor ↔ conflicting live fact) pairs, then resolve all
+  // contradictions in ONE batched LLM call. A live fact conflicts when it states
+  // a different object for the same predicate ("works at google" vs "works at
+  // anthropic"), or is a paraphrase-level neighbour by embedding (band below the
+  // dedup threshold) — which catches predicate rewordings like "works at" vs
+  // "is employed by". Historical candidates (validUntil already past) never
+  // supersede anything — they are inserted as history without judging.
+  const conflictRefs: { survivorIndex: number; oldId: string }[] = [];
+  const pairs: ContradictionPair[] = [];
+  survivors.forEach(({ c, emb }, si) => {
+    const historical = c.validUntil !== null && new Date(c.validUntil) <= now;
+    if (historical) return;
+    const newValidAt = effectiveValidAt(c.validFrom).toISOString();
+    for (const f of live) {
+      const samePredicateConflict =
+        f.predicate === c.predicate && f.object !== c.object;
+      const bandConflict =
+        !samePredicateConflict &&
+        f.embedding !== null &&
+        (() => {
+          const sim = cosine(emb, f.embedding as number[]);
+          return sim >= CONTRADICTION_BAND_MIN && sim < settings.factDedupThreshold;
+        })();
+      if (!samePredicateConflict && !bandConflict) continue;
+      conflictRefs.push({ survivorIndex: si, oldId: f.id });
+      pairs.push({
+        subject: c.subject,
+        oldPredicate: f.predicate,
+        oldObject: f.object,
+        oldValidAt: f.validAt.toISOString(),
+        oldQuote: f.sourceQuote,
+        newPredicate: c.predicate,
+        newObject: c.object,
+        newValidAt,
+        newQuote: c.sourceQuote,
+      });
     }
-    if (supersededByOld) continue;
+  });
 
-    // Step 5 — stage for insert.
-    toInsert.push({
-      userId,
-      projectId,
-      subject: c.subject,
-      predicate: c.predicate,
-      object: c.object,
-      objectIsEntity: c.objectIsEntity,
-      contextEntityName: c.subject,
-      confidence: c.confidence,
-      episodeId,
-      validAt: now,
-      ingestionAt: now,
-      embedding: emb,
-    });
-  }
+  const verdicts = await resolveContradictions(pairs);
 
-  if (invalidatedIds.size === 0 && toInsert.length === 0) return;
+  // Reconcile verdicts per survivor: a survivor superseded by ANY existing fact
+  // ('new' verdict) is discarded entirely — including its 'old' verdicts.
+  // Otherwise a survivor could invalidate an old fact and then never be
+  // inserted, vaporizing the knowledge.
+  const supersededSurvivors = new Set<number>();
+  verdicts.forEach((verdict, k) => {
+    if (verdict === 'new') supersededSurvivors.add(conflictRefs[k].survivorIndex);
+  });
+  const invalidationsBySurvivor = new Map<number, string[]>();
+  verdicts.forEach((verdict, k) => {
+    const ref = conflictRefs[k];
+    if (verdict === 'old' && !supersededSurvivors.has(ref.survivorIndex)) {
+      const list = invalidationsBySurvivor.get(ref.survivorIndex) ?? [];
+      list.push(ref.oldId);
+      invalidationsBySurvivor.set(ref.survivorIndex, list);
+    }
+  });
 
-  // Apply atomically, serialized per tenant via an advisory lock so concurrent
-  // episode jobs can't interleave their invalidate/insert. The live-facts partial
-  // unique index + ON CONFLICT DO NOTHING is the final backstop against duplicates.
+  const staged = survivors
+    .map((s, si) => ({ ...s, si }))
+    .filter(({ si }) => !supersededSurvivors.has(si));
+  if (staged.length === 0) return;
+
+  // Step 5 — apply atomically, serialized per tenant via an advisory lock so
+  // concurrent episode jobs can't interleave their invalidate/insert. The
+  // live-facts partial unique index + ON CONFLICT DO NOTHING is the final
+  // backstop against duplicates.
   await db.transaction(async (tx) => {
     await tx.execute(
       sql`SELECT pg_advisory_xact_lock(hashtext(${`${userId}:${projectId}`}))`,
     );
+
+    // Race re-check: facts committed by a concurrent job after our snapshot
+    // never went through this batch's dedup/contradiction pass. Drop staged
+    // survivors that now collide exactly or state the same anchor+predicate.
+    const appeared = await tx
+      .select({
+        subject: facts.subject,
+        predicate: facts.predicate,
+        object: facts.object,
+      })
+      .from(facts)
+      .where(and(tenant, isLiveFact, gt(facts.createdAt, snapshotAt)));
+    const appearedExact = new Set(
+      appeared.map((f) => factKey(f.subject, f.predicate, f.object)),
+    );
+    const appearedSubjPred = new Set(
+      appeared.map((f) => `${f.subject}|${f.predicate}`),
+    );
+    const finalStaged = staged.filter(
+      ({ c }) =>
+        !appearedExact.has(factKey(c.subject, c.predicate, c.object)) &&
+        !appearedSubjPred.has(`${c.subject}|${c.predicate}`),
+    );
+    if (finalStaged.length === 0) return;
+
+    // Only apply invalidations belonging to survivors that are actually inserted.
+    const invalidatedIds = new Set<string>(
+      finalStaged.flatMap(({ si }) => invalidationsBySurvivor.get(si) ?? []),
+    );
+
+    // Renewal: an expired-but-not-superseded row (valid_until in the past,
+    // invalid_at NULL) still occupies the live-unique index. A new statement of
+    // the same fact supersedes it — stamp it so the insert can land.
+    const renewalConds = finalStaged.map(({ c }) =>
+      and(
+        eq(facts.subject, c.subject),
+        eq(facts.predicate, c.predicate),
+        eq(facts.object, c.object),
+      ),
+    );
+    await tx
+      .update(facts)
+      .set({ invalidAt: now, updatedAt: now })
+      .where(
+        and(
+          tenant,
+          isNull(facts.invalidAt),
+          isNotNull(facts.validUntil),
+          lte(facts.validUntil, now),
+          or(...renewalConds),
+        ),
+      );
+
     if (invalidatedIds.size > 0) {
       await tx
         .update(facts)
         .set({ invalidAt: now, updatedAt: now })
         .where(inArray(facts.id, [...invalidatedIds]));
     }
-    if (toInsert.length > 0) {
-      await tx.insert(facts).values(toInsert).onConflictDoNothing();
-    }
+
+    const toInsert: NewFactRow[] = finalStaged.map(({ c, emb }) => ({
+      userId,
+      projectId,
+      subject: c.subject,
+      predicate: c.predicate,
+      object: c.object,
+      objectIsEntity: c.objectIsEntity,
+      sourceQuote: c.sourceQuote,
+      episodeId,
+      validAt: effectiveValidAt(c.validFrom),
+      validUntil: toDate(c.validUntil),
+      embedding: emb,
+    }));
+    await tx.insert(facts).values(toInsert).onConflictDoNothing();
   });
 }
 
-// ── Retry job ───────────────────────────────────────────────────────────────────
+// ── Sweep job ───────────────────────────────────────────────────────────────────
 
-/** Re-runs semantic extraction for episodes left in `failed`. */
-export async function retryFailedSemanticMemory(): Promise<void> {
+/**
+ * Backstop sweep: processes episodes whose semantic extraction is pending (the
+ * completion trigger was missed, or a migration reset them) or failed (bounded
+ * by MAX_SEMANTIC_RETRIES). Runs on an interval from main.ts.
+ */
+export async function sweepSemanticMemory(): Promise<void> {
+  const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS);
   const rows = await db
     .select({ id: episodes.id })
     .from(episodes)
-    .where(eq(episodes.semanticStatus, 'failed'))
+    .where(
+      and(
+        // Archived included: an episode can be archived (by the next episode on
+        // its thread) before its semantic pass ran — its message window would
+        // otherwise never be extracted.
+        inArray(episodes.status, ['completed', 'archived']),
+        or(
+          inArray(episodes.semanticStatus, ['pending', 'failed']),
+          // Orphaned claims from a dead worker.
+          and(
+            eq(episodes.semanticStatus, 'processing'),
+            lt(episodes.updatedAt, staleBefore),
+          ),
+        ),
+        lt(episodes.semanticRetryCount, MAX_SEMANTIC_RETRIES),
+      ),
+    )
+    .orderBy(episodes.createdAt)
     .limit(20);
   for (const row of rows) {
-    processSemanticMemory(row.id).catch((err) => {
-      console.error('[semantic] retry failed:', row.id, err);
-    });
+    // Sequential on purpose — these each fan out LLM + embedding calls.
+    try {
+      await processSemanticMemory(row.id);
+    } catch (err) {
+      console.error('[semantic] sweep failed:', row.id, err);
+    }
   }
 }
 
@@ -436,10 +658,9 @@ const FACT_COLUMNS = {
   predicate: facts.predicate,
   object: facts.object,
   objectIsEntity: facts.objectIsEntity,
-  confidence: facts.confidence,
-  contextEntityName: facts.contextEntityName,
+  sourceQuote: facts.sourceQuote,
   validAt: facts.validAt,
-  ingestionAt: facts.ingestionAt,
+  validUntil: facts.validUntil,
   invalidAt: facts.invalidAt,
   episodeId: facts.episodeId,
 } as const;
@@ -450,10 +671,9 @@ type FactSelect = {
   predicate: string;
   object: string;
   objectIsEntity: boolean;
-  confidence: number;
-  contextEntityName: string | null;
+  sourceQuote: string | null;
   validAt: Date;
-  ingestionAt: Date;
+  validUntil: Date | null;
   invalidAt: Date | null;
   episodeId: string | null;
 };
@@ -465,10 +685,9 @@ function rowToSemanticFact(r: FactSelect, relevanceScore?: number): SemanticFact
     predicate: r.predicate,
     object: r.object,
     objectIsEntity: r.objectIsEntity,
-    confidence: r.confidence,
-    contextEntityName: r.contextEntityName,
+    sourceQuote: r.sourceQuote,
     validAt: r.validAt.toISOString(),
-    ingestionAt: r.ingestionAt.toISOString(),
+    validUntil: r.validUntil ? r.validUntil.toISOString() : null,
     invalidAt: r.invalidAt ? r.invalidAt.toISOString() : null,
     episodeId: r.episodeId,
     ...(relevanceScore !== undefined ? { relevanceScore } : {}),
@@ -486,6 +705,10 @@ function reciprocalRankFusion(lists: string[][], k = 60): Map<string, number> {
   return scores;
 }
 
+// Keyword search expression — MUST stay identical to the facts_tsv_idx GIN
+// index expression in the migration SQL for the planner to use the index.
+const factsTsv = sql`to_tsvector('english', coalesce(${facts.subject}, '') || ' ' || coalesce(${facts.predicate}, '') || ' ' || coalesce(${facts.object}, ''))`;
+
 /**
  * Hybrid fact retrieval: vector similarity + entity-anchored lookup + keyword
  * (full-text), fused with Reciprocal Rank Fusion. Entity-anchor is the reliability
@@ -502,7 +725,7 @@ export async function getSemanticContext(
   const tenant = and(
     eq(facts.userId, userId),
     eq(facts.projectId, projectId),
-    isNull(facts.invalidAt),
+    isLiveFact,
   );
   const scan = Math.max(limit * 4, 20);
   const byId = new Map<string, FactSelect>();
@@ -522,64 +745,90 @@ export async function getSemanticContext(
     };
   }
 
-  const lists: string[][] = [];
-
   // Signal 1 — vector similarity.
-  if (queryEmbedding && queryEmbedding.length > 0) {
-    const vectorLiteral = `[${queryEmbedding.join(',')}]`;
-    const rows = (await db
+  const vectorSignal = async (): Promise<FactSelect[]> => {
+    if (!queryEmbedding || queryEmbedding.length === 0) return [];
+    const vectorLiteral = toVectorLiteral(queryEmbedding);
+    return (await db
       .select(FACT_COLUMNS)
       .from(facts)
       .where(and(tenant, isNotNull(facts.embedding)))
       .orderBy(sql`${facts.embedding} <=> ${vectorLiteral}::vector`)
       .limit(scan)) as FactSelect[];
-    record(rows);
-    lists.push(rows.map((r) => r.id));
-  }
+  };
 
-  // Signal 2 — entity-anchored lookup. Resolve entities whose name appears in the
-  // query, then pull every live fact anchored to those names.
-  const anchorRows = await db
-    .select({ name: entities.name })
-    .from(entities)
-    .where(
-      and(
-        eq(entities.userId, userId),
-        eq(entities.projectId, projectId),
-        sql`position(lower(${entities.name}) in lower(${query})) > 0`,
-      ),
+  // Signal 2 — entity-anchored: resolve entities the query mentions (word-boundary
+  // match, so "art" can't fire inside "start") plus the query's nearest entities
+  // by embedding, then pull every live fact touching those names.
+  const anchorSignal = async (): Promise<FactSelect[]> => {
+    const entityTenant = and(
+      eq(entities.userId, userId),
+      eq(entities.projectId, projectId),
     );
-  const anchors = anchorRows.map((r) => r.name);
-  if (anchors.length > 0) {
-    const rows = (await db
+    const mentionRows = await db
+      .select({ name: entities.name })
+      .from(entities)
+      .where(
+        and(
+          entityTenant,
+          sql`${query} ~* ('\\m' || regexp_replace(${entities.name}, '([^a-zA-Z0-9 ])', '\\\\\\1', 'g') || '\\M')`,
+        ),
+      );
+    const vectorRows =
+      queryEmbedding && queryEmbedding.length > 0
+        ? await db
+            .select({ name: entities.name })
+            .from(entities)
+            .where(
+              and(
+                entityTenant,
+                isNotNull(entities.embedding),
+                sql`1 - (${entities.embedding} <=> ${toVectorLiteral(queryEmbedding)}::vector) >= ${ANCHOR_VECTOR_MIN}`,
+              ),
+            )
+            .orderBy(
+              sql`${entities.embedding} <=> ${toVectorLiteral(queryEmbedding)}::vector`,
+            )
+            .limit(ANCHOR_VECTOR_TOP_K)
+        : [];
+    const anchors = [
+      ...new Set([...mentionRows, ...vectorRows].map((r) => r.name)),
+    ];
+    if (anchors.length === 0) return [];
+    return (await db
       .select(FACT_COLUMNS)
       .from(facts)
       .where(
         and(
           tenant,
-          or(
-            inArray(facts.subject, anchors),
-            inArray(facts.object, anchors),
-            inArray(facts.contextEntityName, anchors),
-          ),
+          or(inArray(facts.subject, anchors), inArray(facts.object, anchors)),
         ),
       )
       .limit(scan)) as FactSelect[];
-    record(rows);
-    lists.push(rows.map((r) => r.id));
-  }
+  };
 
-  // Signal 3 — keyword / full-text. Expression matches the facts_tsv_idx index.
-  const tsv = sql`to_tsvector('english', coalesce(${facts.subject}, '') || ' ' || coalesce(${facts.predicate}, '') || ' ' || coalesce(${facts.object}, '') || ' ' || coalesce(${facts.contextEntityName}, ''))`;
-  const tsquery = sql`plainto_tsquery('english', ${query})`;
-  const kwRows = (await db
-    .select(FACT_COLUMNS)
-    .from(facts)
-    .where(and(tenant, sql`${tsv} @@ ${tsquery}`))
-    .orderBy(sql`ts_rank(${tsv}, ${tsquery}) DESC`)
-    .limit(scan)) as FactSelect[];
-  record(kwRows);
-  lists.push(kwRows.map((r) => r.id));
+  // Signal 3 — keyword / full-text.
+  const keywordSignal = async (): Promise<FactSelect[]> => {
+    const tsquery = sql`plainto_tsquery('english', ${query})`;
+    return (await db
+      .select(FACT_COLUMNS)
+      .from(facts)
+      .where(and(tenant, sql`${factsTsv} @@ ${tsquery}`))
+      .orderBy(sql`ts_rank(${factsTsv}, ${tsquery}) DESC`)
+      .limit(scan)) as FactSelect[];
+  };
+
+  // The three signals are independent — run them in one round-trip.
+  const signalResults = await Promise.all([
+    vectorSignal(),
+    anchorSignal(),
+    keywordSignal(),
+  ]);
+
+  const lists: string[][] = signalResults.map((rows) => {
+    record(rows);
+    return rows.map((r) => r.id);
+  });
 
   // Fuse and take the top `limit`.
   const fused = reciprocalRankFusion(lists);
@@ -599,11 +848,11 @@ export async function getSemanticContext(
 
 // ── Context assembly + render ────────────────────────────────────────────────
 
-/** Group facts by contextEntityName (anchor), sorted by relevance. */
+/** Group facts by their derived anchor entity, sorted by relevance. */
 export function assembleContext(factList: SemanticFact[]): RankedContextGroup[] {
   const groupMap = new Map<string, RankedContextGroup>();
   for (const fact of factList) {
-    const key = fact.contextEntityName ?? '__global';
+    const key = anchorFor(fact);
     let group = groupMap.get(key);
     if (!group) {
       group = { entityName: key, facts: [], groupRelevance: 0 };
@@ -614,9 +863,9 @@ export function assembleContext(factList: SemanticFact[]): RankedContextGroup[] 
       subject: fact.subject,
       predicate: fact.predicate,
       object: fact.object,
-      confidence: fact.confidence,
+      sourceQuote: fact.sourceQuote,
       validAt: fact.validAt,
-      invalidAt: fact.invalidAt,
+      validUntil: fact.validUntil,
       relevanceScore: score,
     });
     if (score > group.groupRelevance) group.groupRelevance = score;
@@ -653,38 +902,22 @@ export function renderContext(
   ];
   for (const g of groups) {
     for (const f of g.facts) {
-      const until = f.invalidAt ? formatDate(f.invalidAt) : 'present';
+      const until = f.validUntil ? formatDate(f.validUntil) : 'present';
       lines.push(
         `- ${oneLine(f.subject)} ${oneLine(f.predicate)} ${oneLine(f.object)}  (valid: ${formatDate(f.validAt)} – ${until})`,
       );
     }
   }
 
-  const named = entityList.filter((e) => e.name !== '__global');
-  if (named.length > 0) {
+  if (entityList.length > 0) {
     lines.push('', '# ENTITIES');
-    for (const e of named) {
-      const attrs = Object.entries(e.attributes ?? {})
-        .map(([k, v]) => `${oneLine(k)}: ${oneLine(Array.isArray(v) ? v.join(', ') : v)}`)
-        .join('; ');
-      lines.push(`- ${oneLine(e.name)} (${oneLine(e.type)})${attrs ? `: ${attrs}` : ''}`);
+    for (const e of entityList) {
+      lines.push(`- ${oneLine(e.name)} (${oneLine(e.type)})`);
     }
   }
 
   return lines.join('\n');
 }
-
-// Derived live-fact count for an entity — the stored counter is not maintained,
-// so we compute it at read time to keep API/SDK/dashboard counts honest.
-const entityFactCountExpr = sql<number>`(
-  SELECT count(*)::int FROM facts f
-  WHERE f.user_id = ${entities.userId}
-    AND f.project_id = ${entities.projectId}
-    AND f.invalid_at IS NULL
-    AND (f.subject = ${entities.name}
-      OR f.object = ${entities.name}
-      OR f.context_entity_name = ${entities.name})
-)`;
 
 /** Fetch entity records for a set of names (for the ENTITIES render section). */
 export async function getEntitiesByName(
@@ -692,16 +925,10 @@ export async function getEntitiesByName(
   projectId: string,
   names: string[],
 ): Promise<SemanticEntity[]> {
-  const wanted = names.filter((n) => n && n !== '__global');
+  const wanted = names.filter((n) => n.length > 0 && n !== 'user');
   if (wanted.length === 0) return [];
   const rows = await db
-    .select({
-      id: entities.id,
-      name: entities.name,
-      type: entities.type,
-      attributes: entities.attributes,
-      factCount: entityFactCountExpr,
-    })
+    .select({ id: entities.id, name: entities.name, type: entities.type })
     .from(entities)
     .where(
       and(
@@ -714,8 +941,6 @@ export async function getEntitiesByName(
     entityId: r.id,
     name: r.name,
     type: r.type as SemanticEntity['type'],
-    attributes: (r.attributes as Record<string, unknown>) ?? {},
-    factCount: r.factCount,
   }));
 }
 
@@ -724,22 +949,35 @@ export async function getEntitiesByName(
 export async function querySemanticFacts(
   userId: string,
   projectId: string,
-  opts: { q?: string; limit?: number; includeInvalidated?: boolean } = {},
+  opts: {
+    q?: string;
+    limit?: number;
+    includeInvalidated?: boolean;
+    /** Point-in-time filter: facts that were true at this instant. Overrides includeInvalidated. */
+    asOf?: Date;
+  } = {},
 ): Promise<{ facts: SemanticFact[]; total: number }> {
   const limit = opts.limit ?? 50;
   const conds = [eq(facts.userId, userId), eq(facts.projectId, projectId)];
-  if (!opts.includeInvalidated) conds.push(isNull(facts.invalidAt));
+  if (opts.asOf) conds.push(isLiveFactAsOf(opts.asOf));
+  else if (!opts.includeInvalidated) conds.push(isLiveFact);
   if (opts.q && opts.q.trim().length > 0) {
-    const tsv = sql`to_tsvector('english', coalesce(${facts.subject}, '') || ' ' || coalesce(${facts.predicate}, '') || ' ' || coalesce(${facts.object}, '') || ' ' || coalesce(${facts.contextEntityName}, ''))`;
-    conds.push(sql`${tsv} @@ plainto_tsquery('english', ${opts.q})`);
+    conds.push(sql`${factsTsv} @@ plainto_tsquery('english', ${opts.q})`);
   }
-  const rows = (await db
-    .select(FACT_COLUMNS)
-    .from(facts)
-    .where(and(...conds))
-    .orderBy(desc(facts.validAt))
-    .limit(limit)) as FactSelect[];
-  return { facts: rows.map((r) => rowToSemanticFact(r)), total: rows.length };
+  const where = and(...conds);
+  const [rows, [totalRow]] = await Promise.all([
+    db
+      .select(FACT_COLUMNS)
+      .from(facts)
+      .where(where)
+      .orderBy(desc(facts.validAt))
+      .limit(limit) as Promise<FactSelect[]>,
+    db.select({ count: count() }).from(facts).where(where),
+  ]);
+  return {
+    facts: rows.map((r) => rowToSemanticFact(r)),
+    total: totalRow?.count ?? rows.length,
+  };
 }
 
 export async function listEntities(
@@ -747,13 +985,7 @@ export async function listEntities(
   projectId: string,
 ): Promise<SemanticEntity[]> {
   const rows = await db
-    .select({
-      id: entities.id,
-      name: entities.name,
-      type: entities.type,
-      attributes: entities.attributes,
-      factCount: entityFactCountExpr,
-    })
+    .select({ id: entities.id, name: entities.name, type: entities.type })
     .from(entities)
     .where(and(eq(entities.userId, userId), eq(entities.projectId, projectId)))
     .orderBy(desc(entities.updatedAt));
@@ -761,8 +993,6 @@ export async function listEntities(
     entityId: r.id,
     name: r.name,
     type: r.type as SemanticEntity['type'],
-    attributes: (r.attributes as Record<string, unknown>) ?? {},
-    factCount: r.factCount,
   }));
 }
 
@@ -778,12 +1008,8 @@ export async function listEntityFacts(
       and(
         eq(facts.userId, userId),
         eq(facts.projectId, projectId),
-        isNull(facts.invalidAt),
-        or(
-          eq(facts.subject, name),
-          eq(facts.object, name),
-          eq(facts.contextEntityName, name),
-        ),
+        isLiveFact,
+        or(eq(facts.subject, name), eq(facts.object, name)),
       ),
     )
     .orderBy(desc(facts.validAt))) as FactSelect[];

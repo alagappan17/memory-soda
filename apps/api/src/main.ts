@@ -12,12 +12,14 @@ import episodicMemoryRouter from './routes/episodic-memory.js';
 import semanticMemoryRouter from './routes/semantic-memory.js';
 import threadRouter from './routes/thread.js';
 import threadsRouter from './routes/threads.js';
+import dashboardUsersRouter from './routes/dashboard-users.js';
 import { db, checkPostgres } from './db/postgres.js';
 import { listApiKeys, createApiKey } from './services/api-key.service.js';
 import {
   retryFailedEpisodes,
   processScheduledEpisodes,
 } from './services/episodic-memory.service.js';
+import { sweepSemanticMemory } from './services/semantic-memory.service.js';
 
 // In compiled output (dist/apps/api/src/), drizzle/ is at dist/drizzle/
 const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle');
@@ -42,6 +44,7 @@ app.use('/health', healthRouter);
 app.use('/dashboard/api-keys', apiKeysRouter);
 app.use('/dashboard/projects', projectsRouter);
 app.use('/dashboard/threads', threadsRouter);
+app.use('/dashboard/users', dashboardUsersRouter);
 
 // Protected routes (SDK usage — require API key)
 app.use(requireApiKey);
@@ -82,6 +85,15 @@ async function bootstrap(): Promise<void> {
   setInterval(() => {
     retryFailedEpisodes().catch((err) => {
       console.error('[episodic] retry job failed:', err);
+    });
+  }, 120_000).unref();
+
+  // Backstop for semantic extraction: picks up pending episodes whose
+  // completion trigger was missed (or that a migration reset) and bounded
+  // retries of failed ones.
+  setInterval(() => {
+    sweepSemanticMemory().catch((err) => {
+      console.error('[semantic] sweep job failed:', err);
     });
   }, 120_000).unref();
 
