@@ -725,6 +725,12 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last"
+            },
+            {
+              "expression": "coalesce(\"valid_until\", 'infinity'::timestamp with time zone)",
+              "isExpression": true,
+              "asc": true,
+              "nulls": "last"
             }
           ],
           "isUnique": true,

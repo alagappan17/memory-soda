@@ -21,9 +21,13 @@ export function CopyButton({
     <button
       onClick={(e) => {
         e.stopPropagation();
-        void navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          })
+          .catch(() => {});
       }}
       className={className}
       title={title}

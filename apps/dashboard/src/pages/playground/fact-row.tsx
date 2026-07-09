@@ -37,6 +37,7 @@ export function FactRow({
         {onDelete && !invalidated && (
           <button
             onClick={() => onDelete(fact.factId)}
+            aria-label="Delete fact"
             className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
             title="Delete fact (stamps invalidAt)"
           >

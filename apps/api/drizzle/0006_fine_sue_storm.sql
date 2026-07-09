@@ -1,5 +1,14 @@
 ALTER TABLE "facts" ADD COLUMN IF NOT EXISTS "source_quote" text;--> statement-breakpoint
 ALTER TABLE "facts" ADD COLUMN IF NOT EXISTS "valid_until" timestamp with time zone;--> statement-breakpoint
+DROP INDEX IF EXISTS "facts_live_exact_idx";--> statement-breakpoint
+CREATE UNIQUE INDEX "facts_live_exact_idx" ON "facts" USING btree (
+  "user_id",
+  "project_id",
+  "subject",
+  "predicate",
+  "object",
+  coalesce("valid_until", 'infinity'::timestamp with time zone)
+) WHERE "facts"."invalid_at" IS NULL;--> statement-breakpoint
 -- Rebuild the keyword-search GIN index without context_entity_name (dropped in
 -- 0005). The retrieval query MUST use this exact to_tsvector expression for the
 -- planner to use the index.

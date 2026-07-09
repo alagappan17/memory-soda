@@ -10,7 +10,7 @@ import {
 } from '../services/working-memory.service.js';
 import { recall } from '../services/recall.service.js';
 import { generateReply } from '../lib/gemini.js';
-import type { WMChatResponse } from '@memory-soda/types';
+import type { RecallResponse, WMChatResponse } from '@memory-soda/types';
 
 const router = Router();
 
@@ -163,12 +163,24 @@ router.post(
       // Working memory (prepare) and long-term memory (recall) are independent
       // reads — prepare is pure SQL, recall does the embedding/LLM work — so
       // they run in parallel; addMessage already gave us the thread's dataset.
+      // recall() is best-effort: the user message is already persisted above,
+      // so a recall failure must not 500 the whole chat turn.
       const [prepared, recalled] = await Promise.all([
         prepareThread(threadId, projectId, { messageLimit }),
         recall(projectId, {
           dataset: thread.dataset,
           query: content,
           include: ['episodes', 'synthesis', 'raw'],
+        }).catch((err): RecallResponse => {
+          console.error('[chat] recall failed, continuing without long-term memory:', err);
+          return {
+            context: '',
+            synthesis: null,
+            facts: null,
+            groups: null,
+            episodes: null,
+            factCount: 0,
+          };
         }),
       ]);
       if (!prepared) {
