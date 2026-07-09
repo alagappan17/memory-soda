@@ -78,10 +78,10 @@ export default function DatasetsPage() {
   const { selectedProject } = useProject();
   const projectId = selectedProject?.id ?? null;
 
-  const [users, setDatasets] = useState<DashboardUser[]>([]);
+  const [datasets, setDatasets] = useState<DashboardUser[]>([]);
   const [loadingDatasets, setLoadingDatasets] = useState(false);
   const [query, setQuery] = useState('');
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Cross-tab shared state.
@@ -99,7 +99,7 @@ export default function DatasetsPage() {
       });
       setDatasets(res.data.users);
     } catch {
-      setError('Failed to load users');
+      setError('Failed to load datasets');
     } finally {
       setLoadingDatasets(false);
     }
@@ -107,11 +107,11 @@ export default function DatasetsPage() {
 
   useEffect(() => {
     fetchDatasets();
-    setSelectedUser(null);
+    setSelectedDataset(null);
   }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function selectUser(dataset: string) {
-    setSelectedUser(dataset);
+  function selectDataset(dataset: string) {
+    setSelectedDataset(dataset);
     setTab('dossier');
     setActiveThreadId(null);
     setEpisodeThreadFilter(null);
@@ -130,11 +130,11 @@ export default function DatasetsPage() {
 
   return (
     <div className="flex h-full min-h-0">
-      {/* Left rail — user list */}
+      {/* Left rail — dataset list */}
       <aside className="w-72 shrink-0 border-r border-border flex flex-col min-h-0">
         <div className="p-3 border-b border-border">
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-sm font-semibold">Users</h1>
+            <h1 className="text-sm font-semibold">Datasets</h1>
             <button onClick={() => void fetchDatasets()} className="text-muted-foreground hover:text-foreground" title="Refresh">
               <RefreshCw className={`h-3.5 w-3.5 ${loadingDatasets ? 'animate-spin' : ''}`} />
             </button>
@@ -145,7 +145,7 @@ export default function DatasetsPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && void fetchDatasets()}
-              placeholder="Search user id…"
+              placeholder="Search dataset…"
               className="w-full rounded-md border border-border bg-background pl-7 pr-2 py-1.5 text-xs"
             />
           </div>
@@ -153,14 +153,14 @@ export default function DatasetsPage() {
         <div className="flex-1 overflow-y-auto">
           {!projectId ? (
             <p className="p-3 text-xs text-muted-foreground">Select a project first.</p>
-          ) : users.length === 0 && !loadingDatasets ? (
-            <p className="p-3 text-xs text-muted-foreground">No users yet.</p>
+          ) : datasets.length === 0 && !loadingDatasets ? (
+            <p className="p-3 text-xs text-muted-foreground">No datasets yet.</p>
           ) : (
-            users.map((u) => (
+            datasets.map((u) => (
               <button
                 key={u.dataset}
-                onClick={() => selectUser(u.dataset)}
-                className={`w-full text-left px-3 py-2 border-b border-border/50 hover:bg-muted/40 ${selectedUser === u.dataset ? 'bg-muted/60' : ''}`}
+                onClick={() => selectDataset(u.dataset)}
+                className={`w-full text-left px-3 py-2 border-b border-border/50 hover:bg-muted/40 ${selectedDataset === u.dataset ? 'bg-muted/60' : ''}`}
               >
                 <div className="font-mono text-xs truncate">{u.dataset}</div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">
@@ -179,14 +179,14 @@ export default function DatasetsPage() {
             {error}
           </div>
         )}
-        {!selectedUser ? (
+        {!selectedDataset ? (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-            Select a user to view their memory, conversations, and episodes.
+            Select a dataset to view its memory, conversations, and episodes.
           </div>
         ) : (
           <>
             <div className="px-4 pt-3 shrink-0">
-              <div className="font-mono text-sm font-medium">{selectedUser}</div>
+              <div className="font-mono text-sm font-medium">{selectedDataset}</div>
               <div className="flex gap-4 mt-2 border-b border-border">
                 <TabButton active={tab === 'dossier'} onClick={() => setTab('dossier')} icon={<BookOpen className="h-3.5 w-3.5" />}>Dossier</TabButton>
                 <TabButton active={tab === 'conversations'} onClick={() => setTab('conversations')} icon={<MessagesSquare className="h-3.5 w-3.5" />}>Conversations</TabButton>
@@ -194,11 +194,11 @@ export default function DatasetsPage() {
               </div>
             </div>
             <div className="flex-1 min-h-0">
-              {projectId && tab === 'dossier' && <DossierTab projectId={projectId} dataset={selectedUser} />}
+              {projectId && tab === 'dossier' && <DossierTab projectId={projectId} dataset={selectedDataset} />}
               {projectId && tab === 'conversations' && (
                 <ConversationsTab
                   projectId={projectId}
-                  dataset={selectedUser}
+                  dataset={selectedDataset}
                   selectedThreadId={activeThreadId}
                   onSelectThread={setActiveThreadId}
                   onViewEpisodes={viewEpisodesForThread}
@@ -207,7 +207,7 @@ export default function DatasetsPage() {
               {projectId && tab === 'episodes' && (
                 <EpisodesTab
                   projectId={projectId}
-                  dataset={selectedUser}
+                  dataset={selectedDataset}
                   threadFilter={episodeThreadFilter}
                   onClearFilter={() => setEpisodeThreadFilter(null)}
                   onViewConversation={viewConversation}
@@ -487,12 +487,16 @@ function EpisodesTab({
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'all' | EpisodeStatus>('all');
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await api.get<{ episodes: Episode[] }>(`/dashboard/datasets/${encodeURIComponent(dataset)}/episodes`, { params: { projectId, status, limit: 100 } });
       setEpisodes(res.data.episodes);
+    } catch {
+      setError('Failed to load episodes');
     } finally {
       setLoading(false);
     }
@@ -504,6 +508,7 @@ function EpisodesTab({
 
   return (
     <div className="h-full overflow-y-auto p-4 max-w-3xl">
+      {error && <div className="mb-3 text-sm text-red-600">{error}</div>}
       <div className="flex items-center justify-between mb-4">
         <span className="text-xs text-muted-foreground">
           {loading ? 'Loading…' : `${shown.length} episode${shown.length !== 1 ? 's' : ''}`}

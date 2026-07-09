@@ -279,7 +279,7 @@ export function EpisodesTab({
   useEffect(() => {
     if (active && !loadedOnce.current) void load({ silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
+  }, [active, dataset]);
 
   // Poller-triggered refresh (silent — the poller already logged the event).
   useEffect(() => {

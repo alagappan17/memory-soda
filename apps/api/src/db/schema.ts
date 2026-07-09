@@ -330,8 +330,18 @@ export const facts = pgTable(
       .on(t.dataset, t.projectId, t.validAt)
       .where(sql`${t.invalidAt} IS NULL`),
     // Backstop against duplicate live facts across concurrent episode jobs.
+    // `valid_until` (coalesced to 'infinity') is part of the key so an expired
+    // fact (invalid_at still NULL, but its valid-time window has ended) doesn't
+    // block inserting a new one for the same subject/predicate/object.
     uniqueIndex('facts_live_exact_idx')
-      .on(t.dataset, t.projectId, t.subject, t.predicate, t.object)
+      .on(
+        t.dataset,
+        t.projectId,
+        t.subject,
+        t.predicate,
+        t.object,
+        sql`coalesce(${t.validUntil}, 'infinity'::timestamp with time zone)`,
+      )
       .where(sql`${t.invalidAt} IS NULL`),
   ],
 );
@@ -347,15 +357,15 @@ export type NewFactRow = typeof facts.$inferInsert;
  * indexes (`facts_live_exact_idx`, `facts_dataset_project_recency_idx`), which are
  * keyed on `invalid_at IS NULL` and therefore cover a superset of live rows.
  */
-export const isLiveFact = sql`(${facts.invalidAt} IS NULL AND (${facts.validUntil} IS NULL OR ${facts.validUntil} > now()))`;
+export const isLiveFact = sql`(${facts.invalidAt} IS NULL AND ${facts.validAt} <= now() AND (${facts.validUntil} IS NULL OR ${facts.validUntil} > now()))`;
 
 /**
  * Point-in-time variant of {@link isLiveFact}: was the fact believed true at
- * `asOf`? True when the valid-time window covered `asOf` and the row had not
- * been superseded/deleted by then.
+ * `asOf`? True when the valid-time window covered `asOf`, the row had not
+ * been superseded/deleted by then, and the row actually existed by `asOf`.
  */
 export const isLiveFactAsOf = (asOf: Date) =>
-  sql`(${facts.validAt} <= ${asOf} AND (${facts.validUntil} IS NULL OR ${facts.validUntil} > ${asOf}) AND (${facts.invalidAt} IS NULL OR ${facts.invalidAt} > ${asOf}))`;
+  sql`(${facts.createdAt} <= ${asOf} AND ${facts.validAt} <= ${asOf} AND (${facts.validUntil} IS NULL OR ${facts.validUntil} > ${asOf}) AND (${facts.invalidAt} IS NULL OR ${facts.invalidAt} > ${asOf}))`;
 
 export const entities = pgTable(
   'entities',

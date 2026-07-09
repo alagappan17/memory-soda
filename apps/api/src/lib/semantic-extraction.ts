@@ -90,7 +90,7 @@ function normalizePredicate(predicate: string): string {
   return predicate
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s]/g, '')
+    .replace(/[^\p{L}\p{N}_\s]/gu, '')
     .replace(/\s+/g, ' ');
 }
 

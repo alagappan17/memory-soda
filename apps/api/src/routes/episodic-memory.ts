@@ -27,7 +27,7 @@ const searchQuerySchema = z.object({
 
 /**
  * @route GET /v1/memory/episodic/datasets/:dataset/episodes
- * @description List episodes for a user. Only returns episodes for the authenticated API key.
+ * @description List episodes for a dataset. Only returns episodes for the authenticated API key.
  */
 router.get(
   '/datasets/:dataset/episodes',
@@ -50,7 +50,7 @@ router.get(
 
 /**
  * @route GET /v1/memory/episodic/datasets/:dataset/episodes/search
- * @description Semantic search over episodes for a user.
+ * @description Semantic search over episodes for a dataset.
  */
 router.get(
   '/datasets/:dataset/episodes/search',

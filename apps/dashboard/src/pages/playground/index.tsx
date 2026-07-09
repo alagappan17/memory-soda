@@ -453,6 +453,7 @@ export default function PlaygroundPage() {
   }
 
   function handleApiKeyChange(value: string) {
+    currentRequestId.current = ++requestIdSeq;
     setApiKey(value);
     // New key = possibly a new project; everything resets. Dataset-scoped
     // tabs watch apiKey themselves.
@@ -464,6 +465,8 @@ export default function PlaygroundPage() {
     clearOps();
     setStats(null);
     setError(null);
+    setSending(false);
+    setCompacting(false);
   }
 
   const hasThread = !!threadId;

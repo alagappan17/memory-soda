@@ -140,8 +140,9 @@ export async function recall(
   };
 
   console.log(
-    `[recall] ── response ── dataset=${dataset}\n` +
-      JSON.stringify(result, null, 2),
+    `[recall] ── response ── dataset=${dataset} factCount=${result.factCount} ` +
+      `contextLen=${result.context.length} hasSynthesis=${Boolean(result.synthesis)} ` +
+      `episodeCount=${result.episodes?.episodeCount ?? 0}`,
   );
 
   return result;
