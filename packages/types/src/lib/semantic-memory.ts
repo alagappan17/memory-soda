@@ -33,6 +33,12 @@ export interface SemanticFact {
   predicate: string;
   object: string;
   objectIsEntity: boolean;
+  /**
+   * Model-rated extraction confidence (0–1). Every structurally-valid fact is
+   * stored regardless; retrieval filters by the project's
+   * retrievalMinConfidence (or a per-call override).
+   */
+  confidence: number;
   /** Verbatim supporting quote from the source transcript (provenance). */
   sourceQuote: string | null;
   validAt: string;

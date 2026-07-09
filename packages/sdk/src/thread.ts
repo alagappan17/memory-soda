@@ -19,12 +19,12 @@ export class ThreadClient {
   /**
    * Create a new conversation thread.
    *
-   * @param opts.userId - Stable identifier for the user. Auto-generated if omitted.
+   * @param opts.dataset - Stable identifier for the user. Auto-generated if omitted.
    * @param opts.tags - Optional labels for filtering threads.
    * @param opts.metadata - Arbitrary key-value data attached to the thread.
    * @param opts.autoCompactThreshold - Auto-compact after this many un-compacted messages.
    * @param opts.settings.episodic - Override project-level episodic memory settings for this thread.
-   * @returns The new thread ID, userId, creation timestamp, and resolved settings.
+   * @returns The new thread ID, dataset, creation timestamp, and resolved settings.
    */
   create(opts: WMCreateThreadRequest): Promise<WMCreateThreadResponse> {
     return request(this.baseUrl, this.apiKey, BASE, {

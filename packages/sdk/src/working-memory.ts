@@ -148,7 +148,7 @@ export class WorkingMemoryClient {
    * Convenience wrapper: create a thread, add the first message, and call `prepare` — all in one sequence.
    * Use this for the opening turn of a new conversation to avoid three separate awaits.
    *
-   * @param opts.userId - Stable user identifier. Auto-generated if omitted.
+   * @param opts.dataset - Stable user identifier. Auto-generated if omitted.
    * @param opts.firstMessage - The first message to add (typically a `user` turn).
    * @param opts.tags - Optional thread labels.
    * @param opts.metadata - Optional thread metadata.
@@ -157,7 +157,7 @@ export class WorkingMemoryClient {
    * @returns The new `threadId` and the `prepare` result ready for the first LLM call.
    */
   async startConversation(opts: {
-    userId?: string;
+    dataset?: string;
     firstMessage: WMAddMessageRequest;
     tags?: string[];
     metadata?: Record<string, unknown>;
@@ -165,7 +165,7 @@ export class WorkingMemoryClient {
     settings?: WMCreateThreadRequest['settings'];
   }): Promise<{ threadId: string; prepare: WMPrepareResponse }> {
     const thread = await this.threads.create({
-      userId: opts.userId,
+      dataset: opts.dataset,
       tags: opts.tags,
       metadata: opts.metadata,
       autoCompactThreshold: opts.autoCompactThreshold,
