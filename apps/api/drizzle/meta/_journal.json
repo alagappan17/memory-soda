@@ -50,6 +50,20 @@
       "when": 1783164883729,
       "tag": "0006_fine_sue_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783319236930,
+      "tag": "0007_dataset_rename",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783410373025,
+      "tag": "0008_confidence_retrieval",
+      "breakpoints": true
     }
   ]
 }

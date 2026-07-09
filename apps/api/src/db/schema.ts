@@ -8,6 +8,7 @@ import {
   uniqueIndex,
   integer,
   boolean,
+  real,
   pgEnum,
 } from 'drizzle-orm/pg-core';
 import { customType } from 'drizzle-orm/pg-core';
@@ -80,7 +81,7 @@ export const threads = pgTable(
   'threads',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: text('user_id').notNull(),
+    dataset: text('dataset').notNull(),
     projectId: uuid('project_id')
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
@@ -178,7 +179,7 @@ export const episodes = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     threadId: uuid('thread_id').references(() => threads.id),
-    userId: text('user_id').notNull(),
+    dataset: text('dataset').notNull(),
     projectId: uuid('project_id')
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
@@ -215,12 +216,12 @@ export const episodes = pgTable(
       .defaultNow(),
   },
   (t) => [
-    index('episodes_user_project_status_idx').on(
-      t.userId,
+    index('episodes_dataset_project_status_idx').on(
+      t.dataset,
       t.projectId,
       t.status,
     ),
-    index('episodes_user_created_idx').on(t.userId, t.createdAt),
+    index('episodes_dataset_created_idx').on(t.dataset, t.createdAt),
     index('episodes_thread_idx').on(t.threadId),
     index('episodes_status_created_idx').on(t.status, t.createdAt),
   ],
@@ -279,7 +280,7 @@ export const facts = pgTable(
   'facts',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: text('user_id').notNull(),
+    dataset: text('dataset').notNull(),
     projectId: uuid('project_id')
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
@@ -287,6 +288,11 @@ export const facts = pgTable(
     predicate: text('predicate').notNull(),
     object: text('object').notNull(),
     objectIsEntity: boolean('object_is_entity').notNull().default(false),
+    /**
+     * Model-rated extraction confidence (0–1). Facts are stored regardless of
+     * confidence; retrieval filters by the project's retrievalMinConfidence.
+     */
+    confidence: real('confidence').notNull().default(1),
     /** Verbatim supporting quote from the source transcript (provenance). */
     sourceQuote: text('source_quote'),
     episodeId: uuid('episode_id').references(() => episodes.id, {
@@ -306,26 +312,26 @@ export const facts = pgTable(
       .defaultNow(),
   },
   (t) => [
-    index('facts_user_project_invalid_idx').on(
-      t.userId,
+    index('facts_dataset_project_invalid_idx').on(
+      t.dataset,
       t.projectId,
       t.invalidAt,
     ),
-    index('facts_user_project_subject_idx').on(
-      t.userId,
+    index('facts_dataset_project_subject_idx').on(
+      t.dataset,
       t.projectId,
       t.subject,
     ),
     index('facts_episode_idx').on(t.episodeId),
     // Entity-anchor retrieval also matches on `object`.
-    index('facts_user_project_object_idx').on(t.userId, t.projectId, t.object),
+    index('facts_dataset_project_object_idx').on(t.dataset, t.projectId, t.object),
     // No-query fallback: live facts ordered by recency.
-    index('facts_user_project_recency_idx')
-      .on(t.userId, t.projectId, t.validAt)
+    index('facts_dataset_project_recency_idx')
+      .on(t.dataset, t.projectId, t.validAt)
       .where(sql`${t.invalidAt} IS NULL`),
     // Backstop against duplicate live facts across concurrent episode jobs.
     uniqueIndex('facts_live_exact_idx')
-      .on(t.userId, t.projectId, t.subject, t.predicate, t.object)
+      .on(t.dataset, t.projectId, t.subject, t.predicate, t.object)
       .where(sql`${t.invalidAt} IS NULL`),
   ],
 );
@@ -338,7 +344,7 @@ export type NewFactRow = typeof facts.$inferInsert;
  * its stated valid-time window (if any) has not ended. Use this everywhere we
  * mean "currently true" instead of a bare `invalid_at IS NULL`. NOTE: `now()` is
  * non-immutable, so the valid_until clause cannot be pushed into the partial
- * indexes (`facts_live_exact_idx`, `facts_user_project_recency_idx`), which are
+ * indexes (`facts_live_exact_idx`, `facts_dataset_project_recency_idx`), which are
  * keyed on `invalid_at IS NULL` and therefore cover a superset of live rows.
  */
 export const isLiveFact = sql`(${facts.invalidAt} IS NULL AND (${facts.validUntil} IS NULL OR ${facts.validUntil} > now()))`;
@@ -355,7 +361,7 @@ export const entities = pgTable(
   'entities',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: text('user_id').notNull(),
+    dataset: text('dataset').notNull(),
     projectId: uuid('project_id')
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
@@ -370,8 +376,8 @@ export const entities = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex('entities_user_project_name_idx').on(
-      t.userId,
+    uniqueIndex('entities_dataset_project_name_idx').on(
+      t.dataset,
       t.projectId,
       t.name,
     ),
