@@ -35,6 +35,8 @@ export interface ExtractedRelationship {
   subject: string;
   predicate: string;
   object: string;
+  /** Model-rated confidence (0–1). Stored on the fact; filtered at retrieval. */
+  confidence: number;
   /** Verbatim supporting quote from the transcript; null when the model gave none. */
   sourceQuote: string | null;
   /** Valid-time bounds (ISO YYYY-MM-DD) when the user states them; else null. */
@@ -46,6 +48,8 @@ export interface ExtractedLiteralFact {
   subject: string;
   predicate: string;
   value: string;
+  /** Model-rated confidence (0–1). Stored on the fact; filtered at retrieval. */
+  confidence: number;
   /** Verbatim supporting quote from the transcript; null when the model gave none. */
   sourceQuote: string | null;
   /** Valid-time bounds (ISO YYYY-MM-DD) when the user states them; else null. */
@@ -114,7 +118,6 @@ const rawGraphSchema = z.object({
 });
 
 const buildGraphSystem = (
-  minConfidence: number,
   today: string,
 ) => `You are a personal-memory extraction system. Given a conversation transcript between a user and an assistant, extract durable facts ABOUT THE USER — the human in the conversation. These facts become the user's long-term memory: extract only what will still matter after this conversation ends.
 
@@ -172,9 +175,9 @@ The user is always referred to with the canonical entity name "user".
 
 ## FIELD RULES
 - entities: always include {"name":"user","type":"PERSON"} when you output any fact. Return [] when empty.
-- relationships: object MUST be a name from the entities list. Only include if confidence >= ${minConfidence}.
-- literalFacts: for values that are not entities (budgets, measurements, descriptions). value must be a meaningful, descriptive string — NEVER booleans, yes/no, or placeholders. Only include if confidence >= ${minConfidence}.
-- confidence: how certain you are the user actually holds this durable fact — rate honestly; weak inferences and task chatter score low.
+- relationships: object MUST be a name from the entities list.
+- literalFacts: for values that are not entities (budgets, measurements, descriptions). value must be a meaningful, descriptive string — NEVER booleans, yes/no, or placeholders.
+- confidence: how certain you are the user genuinely holds this durable fact. Rate honestly and DO NOT drop a fact because its confidence is low — emit it with the low score; the system filters at retrieval. Calibration: explicitly stated by the user ≈ 0.9+; clearly implied or stated once in passing ≈ 0.6–0.8; weak inference or ambiguous ≈ below 0.5.
 - sourceQuote: a VERBATIM quote (max ${MAX_QUOTE_LEN} characters) copied from the USER's words supporting the fact. Quote the user, not the assistant. If no single user quote supports it, use null — never paraphrase or invent.
 - validFrom / validUntil: DEFAULT both null — most facts are open-ended; do NOT invent bounds. Set only when the user EXPLICITLY states one, resolved against today (${today}) as ISO YYYY-MM-DD:
   - "I'll run every day for the next six months" → validFrom: ${today}, validUntil: today + 6 months
@@ -213,7 +216,6 @@ Note what was NOT extracted: "user is asking about cameras" (task chatter), "use
  */
 export async function extractGraph(
   transcript: string,
-  minConfidence = 0.5,
   referenceDate: Date = new Date(),
 ): Promise<ExtractedGraph> {
   const today = referenceDate.toISOString().slice(0, 10);
@@ -224,7 +226,7 @@ ${transcript}
 </transcript>`;
 
   const raw = await generateStructured(
-    buildGraphSystem(minConfidence, today),
+    buildGraphSystem(today),
     prompt,
     rawGraphSchema,
   );
@@ -241,7 +243,7 @@ ${transcript}
   const entityNames = new Set(entities.map((e) => e.name));
 
   // The user is the central subject of this memory store ("user" is canonical and
-  // scoped per userId), so a synthetic user entity guarantees user facts pass the
+  // scoped per dataset), so a synthetic user entity guarantees user facts pass the
   // entity-name check even when the model omits it from `entities`.
   if (!entityNames.has('user')) {
     entities.push({ name: 'user', type: 'PERSON' });
@@ -258,38 +260,52 @@ ${transcript}
   const isAllowedSubject = (subject: string) =>
     subject.toLowerCase().trim() === 'user';
 
-  const relationships: ExtractedRelationship[] = (raw.relationships ?? [])
-    .filter(
-      (r) =>
-        r.confidence >= minConfidence &&
-        entityNames.has(r.subject.toLowerCase().trim()) &&
-        entityNames.has(r.object.toLowerCase().trim()) &&
-        isAllowedSubject(r.subject),
-    )
-    .map((r) => ({
+  // Confidence is stored, never used to drop — clamp to [0, 1] for sanity.
+  const clampConfidence = (c: number) =>
+    Number.isFinite(c) ? Math.min(1, Math.max(0, c)) : 1;
+
+  // Split model relationships by whether the object is a listed entity. The
+  // model routinely emits relationships whose object it forgot to co-list in
+  // `entities` ("user does long runs on → sundays") — dropping those destroys
+  // real facts, so they are demoted to literal facts instead: the fact
+  // survives, no phantom entity row is created, and the anchor falls back to
+  // the subject.
+  const relationships: ExtractedRelationship[] = [];
+  const demoted: ExtractedLiteralFact[] = [];
+  for (const r of raw.relationships ?? []) {
+    if (!isAllowedSubject(r.subject) || !entityNames.has(r.subject.toLowerCase().trim()))
+      continue;
+    const common = {
       subject: r.subject.toLowerCase().trim(),
       predicate: normalizePredicate(r.predicate),
-      object: r.object.toLowerCase().trim().slice(0, MAX_OBJECT_LEN),
+      confidence: clampConfidence(r.confidence),
       sourceQuote: sanitizeQuote(r.sourceQuote),
       validFrom: sanitizeDate(r.validFrom),
       validUntil: sanitizeDate(r.validUntil),
-    }));
+    };
+    const object = r.object.toLowerCase().trim().slice(0, MAX_OBJECT_LEN);
+    if (entityNames.has(object)) relationships.push({ ...common, object });
+    else if (object.length > 0) demoted.push({ ...common, value: object });
+  }
 
-  const literalFacts: ExtractedLiteralFact[] = (raw.literalFacts ?? [])
-    .filter(
-      (f) =>
-        f.confidence >= minConfidence &&
-        entityNames.has(f.subject.toLowerCase().trim()) &&
-        isAllowedSubject(f.subject),
-    )
-    .map((f) => ({
-      subject: f.subject.toLowerCase().trim(),
-      predicate: normalizePredicate(f.predicate),
-      value: f.value.trim().slice(0, MAX_OBJECT_LEN),
-      sourceQuote: sanitizeQuote(f.sourceQuote),
-      validFrom: sanitizeDate(f.validFrom),
-      validUntil: sanitizeDate(f.validUntil),
-    }));
+  const literalFacts: ExtractedLiteralFact[] = [
+    ...(raw.literalFacts ?? [])
+      .filter(
+        (f) =>
+          entityNames.has(f.subject.toLowerCase().trim()) &&
+          isAllowedSubject(f.subject),
+      )
+      .map((f) => ({
+        subject: f.subject.toLowerCase().trim(),
+        predicate: normalizePredicate(f.predicate),
+        value: f.value.trim().slice(0, MAX_OBJECT_LEN),
+        confidence: clampConfidence(f.confidence),
+        sourceQuote: sanitizeQuote(f.sourceQuote),
+        validFrom: sanitizeDate(f.validFrom),
+        validUntil: sanitizeDate(f.validUntil),
+      })),
+    ...demoted,
+  ];
 
   return { entities, relationships, literalFacts };
 }

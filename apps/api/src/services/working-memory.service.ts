@@ -1,25 +1,9 @@
 import { eq, and, lt, desc, asc, sql, max, inArray, isNull } from 'drizzle-orm';
-import { summarizeMessages, embedText, synthesizeContext } from '../lib/gemini.js';
+import { summarizeMessages } from '../lib/gemini.js';
 import { db } from '../db/postgres.js';
 import { threads, messages, scheduledEpisodes } from '../db/schema.js';
-import {
-  getEpisodicContext,
-  getProjectEpisodicSettings,
-} from './episodic-memory.service.js';
-import {
-  getSemanticContext,
-  getEffectiveSemanticSettings,
-  assembleContext,
-  renderContext,
-  getEntitiesByName,
-} from './semantic-memory.service.js';
-import type {
-  EpisodeContext,
-  ProjectEpisodicSettings,
-  ProjectSemanticSettings,
-  SemanticFact,
-  WMPrepareResponse,
-} from '@memory-soda/types';
+import { getProjectEpisodicSettings } from './episodic-memory.service.js';
+import type { WMPrepareResponse } from '@memory-soda/types';
 import { type Thread, rowToThread } from './thread.service.js';
 
 export type { Thread };
@@ -371,28 +355,27 @@ export async function compactThread(
 
 // ── Prepare ───────────────────────────────────────────────────────────────────
 
+/**
+ * Pure working memory: the thread state needed to continue a conversation —
+ * compact summary + recent messages. No embedding or LLM calls; long-term
+ * memory (facts/episodes/synthesis) lives in recall.service.ts.
+ */
 export async function prepareThread(
   threadId: string,
   projectId: string,
-  opts: {
-    messageLimit: number;
-    query?: string;
-    include?: Array<'episodes' | 'synthesis' | 'raw'>;
-  },
+  opts: { messageLimit: number },
 ): Promise<PrepareResult | null> {
-  const { messageLimit, query, include = [] } = opts;
+  const { messageLimit } = opts;
 
   console.log(
     `[prepare] ── request ── thread=${threadId} project=${projectId}\n` +
-      JSON.stringify({ messageLimit, query, include }, null, 2),
+      JSON.stringify({ messageLimit }, null, 2),
   );
 
   const [threadRow] = await db
     .select({
       id: threads.id,
-      userId: threads.userId,
-      episodicSettings: threads.episodicSettings,
-      semanticSettings: threads.semanticSettings,
+      dataset: threads.dataset,
       autoCompactThreshold: threads.autoCompactThreshold,
     })
     .from(threads)
@@ -435,78 +418,7 @@ export async function prepareThread(
     return { summaryRows, realRows, realCount };
   };
 
-  // Embed the query once for semantic retrieval (best-effort — recency fallback).
-  let queryEmbedding: number[] | null = null;
-  if (query && query.trim().length >= 3) {
-    try {
-      queryEmbedding = await embedText(query);
-    } catch (err) {
-      console.warn('[prepare] query embed failed — falling back to keyword/recency:', err);
-    }
-  }
-
-  const fetchEpisodes = async (): Promise<EpisodeContext | null> => {
-    if (!include.includes('episodes')) return null;
-    try {
-      const settings =
-        (threadRow.episodicSettings as ProjectEpisodicSettings | null) ??
-        (await getProjectEpisodicSettings(projectId));
-      if (!settings.enabled) return null;
-      return await getEpisodicContext(
-        threadRow.userId,
-        projectId,
-        query,
-        settings.contextEpisodes,
-        settings.similarityWeight,
-        settings.recencyWeight,
-        queryEmbedding, // reuse the embedding computed once above
-      );
-    } catch {
-      return null;
-    }
-  };
-
-  const fetchFacts = async (): Promise<SemanticFact[]> => {
-    try {
-      const settings = await getEffectiveSemanticSettings(
-        projectId,
-        threadRow.semanticSettings as Partial<ProjectSemanticSettings> | null,
-      );
-      if (!settings.enabled) return [];
-      const ctx = await getSemanticContext(
-        threadRow.userId,
-        projectId,
-        query,
-        settings.factsInContext,
-        queryEmbedding,
-      );
-      return ctx.facts;
-    } catch (err) {
-      console.error('[prepare] semantic fetch failed:', err);
-      return [];
-    }
-  };
-
-  const [{ summaryRows, realRows, realCount }, episodes, factList] =
-    await Promise.all([fetchMessages(), fetchEpisodes(), fetchFacts()]);
-
-  // Assemble + render the prompt-ready context block.
-  const groups = assembleContext(factList);
-  const entityList = await getEntitiesByName(
-    threadRow.userId,
-    projectId,
-    groups.map((g) => g.entityName),
-  );
-  const context = renderContext(groups, entityList);
-
-  let synthesis: string | null = null;
-  if (include.includes('synthesis') && context.length > 0) {
-    try {
-      synthesis = await synthesizeContext(context);
-    } catch (err) {
-      console.error('[prepare] synthesis failed:', err);
-    }
-  }
+  const { summaryRows, realRows, realCount } = await fetchMessages();
 
   const threshold = threadRow.autoCompactThreshold ?? null;
   const warning =
@@ -514,14 +426,10 @@ export async function prepareThread(
       ? `messageLimit (${messageLimit}) is less than autoCompactThreshold (${threshold}). Messages between the compact summary and the retrieved tail may be missing. Set messageLimit >= autoCompactThreshold to ensure full context.`
       : undefined;
 
-  const result = {
+  const result: PrepareResult = {
     threadId,
+    dataset: threadRow.dataset,
     messages: [...summaryRows, ...realRows],
-    context,
-    synthesis,
-    facts: include.includes('raw') ? factList : null,
-    groups: include.includes('raw') ? groups : null,
-    episodes,
     messageCount: realCount,
     truncated: realCount > messageLimit,
     compacted: summaryRows.length > 0,

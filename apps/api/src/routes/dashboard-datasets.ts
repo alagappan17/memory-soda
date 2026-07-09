@@ -40,7 +40,7 @@ function badRequest(res: Response, issues: unknown) {
   res.status(400).json({ error: 'Validation error', issues });
 }
 
-// GET /dashboard/users?projectId=&q=&limit=&offset=
+// GET /dashboard/datasets?projectId=&q=&limit=&offset=
 router.get('/', async (req, res) => {
   const parsed = listUsersSchema.safeParse(req.query);
   if (!parsed.success) return badRequest(res, parsed.error.issues);
@@ -52,13 +52,13 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /dashboard/users/:userId/facts?projectId=&q=&includeInvalidated=&limit=
-router.get('/:userId/facts', async (req, res) => {
+// GET /dashboard/datasets/:dataset/facts?projectId=&q=&includeInvalidated=&limit=
+router.get('/:dataset/facts', async (req, res) => {
   const parsed = factsSchema.safeParse(req.query);
   if (!parsed.success) return badRequest(res, parsed.error.issues);
   try {
     const result = await querySemanticFacts(
-      req.params.userId,
+      req.params.dataset,
       parsed.data.projectId,
       {
         q: parsed.data.q,
@@ -73,12 +73,12 @@ router.get('/:userId/facts', async (req, res) => {
   }
 });
 
-// GET /dashboard/users/:userId/entities?projectId=
-router.get('/:userId/entities', async (req, res) => {
+// GET /dashboard/datasets/:dataset/entities?projectId=
+router.get('/:dataset/entities', async (req, res) => {
   const parsed = projectSchema.safeParse(req.query);
   if (!parsed.success) return badRequest(res, parsed.error.issues);
   try {
-    const entities = await listEntities(req.params.userId, parsed.data.projectId);
+    const entities = await listEntities(req.params.dataset, parsed.data.projectId);
     res.json({ entities });
   } catch (err) {
     console.error(err);
@@ -86,13 +86,13 @@ router.get('/:userId/entities', async (req, res) => {
   }
 });
 
-// GET /dashboard/users/:userId/episodes?projectId=&status=&limit=&before=
-router.get('/:userId/episodes', async (req, res) => {
+// GET /dashboard/datasets/:dataset/episodes?projectId=&status=&limit=&before=
+router.get('/:dataset/episodes', async (req, res) => {
   const parsed = episodesSchema.safeParse(req.query);
   if (!parsed.success) return badRequest(res, parsed.error.issues);
   try {
     const result = await listUserEpisodes(
-      req.params.userId,
+      req.params.dataset,
       parsed.data.projectId,
       {
         limit: parsed.data.limit,
@@ -107,13 +107,13 @@ router.get('/:userId/episodes', async (req, res) => {
   }
 });
 
-// DELETE /dashboard/users/:userId/facts/:factId?projectId=
-router.delete('/:userId/facts/:factId', async (req, res) => {
+// DELETE /dashboard/datasets/:dataset/facts/:factId?projectId=
+router.delete('/:dataset/facts/:factId', async (req, res) => {
   const parsed = projectSchema.safeParse(req.query);
   if (!parsed.success) return badRequest(res, parsed.error.issues);
   try {
     const deleted = await softDeleteFact(
-      req.params.userId,
+      req.params.dataset,
       parsed.data.projectId,
       req.params.factId,
     );

@@ -26,7 +26,7 @@ const episodicOverrideSchema = z.object({
 });
 
 const createThreadSchema = z.object({
-  userId: z.string().min(1).optional(),
+  dataset: z.string().min(1).optional(),
   tags: z.array(z.string()).optional(),
   metadata: z.record(z.unknown()).optional(),
   autoCompactThreshold: z.number().int().min(2).optional(),
@@ -53,7 +53,7 @@ function threadSettings(thread: Thread): WMThreadSettings {
 function serializeThread(thread: Thread) {
   return {
     threadId: thread.threadId,
-    userId: thread.userId,
+    dataset: thread.dataset,
     tags: thread.tags,
     messageCount: thread.messageCount,
     metadata: thread.metadata,
@@ -69,11 +69,11 @@ function serializeThread(thread: Thread) {
 
 router.post('/', validateBody(createThreadSchema), async (req, res) => {
   try {
-    const { userId, tags, metadata, autoCompactThreshold, settings } =
+    const { dataset, tags, metadata, autoCompactThreshold, settings } =
       req.body as z.infer<typeof createThreadSchema>;
     const thread = await createThread(
       req.projectId!,
-      userId,
+      dataset,
       tags,
       metadata,
       autoCompactThreshold,
@@ -82,7 +82,7 @@ router.post('/', validateBody(createThreadSchema), async (req, res) => {
     res.status(201).json({
       threadId: thread.threadId,
       projectId: thread.projectId,
-      userId: thread.userId,
+      dataset: thread.dataset,
       createdAt: thread.createdAt,
       settings: threadSettings(thread),
     });

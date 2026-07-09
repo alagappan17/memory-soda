@@ -26,16 +26,16 @@ const searchQuerySchema = z.object({
 });
 
 /**
- * @route GET /v1/memory/episodic/users/:userId/episodes
+ * @route GET /v1/memory/episodic/datasets/:dataset/episodes
  * @description List episodes for a user. Only returns episodes for the authenticated API key.
  */
 router.get(
-  '/users/:userId/episodes',
+  '/datasets/:dataset/episodes',
   validateQuery(listQuerySchema),
   async (req, res) => {
     try {
       const { limit, before, status } = req.query as unknown as z.infer<typeof listQuerySchema>;
-      const result = await listUserEpisodes(req.params.userId, req.projectId!, {
+      const result = await listUserEpisodes(req.params.dataset, req.projectId!, {
         limit,
         before,
         status,
@@ -49,17 +49,17 @@ router.get(
 );
 
 /**
- * @route GET /v1/memory/episodic/users/:userId/episodes/search
+ * @route GET /v1/memory/episodic/datasets/:dataset/episodes/search
  * @description Semantic search over episodes for a user.
  */
 router.get(
-  '/users/:userId/episodes/search',
+  '/datasets/:dataset/episodes/search',
   validateQuery(searchQuerySchema),
   async (req, res) => {
     try {
       const { q, limit } = req.query as unknown as z.infer<typeof searchQuerySchema>;
       const episodes = await searchEpisodes(
-        req.params.userId,
+        req.params.dataset,
         req.projectId!,
         q,
         limit,
