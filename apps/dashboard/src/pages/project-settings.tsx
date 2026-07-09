@@ -49,7 +49,10 @@ export default function ProjectSettingsPage() {
     if (!id || !settings) return;
     setSaving(true);
     try {
-      const res = await updateProjectSettings(id, { episodic: settings.episodic });
+      const res = await updateProjectSettings(id, {
+        episodic: settings.episodic,
+        semantic: settings.semantic,
+      });
       setSavedSettings(res.settings);
       setSettings(res.settings);
       showToast('Settings saved successfully', 'success');
@@ -71,9 +74,23 @@ export default function ProjectSettingsPage() {
     [],
   );
 
+  const handleSemanticChange = useCallback(
+    (field: keyof ProjectSettings['semantic'], value: unknown) => {
+      setSettings((prev) =>
+        prev
+          ? { ...prev, semantic: { ...prev.semantic, [field]: value } }
+          : prev,
+      );
+    },
+    [],
+  );
+
   const episodicEnabled = settings?.episodic.enabled ?? false;
   const fieldClass = (base: string) =>
     `${base}${!episodicEnabled ? ' opacity-40 pointer-events-none' : ''}`;
+  const semanticEnabled = settings?.semantic.enabled ?? false;
+  const semanticFieldClass = (base: string) =>
+    `${base}${!semanticEnabled ? ' opacity-40 pointer-events-none' : ''}`;
 
   if (!project) {
     return (
@@ -257,6 +274,175 @@ export default function ProjectSettingsPage() {
                     className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none opacity-40"
                     value={settings.episodic.recencyWeight}
                     disabled
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-medium mb-1">Semantic Memory</h2>
+            <p className="text-xs text-muted-foreground mb-6">
+              Controls fact extraction, storage, and retrieval for datasets in
+              this project. Every extracted fact is stored with a confidence
+              score; retrieval filters by the threshold below.
+            </p>
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium">
+                    Enable Semantic Memory
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Extract durable facts from episodes and serve them via{' '}
+                    <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
+                      recall()
+                    </code>
+                    .
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={semanticEnabled}
+                    onChange={(e) => handleSemanticChange('enabled', e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+
+              <div className={semanticFieldClass('grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border transition-opacity duration-200')}>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Retrieval Min Confidence</label>
+                  <p className="text-xs text-muted-foreground">
+                    Facts below this confidence are stored but excluded from{' '}
+                    <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
+                      recall()
+                    </code>{' '}
+                    context (0.0 – 1.0). Override per call.
+                  </p>
+                  <input
+                    type="number"
+                    step="0.05"
+                    min={0}
+                    max={1}
+                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
+                    value={settings.semantic.retrievalMinConfidence}
+                    onChange={(e) =>
+                      handleSemanticChange('retrievalMinConfidence', (v => isNaN(v) ? 0.5 : v)(parseFloat(e.target.value)))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Facts in Context</label>
+                  <p className="text-xs text-muted-foreground">
+                    Max facts rendered into the recall context block.
+                  </p>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
+                    value={settings.semantic.factsInContext}
+                    onChange={(e) =>
+                      handleSemanticChange('factsInContext', parseInt(e.target.value) || 8)
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Entity Merge Threshold</label>
+                  <p className="text-xs text-muted-foreground">
+                    Embedding similarity above which a new entity merges into an
+                    existing same-type entity (0.0 – 1.0).
+                  </p>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    max={1}
+                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
+                    value={settings.semantic.entityResolutionThreshold}
+                    onChange={(e) =>
+                      handleSemanticChange('entityResolutionThreshold', (v => isNaN(v) ? 0.88 : v)(parseFloat(e.target.value)))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Fact Dedup Threshold</label>
+                  <p className="text-xs text-muted-foreground">
+                    Embedding similarity above which a new fact is dropped as a
+                    rephrasing of an existing one (0.0 – 1.0).
+                  </p>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    max={1}
+                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
+                    value={settings.semantic.factDedupThreshold}
+                    onChange={(e) =>
+                      handleSemanticChange('factDedupThreshold', (v => isNaN(v) ? 0.95 : v)(parseFloat(e.target.value)))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Contradiction Band Min</label>
+                  <p className="text-xs text-muted-foreground">
+                    Lower similarity bound for judging differently-worded facts as
+                    potential contradictions (0.0 – 1.0).
+                  </p>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    max={1}
+                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
+                    value={settings.semantic.contradictionBandMin}
+                    onChange={(e) =>
+                      handleSemanticChange('contradictionBandMin', (v => isNaN(v) ? 0.8 : v)(parseFloat(e.target.value)))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Anchor Vector Min</label>
+                  <p className="text-xs text-muted-foreground">
+                    Min query↔entity similarity for an entity to anchor fact
+                    retrieval (0.0 – 1.0).
+                  </p>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    max={1}
+                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
+                    value={settings.semantic.anchorVectorMin}
+                    onChange={(e) =>
+                      handleSemanticChange('anchorVectorMin', (v => isNaN(v) ? 0.75 : v)(parseFloat(e.target.value)))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Anchor Vector Top-K</label>
+                  <p className="text-xs text-muted-foreground">
+                    How many vector-matched anchor entities to admit per query.
+                  </p>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
+                    value={settings.semantic.anchorVectorTopK}
+                    onChange={(e) =>
+                      handleSemanticChange('anchorVectorTopK', parseInt(e.target.value) || 3)
+                    }
                   />
                 </div>
               </div>
