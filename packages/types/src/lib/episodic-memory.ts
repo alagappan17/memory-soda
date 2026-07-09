@@ -3,7 +3,7 @@ export type EpisodeStatus = 'pending' | 'processing' | 'completed' | 'failed' | 
 export interface Episode {
   episodeId: string;
   threadId: string | null;
-  userId: string;
+  dataset: string;
   projectId: string;
   status: EpisodeStatus;
   summary: string | null;

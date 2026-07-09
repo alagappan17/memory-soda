@@ -7,7 +7,7 @@ export interface WMThreadSettings {
 
 export interface WMThread {
   threadId: string;
-  userId: string;
+  dataset: string;
   tags: string[];
   messageCount: number;
   metadata: Record<string, unknown> | null;
@@ -19,7 +19,7 @@ export interface WMThread {
 }
 
 export interface WMCreateThreadRequest {
-  userId?: string;
+  dataset?: string;
   tags?: string[];
   metadata?: Record<string, unknown>;
   autoCompactThreshold?: number;
@@ -35,7 +35,7 @@ export interface WMPatchThreadRequest {
 
 export interface WMCreateThreadResponse {
   threadId: string;
-  userId: string;
+  dataset: string;
   createdAt: string;
   settings: WMThreadSettings;
 }

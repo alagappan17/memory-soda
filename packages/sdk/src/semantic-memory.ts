@@ -22,7 +22,7 @@ export class SemanticMemoryClient {
   /**
    * List a user's currently-valid facts (most recent first).
    *
-   * @param userId - The user whose facts to list.
+   * @param dataset - The user whose facts to list.
    * @param opts.q - Optional keyword (full-text) filter.
    * @param opts.limit - Max facts to return (1–100, default 50).
    * @param opts.includeInvalidated - Include superseded/deleted facts.
@@ -30,7 +30,7 @@ export class SemanticMemoryClient {
    *   instant (ISO string or Date). Overrides includeInvalidated.
    */
   listFacts(
-    userId: string,
+    dataset: string,
     opts: {
       q?: string;
       limit?: number;
@@ -52,39 +52,39 @@ export class SemanticMemoryClient {
     return request(
       this.baseUrl,
       this.apiKey,
-      `${BASE}/users/${encodeURIComponent(userId)}/facts${qs}`,
+      `${BASE}/datasets/${encodeURIComponent(dataset)}/facts${qs}`,
       { signal: this.signal() },
     );
   }
 
-  /** Keyword-search a user's facts. Convenience over `listFacts(userId, { q })`. */
+  /** Keyword-search a user's facts. Convenience over `listFacts(dataset, { q })`. */
   searchFacts(
-    userId: string,
+    dataset: string,
     q: string,
     opts: { limit?: number } = {},
   ): Promise<SemanticFactsResponse> {
-    return this.listFacts(userId, { q, limit: opts.limit });
+    return this.listFacts(dataset, { q, limit: opts.limit });
   }
 
   /** Soft-delete a fact (stamps invalidAt). */
   deleteFact(
-    userId: string,
+    dataset: string,
     factId: string,
   ): Promise<{ factId: string; deleted: boolean }> {
     return request(
       this.baseUrl,
       this.apiKey,
-      `${BASE}/users/${encodeURIComponent(userId)}/facts/${factId}`,
+      `${BASE}/datasets/${encodeURIComponent(dataset)}/facts/${factId}`,
       { method: 'DELETE', signal: this.signal() },
     );
   }
 
   /** List the resolved entities for a user. */
-  async listEntities(userId: string): Promise<SemanticEntity[]> {
+  async listEntities(dataset: string): Promise<SemanticEntity[]> {
     const res = await request<{ entities: SemanticEntity[] }>(
       this.baseUrl,
       this.apiKey,
-      `${BASE}/users/${encodeURIComponent(userId)}/entities`,
+      `${BASE}/datasets/${encodeURIComponent(dataset)}/entities`,
       { signal: this.signal() },
     );
     return res.entities;
@@ -92,13 +92,13 @@ export class SemanticMemoryClient {
 
   /** List the live facts anchored to a named entity. */
   async listEntityFacts(
-    userId: string,
+    dataset: string,
     name: string,
   ): Promise<SemanticFact[]> {
     const res = await request<{ facts: SemanticFact[] }>(
       this.baseUrl,
       this.apiKey,
-      `${BASE}/users/${encodeURIComponent(userId)}/entities/${encodeURIComponent(name)}/facts`,
+      `${BASE}/datasets/${encodeURIComponent(dataset)}/entities/${encodeURIComponent(name)}/facts`,
       { signal: this.signal() },
     );
     return res.facts;

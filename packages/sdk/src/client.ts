@@ -2,7 +2,11 @@ import { request } from './http.js';
 import { ThreadClient } from './thread.js';
 import { WorkingMemoryClient } from './working-memory.js';
 import { SemanticMemoryClient } from './semantic-memory.js';
-import type { HealthResponse } from '@memory-soda/types';
+import type {
+  HealthResponse,
+  RecallRequest,
+  RecallResponse,
+} from '@memory-soda/types';
 
 export interface MemorySodaConfig {
   baseUrl: string;
@@ -16,7 +20,7 @@ export interface MemorySodaConfig {
  * @example
  * ```ts
  * const client = new MemorySodaClient({ baseUrl: 'http://localhost:3004', apiKey: 'ms_...' });
- * const thread = await client.threads.create({ userId: 'u1' });
+ * const thread = await client.threads.create({ dataset: 'u1' });
  * const prepare = await client.workingMemory.prepare(thread.threadId);
  * ```
  */
@@ -70,6 +74,58 @@ export class MemorySodaClient {
 
   private signal(): AbortSignal {
     return AbortSignal.timeout(this.timeout);
+  }
+
+  /**
+   * Recall long-term memory for a dataset — no thread required. Returns a
+   * prompt-ready `context` block built from the dataset's facts; opt into
+   * `episodes` (cross-thread context), `synthesis` (prose summary), or `raw`
+   * (structured facts/groups) via `include`.
+   *
+   * Use this to personalize any request: a chat turn, a search page, an agent
+   * tool call. For conversation state, pair it with `workingMemory.prepare()`.
+   */
+  async recall(req: RecallRequest): Promise<RecallResponse> {
+    return request<RecallResponse>(
+      this.baseUrl,
+      this.apiKey,
+      '/v1/memory/recall',
+      { method: 'POST', body: req, signal: this.signal() },
+    );
+  }
+
+  /**
+   * Chat-app convenience: fetch working memory (prepare) and long-term memory
+   * (recall) in parallel for one turn. Pass the dataset if you know it (true
+   * parallelism); omit it to read it from the prepare result (recall then runs
+   * after prepare resolves).
+   */
+  async prepareAndRecall(
+    threadId: string,
+    opts: Omit<RecallRequest, 'dataset'> & {
+      dataset?: string;
+      messageLimit?: number;
+    } = {},
+  ): Promise<{
+    prepared: Awaited<ReturnType<WorkingMemoryClient['prepare']>>;
+    recalled: RecallResponse;
+  }> {
+    const { dataset, messageLimit, ...recallOpts } = opts;
+    if (dataset) {
+      const [prepared, recalled] = await Promise.all([
+        this.workingMemory.prepare(threadId, { messageLimit }),
+        this.recall({ dataset, ...recallOpts }),
+      ]);
+      return { prepared, recalled };
+    }
+    const prepared = await this.workingMemory.prepare(threadId, {
+      messageLimit,
+    });
+    const recalled = await this.recall({
+      dataset: prepared.dataset,
+      ...recallOpts,
+    });
+    return { prepared, recalled };
   }
 
   /**
