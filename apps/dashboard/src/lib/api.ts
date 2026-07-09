@@ -1,8 +1,11 @@
 import axios from 'axios';
 import type { ProjectSettings, ProjectSettingsPatch } from '@memory-soda/types';
 
+export const API_URL: string =
+  import.meta.env.VITE_API_URL ?? 'http://localhost:3004';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3004',
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },

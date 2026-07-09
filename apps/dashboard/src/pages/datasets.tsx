@@ -2,7 +2,14 @@ import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
 import { useProject } from '../providers/project-provider';
 import { Markdown } from '../components/markdown';
 import { EPISODE_STATUS_STYLES } from '../lib/episode-status';
-import api from '../lib/api';
+import {
+  day,
+  factStatus,
+  applyFactDeletion,
+  FACT_STATUS_DOT,
+} from '../lib/fact-status';
+import { EntityChip } from '../components/entity-chip';
+import api, { getProjectSettings } from '../lib/api';
 import type {
   SemanticFact,
   SemanticEntity,
@@ -24,7 +31,7 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface DashboardUser {
-  userId: string;
+  dataset: string;
   threadCount: number;
   factCount: number;
   lastActivityAt: string | null;
@@ -32,7 +39,7 @@ interface DashboardUser {
 
 interface Thread {
   threadId: string;
-  userId: string;
+  dataset: string;
   messageCount: number;
   createdAt: string;
   lastActivityAt: string;
@@ -60,7 +67,6 @@ function relTime(iso: string | null): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-const day = (iso: string) => iso.slice(0, 10);
 const dateTime = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString() : '—';
 
@@ -68,12 +74,12 @@ const dateTime = (iso: string | null) =>
 
 type Tab = 'dossier' | 'conversations' | 'episodes';
 
-export default function UsersPage() {
+export default function DatasetsPage() {
   const { selectedProject } = useProject();
   const projectId = selectedProject?.id ?? null;
 
-  const [users, setUsers] = useState<DashboardUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [users, setDatasets] = useState<DashboardUser[]>([]);
+  const [loadingDatasets, setLoadingDatasets] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,29 +89,29 @@ export default function UsersPage() {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [episodeThreadFilter, setEpisodeThreadFilter] = useState<string | null>(null);
 
-  const fetchUsers = useCallback(async () => {
+  const fetchDatasets = useCallback(async () => {
     if (!projectId) return;
-    setLoadingUsers(true);
+    setLoadingDatasets(true);
     setError(null);
     try {
-      const res = await api.get<{ users: DashboardUser[] }>('/dashboard/users', {
+      const res = await api.get<{ users: DashboardUser[] }>('/dashboard/datasets', {
         params: { projectId, q: query.trim() || undefined, limit: 100 },
       });
-      setUsers(res.data.users);
+      setDatasets(res.data.users);
     } catch {
       setError('Failed to load users');
     } finally {
-      setLoadingUsers(false);
+      setLoadingDatasets(false);
     }
   }, [projectId, query]);
 
   useEffect(() => {
-    fetchUsers();
+    fetchDatasets();
     setSelectedUser(null);
   }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function selectUser(userId: string) {
-    setSelectedUser(userId);
+  function selectUser(dataset: string) {
+    setSelectedUser(dataset);
     setTab('dossier');
     setActiveThreadId(null);
     setEpisodeThreadFilter(null);
@@ -129,8 +135,8 @@ export default function UsersPage() {
         <div className="p-3 border-b border-border">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-sm font-semibold">Users</h1>
-            <button onClick={() => void fetchUsers()} className="text-muted-foreground hover:text-foreground" title="Refresh">
-              <RefreshCw className={`h-3.5 w-3.5 ${loadingUsers ? 'animate-spin' : ''}`} />
+            <button onClick={() => void fetchDatasets()} className="text-muted-foreground hover:text-foreground" title="Refresh">
+              <RefreshCw className={`h-3.5 w-3.5 ${loadingDatasets ? 'animate-spin' : ''}`} />
             </button>
           </div>
           <div className="relative">
@@ -138,7 +144,7 @@ export default function UsersPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && void fetchUsers()}
+              onKeyDown={(e) => e.key === 'Enter' && void fetchDatasets()}
               placeholder="Search user id…"
               className="w-full rounded-md border border-border bg-background pl-7 pr-2 py-1.5 text-xs"
             />
@@ -147,16 +153,16 @@ export default function UsersPage() {
         <div className="flex-1 overflow-y-auto">
           {!projectId ? (
             <p className="p-3 text-xs text-muted-foreground">Select a project first.</p>
-          ) : users.length === 0 && !loadingUsers ? (
+          ) : users.length === 0 && !loadingDatasets ? (
             <p className="p-3 text-xs text-muted-foreground">No users yet.</p>
           ) : (
             users.map((u) => (
               <button
-                key={u.userId}
-                onClick={() => selectUser(u.userId)}
-                className={`w-full text-left px-3 py-2 border-b border-border/50 hover:bg-muted/40 ${selectedUser === u.userId ? 'bg-muted/60' : ''}`}
+                key={u.dataset}
+                onClick={() => selectUser(u.dataset)}
+                className={`w-full text-left px-3 py-2 border-b border-border/50 hover:bg-muted/40 ${selectedUser === u.dataset ? 'bg-muted/60' : ''}`}
               >
-                <div className="font-mono text-xs truncate">{u.userId}</div>
+                <div className="font-mono text-xs truncate">{u.dataset}</div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">
                   {u.threadCount} thread{u.threadCount !== 1 ? 's' : ''} · {u.factCount} fact{u.factCount !== 1 ? 's' : ''} · {relTime(u.lastActivityAt)}
                 </div>
@@ -188,11 +194,11 @@ export default function UsersPage() {
               </div>
             </div>
             <div className="flex-1 min-h-0">
-              {projectId && tab === 'dossier' && <DossierTab projectId={projectId} userId={selectedUser} />}
+              {projectId && tab === 'dossier' && <DossierTab projectId={projectId} dataset={selectedUser} />}
               {projectId && tab === 'conversations' && (
                 <ConversationsTab
                   projectId={projectId}
-                  userId={selectedUser}
+                  dataset={selectedUser}
                   selectedThreadId={activeThreadId}
                   onSelectThread={setActiveThreadId}
                   onViewEpisodes={viewEpisodesForThread}
@@ -201,7 +207,7 @@ export default function UsersPage() {
               {projectId && tab === 'episodes' && (
                 <EpisodesTab
                   projectId={projectId}
-                  userId={selectedUser}
+                  dataset={selectedUser}
                   threadFilter={episodeThreadFilter}
                   onClearFilter={() => setEpisodeThreadFilter(null)}
                   onViewConversation={viewConversation}
@@ -229,20 +235,27 @@ function TabButton({ active, onClick, icon, children }: { active: boolean; onCli
 
 // ── Dossier tab ───────────────────────────────────────────────────────────────
 
-function DossierTab({ projectId, userId }: { projectId: string; userId: string }) {
+function DossierTab({ projectId, dataset }: { projectId: string; dataset: string }) {
   const [facts, setFacts] = useState<SemanticFact[]>([]);
   const [entities, setEntities] = useState<SemanticEntity[]>([]);
   const [loading, setLoading] = useState(false);
   const [showInvalidated, setShowInvalidated] = useState(false);
+  const [threshold, setThreshold] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getProjectSettings(projectId)
+      .then((res) => setThreshold(res.settings.semantic.retrievalMinConfidence))
+      .catch(() => setThreshold(null));
+  }, [projectId]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [f, e] = await Promise.all([
-        api.get<{ facts: SemanticFact[] }>(`/dashboard/users/${encodeURIComponent(userId)}/facts`, { params: { projectId, includeInvalidated: showInvalidated, limit: 200 } }),
-        api.get<{ entities: SemanticEntity[] }>(`/dashboard/users/${encodeURIComponent(userId)}/entities`, { params: { projectId } }),
+        api.get<{ facts: SemanticFact[] }>(`/dashboard/datasets/${encodeURIComponent(dataset)}/facts`, { params: { projectId, includeInvalidated: showInvalidated, limit: 200 } }),
+        api.get<{ entities: SemanticEntity[] }>(`/dashboard/datasets/${encodeURIComponent(dataset)}/entities`, { params: { projectId } }),
       ]);
       setFacts(f.data.facts);
       setEntities(e.data.entities);
@@ -251,18 +264,14 @@ function DossierTab({ projectId, userId }: { projectId: string; userId: string }
     } finally {
       setLoading(false);
     }
-  }, [projectId, userId, showInvalidated]);
+  }, [projectId, dataset, showInvalidated]);
 
   useEffect(() => { void load(); }, [load]);
 
   async function remove(factId: string) {
     try {
-      await api.delete(`/dashboard/users/${encodeURIComponent(userId)}/facts/${factId}`, { params: { projectId } });
-      setFacts((prev) =>
-        showInvalidated
-          ? prev.map((f) => (f.factId === factId ? { ...f, invalidAt: new Date().toISOString() } : f))
-          : prev.filter((f) => f.factId !== factId),
-      );
+      await api.delete(`/dashboard/datasets/${encodeURIComponent(dataset)}/facts/${factId}`, { params: { projectId } });
+      setFacts((prev) => applyFactDeletion(prev, factId, showInvalidated));
     } catch {
       setError('Failed to delete fact');
     }
@@ -294,10 +303,7 @@ function DossierTab({ projectId, userId }: { projectId: string; userId: string }
           <h3 className="text-xs font-semibold mb-2">Entities</h3>
           <div className="flex flex-wrap gap-2">
             {entities.map((e) => (
-              <span key={e.entityId} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs">
-                <span className="font-medium">{e.name}</span>
-                <span className="text-muted-foreground">{e.type}</span>
-              </span>
+              <EntityChip key={e.entityId} entity={e} />
             ))}
           </div>
         </div>
@@ -310,20 +316,17 @@ function DossierTab({ projectId, userId }: { projectId: string; userId: string }
           <h3 className="text-xs font-semibold mb-2 capitalize">{anchor}</h3>
           <ul className="space-y-1.5">
             {items.map((f) => {
-              const invalidated = f.invalidAt !== null;
-              const expired =
-                !invalidated && f.validUntil !== null && new Date(f.validUntil) <= new Date();
-              const inactive = invalidated || expired;
-              const status = invalidated ? 'invalidated' : expired ? 'expired' : 'valid';
+              const { status, inactive } = factStatus(f, threshold);
+              const invalidated = status === 'invalidated';
               const rangeEnd = f.validUntil ? ` – ${day(f.validUntil)}` : '';
               return (
                 <li key={f.factId} className={`group flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm ${inactive ? 'opacity-50' : ''}`}>
-                  <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${invalidated ? 'bg-muted-foreground' : expired ? 'bg-amber-500' : 'bg-green-500'}`} />
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${FACT_STATUS_DOT[status]}`} />
                   <span className={invalidated ? 'line-through' : ''} title={f.sourceQuote ? `“${f.sourceQuote}”` : undefined}>
                     {f.subject} {f.predicate} {f.object}
                   </span>
                   <span className="text-[10px] text-muted-foreground ml-auto whitespace-nowrap">
-                    {status} · {day(f.validAt)}{rangeEnd}
+                    {f.confidence.toFixed(2)} · {status} · {day(f.validAt)}{rangeEnd}
                   </span>
                   {!invalidated && (
                     <button onClick={() => void remove(f.factId)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete fact">
@@ -381,13 +384,13 @@ function MessageBubble({ msg }: { msg: Message }) {
 
 function ConversationsTab({
   projectId,
-  userId,
+  dataset,
   selectedThreadId,
   onSelectThread,
   onViewEpisodes,
 }: {
   projectId: string;
-  userId: string;
+  dataset: string;
   selectedThreadId: string | null;
   onSelectThread: (id: string) => void;
   onViewEpisodes: (threadId: string) => void;
@@ -400,13 +403,13 @@ function ConversationsTab({
     (async () => {
       setLoading(true);
       try {
-        const res = await api.get<{ threads: Thread[] }>('/dashboard/threads', { params: { projectId, userId, limit: 100 } });
+        const res = await api.get<{ threads: Thread[] }>('/dashboard/threads', { params: { projectId, dataset, limit: 100 } });
         setThreads(res.data.threads);
       } finally {
         setLoading(false);
       }
     })();
-  }, [projectId, userId]);
+  }, [projectId, dataset]);
 
   useEffect(() => {
     if (!selectedThreadId) {
@@ -469,13 +472,13 @@ function ConversationsTab({
 
 function EpisodesTab({
   projectId,
-  userId,
+  dataset,
   threadFilter,
   onClearFilter,
   onViewConversation,
 }: {
   projectId: string;
-  userId: string;
+  dataset: string;
   threadFilter: string | null;
   onClearFilter: () => void;
   onViewConversation: (threadId: string) => void;
@@ -488,12 +491,12 @@ function EpisodesTab({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<{ episodes: Episode[] }>(`/dashboard/users/${encodeURIComponent(userId)}/episodes`, { params: { projectId, status, limit: 100 } });
+      const res = await api.get<{ episodes: Episode[] }>(`/dashboard/datasets/${encodeURIComponent(dataset)}/episodes`, { params: { projectId, status, limit: 100 } });
       setEpisodes(res.data.episodes);
     } finally {
       setLoading(false);
     }
-  }, [projectId, userId, status]);
+  }, [projectId, dataset, status]);
 
   useEffect(() => { void load(); }, [load]);
 

@@ -7,7 +7,7 @@ import {
   KeyRound,
   Activity,
   FlaskConical,
-  Users,
+  Database,
   Settings,
   ChevronsUpDown,
   Plus,
@@ -46,7 +46,7 @@ import { useProject } from '@/providers/project-provider';
 const navItems = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/projects', label: 'Projects', icon: Folder },
-  { to: '/users', label: 'Users', icon: Users },
+  { to: '/datasets', label: 'Datasets', icon: Database },
   { to: '/playground', label: 'Playground', icon: FlaskConical },
   { to: '/api-keys', label: 'API Keys', icon: KeyRound },
   { to: '/status', label: 'Status', icon: Activity },

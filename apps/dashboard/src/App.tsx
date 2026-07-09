@@ -12,7 +12,7 @@ import HomePage from './pages/home';
 import ApiKeysPage from './pages/api-keys';
 import StatusPage from './pages/status';
 import ProjectsPage from './pages/projects';
-import UsersPage from './pages/users';
+import DatasetsPage from './pages/datasets';
 import PlaygroundPage from './pages/playground';
 import ProjectSettingsPage from './pages/project-settings';
 
@@ -22,7 +22,7 @@ function DashboardHeader() {
   const pathMap: Record<string, string> = {
     '/': 'Home',
     '/projects': 'Projects',
-    '/users': 'Users',
+    '/datasets': 'Datasets',
     '/playground': 'Playground',
     '/api-keys': 'API Keys',
     '/status': 'Status',
@@ -80,7 +80,7 @@ export default function App() {
                         </div>
                       }
                     />
-                    <Route path="/users" element={<UsersPage />} />
+                    <Route path="/datasets" element={<DatasetsPage />} />
                     <Route
                       path="/api-keys"
                       element={
