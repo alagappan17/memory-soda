@@ -4,7 +4,7 @@ import { threads, messages, facts, isLiveFact } from '../db/schema.js';
 
 export interface DashboardThread {
   threadId: string;
-  userId: string;
+  dataset: string;
   projectId: string;
   tags: string[];
   messageCount: number;
@@ -30,7 +30,7 @@ export interface DashboardMessage {
 function mapThread(row: typeof threads.$inferSelect): DashboardThread {
   return {
     threadId: row.id,
-    userId: row.userId,
+    dataset: row.dataset,
     projectId: row.projectId,
     tags: row.tags ?? [],
     messageCount: row.messageCount,
@@ -58,12 +58,12 @@ function mapMessage(row: typeof messages.$inferSelect): DashboardMessage {
 
 export async function listThreads(opts: {
   projectId: string;
-  userId?: string;
+  dataset?: string;
   limit: number;
   offset: number;
 }): Promise<{ threads: DashboardThread[]; total: number }> {
   const conditions = [eq(threads.projectId, opts.projectId)];
-  if (opts.userId) conditions.push(eq(threads.userId, opts.userId));
+  if (opts.dataset) conditions.push(eq(threads.dataset, opts.dataset));
 
   const where = and(...conditions);
 
@@ -88,7 +88,7 @@ export async function listThreads(opts: {
 }
 
 export interface DashboardUser {
-  userId: string;
+  dataset: string;
   threadCount: number;
   factCount: number;
   lastActivityAt: string | null;
@@ -106,52 +106,52 @@ export async function listUsers(opts: {
 }): Promise<{ users: DashboardUser[]; total: number }> {
   const conditions = [eq(threads.projectId, opts.projectId)];
   if (opts.q && opts.q.trim()) {
-    conditions.push(sql`${threads.userId} ILIKE ${`%${opts.q.trim()}%`}`);
+    conditions.push(sql`${threads.dataset} ILIKE ${`%${opts.q.trim()}%`}`);
   }
   const where = and(...conditions);
 
   const [rows, totalRows] = await Promise.all([
     db
       .select({
-        userId: threads.userId,
+        dataset: threads.dataset,
         threadCount: sql<number>`count(*)::int`,
         lastActivityAt: sql<string>`max(${threads.lastActivityAt})`,
       })
       .from(threads)
       .where(where)
-      .groupBy(threads.userId)
+      .groupBy(threads.dataset)
       .orderBy(desc(sql`max(${threads.lastActivityAt})`))
       .limit(opts.limit)
       .offset(opts.offset),
     db
-      .select({ count: sql<number>`count(distinct ${threads.userId})::int` })
+      .select({ count: sql<number>`count(distinct ${threads.dataset})::int` })
       .from(threads)
       .where(where),
   ]);
 
   // Live-fact counts for the page of users, in one query.
-  const userIds = rows.map((r) => r.userId);
+  const datasets = rows.map((r) => r.dataset);
   const factCounts = new Map<string, number>();
-  if (userIds.length > 0) {
+  if (datasets.length > 0) {
     const fc = await db
-      .select({ userId: facts.userId, c: sql<number>`count(*)::int` })
+      .select({ dataset: facts.dataset, c: sql<number>`count(*)::int` })
       .from(facts)
       .where(
         and(
           eq(facts.projectId, opts.projectId),
           isLiveFact,
-          inArray(facts.userId, userIds),
+          inArray(facts.dataset, datasets),
         ),
       )
-      .groupBy(facts.userId);
-    for (const r of fc) factCounts.set(r.userId, r.c);
+      .groupBy(facts.dataset);
+    for (const r of fc) factCounts.set(r.dataset, r.c);
   }
 
   return {
     users: rows.map((r) => ({
-      userId: r.userId,
+      dataset: r.dataset,
       threadCount: r.threadCount,
-      factCount: factCounts.get(r.userId) ?? 0,
+      factCount: factCounts.get(r.dataset) ?? 0,
       lastActivityAt: r.lastActivityAt
         ? new Date(r.lastActivityAt).toISOString()
         : null,

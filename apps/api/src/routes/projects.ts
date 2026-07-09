@@ -34,6 +34,18 @@ const settingsPatchSchema = z.object({
       recencyWeight: z.number().min(0).max(1).optional(),
     })
     .optional(),
+  semantic: z
+    .object({
+      enabled: z.boolean().optional(),
+      retrievalMinConfidence: z.number().min(0).max(1).optional(),
+      factsInContext: z.number().int().min(1).max(100).optional(),
+      entityResolutionThreshold: z.number().min(0).max(1).optional(),
+      factDedupThreshold: z.number().min(0).max(1).optional(),
+      contradictionBandMin: z.number().min(0).max(1).optional(),
+      anchorVectorMin: z.number().min(0).max(1).optional(),
+      anchorVectorTopK: z.number().int().min(1).max(10).optional(),
+    })
+    .optional(),
 });
 
 /**

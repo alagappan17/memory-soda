@@ -50,16 +50,6 @@ const MAX_SEMANTIC_RETRIES = 3;
 // mid-extraction — crash, restart, deploy) and may be reclaimed.
 const STALE_PROCESSING_MS = 10 * 60 * 1000;
 
-// Contradiction candidates: live facts on the same anchor whose embedding
-// similarity to the candidate is at least this (but below the dedup threshold,
-// where they'd be near-duplicates instead). Catches paraphrased predicates
-// ("works at" vs "is employed by") that exact matching misses.
-const CONTRADICTION_BAND_MIN = 0.8;
-
-// Query→entity anchor matching by vector similarity: how similar an entity must
-// be to the query, and how many such entities to admit.
-const ANCHOR_VECTOR_MIN = 0.75;
-const ANCHOR_VECTOR_TOP_K = 3;
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
@@ -223,11 +213,11 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
     );
 
     // Step 1 — extract (pass `now` as the anchor for resolving relative dates)
-    const graph = await extractGraph(transcript, settings.minConfidence, now);
+    const graph = await extractGraph(transcript, now);
 
     // Step 2 — resolve entities (dedup the entities table)
     const canonical = await resolveEntities(
-      episode.userId,
+      episode.dataset,
       episode.projectId,
       graph.entities,
       settings,
@@ -236,7 +226,7 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
     // Steps 3–5 — dedup, evolve contradictions, write
     await writeFacts(
       {
-        userId: episode.userId,
+        dataset: episode.dataset,
         projectId: episode.projectId,
         episodeId: episode.id,
       },
@@ -267,7 +257,7 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
 // ── Step 2: entity resolution ───────────────────────────────────────────────────
 
 async function resolveEntities(
-  userId: string,
+  dataset: string,
   projectId: string,
   extracted: ExtractedEntity[],
   settings: ProjectSemanticSettings,
@@ -277,7 +267,7 @@ async function resolveEntities(
   if (extracted.length === 0) return canonical;
 
   const tenant = and(
-    eq(entities.userId, userId),
+    eq(entities.dataset, dataset),
     eq(entities.projectId, projectId),
   );
   const newEmbeds = await batchEmbedTexts(extracted.map((e) => e.name));
@@ -323,18 +313,18 @@ async function resolveEntities(
       canonical.set(ent.name, nearest.name);
     } else {
       // Upsert — concurrent semantic workers may insert the same
-      // (userId, projectId, name); the unique index would otherwise fail the job.
+      // (dataset, projectId, name); the unique index would otherwise fail the job.
       const [row] = await db
         .insert(entities)
         .values({
-          userId,
+          dataset,
           projectId,
           name: ent.name,
           type: ent.type,
           embedding: emb,
         })
         .onConflictDoUpdate({
-          target: [entities.userId, entities.projectId, entities.name],
+          target: [entities.dataset, entities.projectId, entities.name],
           set: { updatedAt: new Date() },
         })
         .returning({ id: entities.id, name: entities.name });
@@ -352,6 +342,8 @@ interface FactCandidate {
   predicate: string;
   object: string;
   objectIsEntity: boolean;
+  /** Model-rated confidence; stored on the row, filtered at retrieval. */
+  confidence: number;
   sourceQuote: string | null;
   /** Valid-time bounds (ISO strings) from extraction; null when open-ended. */
   validFrom: string | null;
@@ -359,13 +351,13 @@ interface FactCandidate {
 }
 
 async function writeFacts(
-  ctx: { userId: string; projectId: string; episodeId: string },
+  ctx: { dataset: string; projectId: string; episodeId: string },
   graph: ExtractedGraph,
   settings: ProjectSemanticSettings,
   now: Date,
   canonical: Map<string, string>,
 ): Promise<void> {
-  const { userId, projectId, episodeId } = ctx;
+  const { dataset, projectId, episodeId } = ctx;
   const canon = (name: string) => canonical.get(name) ?? name;
 
   // Literal facts + relationships flow into the same table. Subject/object are
@@ -377,6 +369,7 @@ async function writeFacts(
       predicate: f.predicate,
       object: f.value,
       objectIsEntity: false,
+      confidence: f.confidence,
       sourceQuote: f.sourceQuote,
       validFrom: f.validFrom,
       validUntil: f.validUntil,
@@ -386,6 +379,7 @@ async function writeFacts(
       predicate: r.predicate,
       object: canon(r.object),
       objectIsEntity: true,
+      confidence: r.confidence,
       sourceQuote: r.sourceQuote,
       validFrom: r.validFrom,
       validUntil: r.validUntil,
@@ -393,7 +387,7 @@ async function writeFacts(
   ];
   if (candidates.length === 0) return;
 
-  const tenant = and(eq(facts.userId, userId), eq(facts.projectId, projectId));
+  const tenant = and(eq(facts.dataset, dataset), eq(facts.projectId, projectId));
 
   // Existing live facts for this tenant (the dedup/contradiction baseline).
   // `snapshotAt` marks the read so the write transaction can detect facts a
@@ -472,6 +466,9 @@ async function writeFacts(
   survivors.forEach(({ c, emb }, si) => {
     const historical = c.validUntil !== null && new Date(c.validUntil) <= now;
     if (historical) return;
+    // Low-confidence facts are stored but never trusted to invalidate an
+    // existing fact — they skip contradiction judging entirely.
+    if (c.confidence < settings.retrievalMinConfidence) return;
     const newValidAt = effectiveValidAt(c.validFrom).toISOString();
     for (const f of live) {
       const samePredicateConflict =
@@ -481,7 +478,7 @@ async function writeFacts(
         f.embedding !== null &&
         (() => {
           const sim = cosine(emb, f.embedding as number[]);
-          return sim >= CONTRADICTION_BAND_MIN && sim < settings.factDedupThreshold;
+          return sim >= settings.contradictionBandMin && sim < settings.factDedupThreshold;
         })();
       if (!samePredicateConflict && !bandConflict) continue;
       conflictRefs.push({ survivorIndex: si, oldId: f.id });
@@ -530,7 +527,7 @@ async function writeFacts(
   // backstop against duplicates.
   await db.transaction(async (tx) => {
     await tx.execute(
-      sql`SELECT pg_advisory_xact_lock(hashtext(${`${userId}:${projectId}`}))`,
+      sql`SELECT pg_advisory_xact_lock(hashtext(${`${dataset}:${projectId}`}))`,
     );
 
     // Race re-check: facts committed by a concurrent job after our snapshot
@@ -593,12 +590,13 @@ async function writeFacts(
     }
 
     const toInsert: NewFactRow[] = finalStaged.map(({ c, emb }) => ({
-      userId,
+      dataset,
       projectId,
       subject: c.subject,
       predicate: c.predicate,
       object: c.object,
       objectIsEntity: c.objectIsEntity,
+      confidence: c.confidence,
       sourceQuote: c.sourceQuote,
       episodeId,
       validAt: effectiveValidAt(c.validFrom),
@@ -658,6 +656,7 @@ const FACT_COLUMNS = {
   predicate: facts.predicate,
   object: facts.object,
   objectIsEntity: facts.objectIsEntity,
+  confidence: facts.confidence,
   sourceQuote: facts.sourceQuote,
   validAt: facts.validAt,
   validUntil: facts.validUntil,
@@ -671,6 +670,7 @@ type FactSelect = {
   predicate: string;
   object: string;
   objectIsEntity: boolean;
+  confidence: number;
   sourceQuote: string | null;
   validAt: Date;
   validUntil: Date | null;
@@ -685,6 +685,7 @@ function rowToSemanticFact(r: FactSelect, relevanceScore?: number): SemanticFact
     predicate: r.predicate,
     object: r.object,
     objectIsEntity: r.objectIsEntity,
+    confidence: r.confidence,
     sourceQuote: r.sourceQuote,
     validAt: r.validAt.toISOString(),
     validUntil: r.validUntil ? r.validUntil.toISOString() : null,
@@ -715,17 +716,28 @@ const factsTsv = sql`to_tsvector('english', coalesce(${facts.subject}, '') || ' 
  * net — it surfaces facts tied to a named entity even when no lexical/semantic
  * bridge exists (e.g. "trip to Thailand" → "favorite food is mango sticky rice").
  */
+export interface SemanticRetrievalOptions {
+  /** Confidence floor: facts below this are excluded from retrieval. */
+  minConfidence: number;
+  /** Min query↔entity embedding similarity for an entity to anchor retrieval. */
+  anchorVectorMin: number;
+  /** How many vector-matched anchor entities to admit. */
+  anchorVectorTopK: number;
+}
+
 export async function getSemanticContext(
-  userId: string,
+  dataset: string,
   projectId: string,
   query: string | undefined,
   limit: number,
-  queryEmbedding?: number[] | null,
+  queryEmbedding: number[] | null | undefined,
+  opts: SemanticRetrievalOptions,
 ): Promise<SemanticContext> {
   const tenant = and(
-    eq(facts.userId, userId),
+    eq(facts.dataset, dataset),
     eq(facts.projectId, projectId),
     isLiveFact,
+    gte(facts.confidence, opts.minConfidence),
   );
   const scan = Math.max(limit * 4, 20);
   const byId = new Map<string, FactSelect>();
@@ -762,7 +774,7 @@ export async function getSemanticContext(
   // by embedding, then pull every live fact touching those names.
   const anchorSignal = async (): Promise<FactSelect[]> => {
     const entityTenant = and(
-      eq(entities.userId, userId),
+      eq(entities.dataset, dataset),
       eq(entities.projectId, projectId),
     );
     const mentionRows = await db
@@ -783,13 +795,13 @@ export async function getSemanticContext(
               and(
                 entityTenant,
                 isNotNull(entities.embedding),
-                sql`1 - (${entities.embedding} <=> ${toVectorLiteral(queryEmbedding)}::vector) >= ${ANCHOR_VECTOR_MIN}`,
+                sql`1 - (${entities.embedding} <=> ${toVectorLiteral(queryEmbedding)}::vector) >= ${opts.anchorVectorMin}`,
               ),
             )
             .orderBy(
               sql`${entities.embedding} <=> ${toVectorLiteral(queryEmbedding)}::vector`,
             )
-            .limit(ANCHOR_VECTOR_TOP_K)
+            .limit(opts.anchorVectorTopK)
         : [];
     const anchors = [
       ...new Set([...mentionRows, ...vectorRows].map((r) => r.name)),
@@ -921,7 +933,7 @@ export function renderContext(
 
 /** Fetch entity records for a set of names (for the ENTITIES render section). */
 export async function getEntitiesByName(
-  userId: string,
+  dataset: string,
   projectId: string,
   names: string[],
 ): Promise<SemanticEntity[]> {
@@ -932,7 +944,7 @@ export async function getEntitiesByName(
     .from(entities)
     .where(
       and(
-        eq(entities.userId, userId),
+        eq(entities.dataset, dataset),
         eq(entities.projectId, projectId),
         inArray(entities.name, wanted),
       ),
@@ -947,7 +959,7 @@ export async function getEntitiesByName(
 // ── Dashboard / SDK read APIs ────────────────────────────────────────────────
 
 export async function querySemanticFacts(
-  userId: string,
+  dataset: string,
   projectId: string,
   opts: {
     q?: string;
@@ -955,12 +967,19 @@ export async function querySemanticFacts(
     includeInvalidated?: boolean;
     /** Point-in-time filter: facts that were true at this instant. Overrides includeInvalidated. */
     asOf?: Date;
+    /** Confidence floor; omit (dashboard) to include every stored fact. */
+    minConfidence?: number;
+    /** Provenance filter: only facts extracted from this episode. */
+    episodeId?: string;
   } = {},
 ): Promise<{ facts: SemanticFact[]; total: number }> {
   const limit = opts.limit ?? 50;
-  const conds = [eq(facts.userId, userId), eq(facts.projectId, projectId)];
+  const conds = [eq(facts.dataset, dataset), eq(facts.projectId, projectId)];
   if (opts.asOf) conds.push(isLiveFactAsOf(opts.asOf));
   else if (!opts.includeInvalidated) conds.push(isLiveFact);
+  if (opts.episodeId) conds.push(eq(facts.episodeId, opts.episodeId));
+  if (opts.minConfidence !== undefined)
+    conds.push(gte(facts.confidence, opts.minConfidence));
   if (opts.q && opts.q.trim().length > 0) {
     conds.push(sql`${factsTsv} @@ plainto_tsquery('english', ${opts.q})`);
   }
@@ -981,13 +1000,13 @@ export async function querySemanticFacts(
 }
 
 export async function listEntities(
-  userId: string,
+  dataset: string,
   projectId: string,
 ): Promise<SemanticEntity[]> {
   const rows = await db
     .select({ id: entities.id, name: entities.name, type: entities.type })
     .from(entities)
-    .where(and(eq(entities.userId, userId), eq(entities.projectId, projectId)))
+    .where(and(eq(entities.dataset, dataset), eq(entities.projectId, projectId)))
     .orderBy(desc(entities.updatedAt));
   return rows.map((r) => ({
     entityId: r.id,
@@ -997,7 +1016,7 @@ export async function listEntities(
 }
 
 export async function listEntityFacts(
-  userId: string,
+  dataset: string,
   projectId: string,
   name: string,
 ): Promise<SemanticFact[]> {
@@ -1006,7 +1025,7 @@ export async function listEntityFacts(
     .from(facts)
     .where(
       and(
-        eq(facts.userId, userId),
+        eq(facts.dataset, dataset),
         eq(facts.projectId, projectId),
         isLiveFact,
         or(eq(facts.subject, name), eq(facts.object, name)),
@@ -1018,7 +1037,7 @@ export async function listEntityFacts(
 
 /** Soft-delete a fact by stamping invalidAt. Returns false if not found. */
 export async function softDeleteFact(
-  userId: string,
+  dataset: string,
   projectId: string,
   factId: string,
 ): Promise<boolean> {
@@ -1029,7 +1048,7 @@ export async function softDeleteFact(
     .where(
       and(
         eq(facts.id, factId),
-        eq(facts.userId, userId),
+        eq(facts.dataset, dataset),
         eq(facts.projectId, projectId),
         isNull(facts.invalidAt),
       ),

@@ -85,13 +85,18 @@ export async function updateProjectSettings(
   settings: ProjectSettingsPatch,
 ): Promise<ProjectSettings> {
   const episodicPatch = JSON.stringify(settings.episodic ?? {});
+  const semanticPatch = JSON.stringify(settings.semantic ?? {});
   const [updated] = await db
     .update(projects)
     .set({
       settings: sql`jsonb_set(
-        COALESCE(${projects.settings}, '{}'::jsonb),
-        '{episodic}',
-        COALESCE(${projects.settings}->'episodic', '{}'::jsonb) || ${episodicPatch}::jsonb
+        jsonb_set(
+          COALESCE(${projects.settings}, '{}'::jsonb),
+          '{episodic}',
+          COALESCE(${projects.settings}->'episodic', '{}'::jsonb) || ${episodicPatch}::jsonb
+        ),
+        '{semantic}',
+        COALESCE(${projects.settings}->'semantic', '{}'::jsonb) || ${semanticPatch}::jsonb
       )`,
     })
     .where(eq(projects.id, id))

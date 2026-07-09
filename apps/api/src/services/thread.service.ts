@@ -13,7 +13,7 @@ import type { ProjectEpisodicSettings } from '@memory-soda/types';
 
 export interface Thread {
   threadId: string;
-  userId: string;
+  dataset: string;
   projectId: string;
   tags: string[];
   messageCount: number;
@@ -32,7 +32,7 @@ export interface Thread {
 export function rowToThread(row: typeof threads.$inferSelect): Thread {
   return {
     threadId: row.id,
-    userId: row.userId,
+    dataset: row.dataset,
     projectId: row.projectId,
     tags: row.tags ?? [],
     messageCount: row.messageCount,
@@ -52,7 +52,7 @@ export function rowToThread(row: typeof threads.$inferSelect): Thread {
 
 export async function createThread(
   projectId: string,
-  userId: string | null | undefined,
+  dataset: string | null | undefined,
   tags?: string[],
   metadata?: Record<string, unknown>,
   autoCompactThreshold?: number,
@@ -66,7 +66,7 @@ export async function createThread(
   const [row] = await db
     .insert(threads)
     .values({
-      userId: userId || generateUserId(),
+      dataset: dataset || generateUserId(),
       projectId,
       tags: tags ?? [],
       metadata: metadata ?? null,
@@ -130,7 +130,7 @@ export async function endThread(
 
   const episode = await createPendingEpisode({
     threadId,
-    userId: row.userId,
+    dataset: row.dataset,
     projectId,
     messageCount: row.messageCount,
     tokenCount: null,

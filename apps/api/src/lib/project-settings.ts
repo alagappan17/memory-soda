@@ -17,10 +17,13 @@ export const DEFAULT_EPISODIC_SETTINGS: ProjectEpisodicSettings = {
 
 export const DEFAULT_SEMANTIC_SETTINGS: ProjectSemanticSettings = {
   enabled: true,
-  minConfidence: 0.5,
+  retrievalMinConfidence: 0.5,
   factsInContext: 8,
   entityResolutionThreshold: 0.88,
   factDedupThreshold: 0.95,
+  contradictionBandMin: 0.8,
+  anchorVectorMin: 0.75,
+  anchorVectorTopK: 3,
 };
 
 export function mergeWithDefaults(

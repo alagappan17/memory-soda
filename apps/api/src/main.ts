@@ -12,7 +12,8 @@ import episodicMemoryRouter from './routes/episodic-memory.js';
 import semanticMemoryRouter from './routes/semantic-memory.js';
 import threadRouter from './routes/thread.js';
 import threadsRouter from './routes/threads.js';
-import dashboardUsersRouter from './routes/dashboard-users.js';
+import dashboardDatasetsRouter from './routes/dashboard-datasets.js';
+import recallRouter from './routes/recall.js';
 import { db, checkPostgres } from './db/postgres.js';
 import { listApiKeys, createApiKey } from './services/api-key.service.js';
 import {
@@ -44,7 +45,7 @@ app.use('/health', healthRouter);
 app.use('/dashboard/api-keys', apiKeysRouter);
 app.use('/dashboard/projects', projectsRouter);
 app.use('/dashboard/threads', threadsRouter);
-app.use('/dashboard/users', dashboardUsersRouter);
+app.use('/dashboard/datasets', dashboardDatasetsRouter);
 
 // Protected routes (SDK usage — require API key)
 app.use(requireApiKey);
@@ -52,6 +53,7 @@ app.use('/v1/threads', threadRouter);
 app.use('/v1/memory/working', workingMemoryRouter);
 app.use('/v1/memory/episodic', episodicMemoryRouter);
 app.use('/v1/memory/semantic', semanticMemoryRouter);
+app.use('/v1/memory/recall', recallRouter);
 
 async function bootstrap(): Promise<void> {
   await checkPostgres();

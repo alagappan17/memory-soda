@@ -16,23 +16,25 @@ const factsQuerySchema = z.object({
   includeInvalidated: boolish,
   /** Point-in-time filter: facts that were true at this instant. Overrides includeInvalidated. */
   asOf: z.coerce.date().optional(),
+  /** Provenance filter: only facts extracted from this episode. */
+  episodeId: z.string().uuid().optional(),
 });
 
 /**
- * @route GET /v1/memory/semantic/users/:userId/facts
+ * @route GET /v1/memory/semantic/datasets/:dataset/facts
  * @description List (or keyword-search via ?q=) a user's facts.
  */
 router.get(
-  '/users/:userId/facts',
+  '/datasets/:dataset/facts',
   validateQuery(factsQuerySchema),
   async (req, res) => {
     try {
-      const { q, limit, includeInvalidated, asOf } =
+      const { q, limit, includeInvalidated, asOf, episodeId } =
         req.query as unknown as z.infer<typeof factsQuerySchema>;
       const result = await querySemanticFacts(
-        req.params.userId,
+        req.params.dataset,
         req.projectId!,
-        { q, limit, includeInvalidated, asOf },
+        { q, limit, includeInvalidated, asOf, episodeId },
       );
       res.json(result);
     } catch (err) {
@@ -43,13 +45,13 @@ router.get(
 );
 
 /**
- * @route DELETE /v1/memory/semantic/users/:userId/facts/:factId
+ * @route DELETE /v1/memory/semantic/datasets/:dataset/facts/:factId
  * @description Soft-delete a fact by stamping invalidAt.
  */
-router.delete('/users/:userId/facts/:factId', async (req, res) => {
+router.delete('/datasets/:dataset/facts/:factId', async (req, res) => {
   try {
     const deleted = await softDeleteFact(
-      req.params.userId,
+      req.params.dataset,
       req.projectId!,
       req.params.factId,
     );
@@ -65,12 +67,12 @@ router.delete('/users/:userId/facts/:factId', async (req, res) => {
 });
 
 /**
- * @route GET /v1/memory/semantic/users/:userId/entities
+ * @route GET /v1/memory/semantic/datasets/:dataset/entities
  * @description List resolved entities for a user.
  */
-router.get('/users/:userId/entities', async (req, res) => {
+router.get('/datasets/:dataset/entities', async (req, res) => {
   try {
-    const entities = await listEntities(req.params.userId, req.projectId!);
+    const entities = await listEntities(req.params.dataset, req.projectId!);
     res.json({ entities });
   } catch (err) {
     console.error(err);
@@ -79,13 +81,13 @@ router.get('/users/:userId/entities', async (req, res) => {
 });
 
 /**
- * @route GET /v1/memory/semantic/users/:userId/entities/:name/facts
+ * @route GET /v1/memory/semantic/datasets/:dataset/entities/:name/facts
  * @description List live facts anchored to a named entity.
  */
-router.get('/users/:userId/entities/:name/facts', async (req, res) => {
+router.get('/datasets/:dataset/entities/:name/facts', async (req, res) => {
   try {
     const facts = await listEntityFacts(
-      req.params.userId,
+      req.params.dataset,
       req.projectId!,
       req.params.name.toLowerCase(),
     );

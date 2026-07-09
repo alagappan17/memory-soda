@@ -31,9 +31,9 @@ export async function getProjectEpisodicSettings(
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
-function activeEpisodesFilter(userId: string, projectId: string) {
+function activeEpisodesFilter(dataset: string, projectId: string) {
   return and(
-    eq(episodes.userId, userId),
+    eq(episodes.dataset, dataset),
     eq(episodes.projectId, projectId),
     eq(episodes.status, 'completed'),
   );
@@ -57,7 +57,7 @@ function rowToEpisode(row: EpisodeRow): Episode {
   return {
     episodeId: row.id,
     threadId: row.threadId,
-    userId: row.userId,
+    dataset: row.dataset,
     projectId: row.projectId,
     status: row.status as Episode['status'],
     summary: row.summary,
@@ -80,7 +80,7 @@ function rowToEpisode(row: EpisodeRow): Episode {
 
 export async function createPendingEpisode(payload: {
   threadId: string;
-  userId: string;
+  dataset: string;
   projectId: string;
   messageCount: number;
   tokenCount: number | null;
@@ -124,7 +124,7 @@ export async function createPendingEpisode(payload: {
       .insert(episodes)
       .values({
         threadId: payload.threadId,
-        userId: payload.userId,
+        dataset: payload.dataset,
         projectId: payload.projectId,
         messageCount: payload.messageCount,
         tokenCount: payload.tokenCount,
@@ -314,7 +314,7 @@ export async function retryFailedEpisodes(): Promise<void> {
 // ── Context retrieval (for prepare()) ─────────────────────────────────────────
 
 export async function getEpisodicContext(
-  userId: string,
+  dataset: string,
   projectId: string,
   query: string | undefined,
   contextEpisodes: number,
@@ -334,11 +334,11 @@ export async function getEpisodicContext(
 
   if (!queryEmbedding) {
     const [totalRows, rows] = await Promise.all([
-      db.select({ count: count() }).from(episodes).where(activeEpisodesFilter(userId, projectId)),
+      db.select({ count: count() }).from(episodes).where(activeEpisodesFilter(dataset, projectId)),
       db
         .select()
         .from(episodes)
-        .where(activeEpisodesFilter(userId, projectId))
+        .where(activeEpisodesFilter(dataset, projectId))
         .orderBy(desc(episodes.endedAt))
         .limit(contextEpisodes),
     ]);
@@ -350,7 +350,7 @@ export async function getEpisodicContext(
   const totalRows = await db
     .select({ count: count() })
     .from(episodes)
-    .where(activeEpisodesFilter(userId, projectId));
+    .where(activeEpisodesFilter(dataset, projectId));
   const episodeCount = totalRows[0]?.count ?? 0;
 
   if (episodeCount === 0) return { episodes: null, episodeCount: 0 };
@@ -369,7 +369,7 @@ export async function getEpisodicContext(
     })
     .from(episodes)
     .where(
-      and(activeEpisodesFilter(userId, projectId), isNotNull(episodes.embedding)),
+      and(activeEpisodesFilter(dataset, projectId), isNotNull(episodes.embedding)),
     )
     .orderBy(sql`${episodes.embedding} <=> ${vectorLiteral}::vector`)
     .limit(10);
@@ -417,15 +417,15 @@ function rowToContextItem(
 // ── CRUD helpers (for REST API) ───────────────────────────────────────────────
 
 export async function listUserEpisodes(
-  userId: string,
+  dataset: string,
   projectId: string,
   opts: { limit: number; before?: string; status: string },
 ): Promise<{ episodes: Episode[]; total: number; hasMore: boolean }> {
   const whereBase =
     opts.status === 'all'
-      ? and(eq(episodes.userId, userId), eq(episodes.projectId, projectId))
+      ? and(eq(episodes.dataset, dataset), eq(episodes.projectId, projectId))
       : and(
-          eq(episodes.userId, userId),
+          eq(episodes.dataset, dataset),
           eq(episodes.projectId, projectId),
           eq(episodes.status, opts.status as EpisodeRow['status']),
         );
@@ -511,7 +511,7 @@ export async function getThreadEpisodes(
 }
 
 export async function searchEpisodes(
-  userId: string,
+  dataset: string,
   projectId: string,
   query: string,
   limit: number,
@@ -528,7 +528,7 @@ export async function searchEpisodes(
     })
     .from(episodes)
     .where(
-      and(activeEpisodesFilter(userId, projectId), isNotNull(episodes.embedding)),
+      and(activeEpisodesFilter(dataset, projectId), isNotNull(episodes.embedding)),
     )
     .orderBy(sql`${episodes.embedding} <=> ${vectorLiteral}::vector`)
     .limit(limit * 3);
@@ -573,7 +573,7 @@ export async function processScheduledEpisodes(): Promise<void> {
 
   const uniqueThreadIds = [...new Set(dueRows.map((r) => r.thread_id))];
   const threadRows = await db
-    .select({ id: threads.id, userId: threads.userId, messageCount: threads.messageCount, createdAt: threads.createdAt })
+    .select({ id: threads.id, dataset: threads.dataset, messageCount: threads.messageCount, createdAt: threads.createdAt })
     .from(threads)
     .where(inArray(threads.id, uniqueThreadIds));
   const threadMap = new Map(threadRows.map((r) => [r.id, r]));
@@ -587,7 +587,7 @@ export async function processScheduledEpisodes(): Promise<void> {
 
     createPendingEpisode({
       threadId: row.thread_id,
-      userId: threadRow.userId,
+      dataset: threadRow.dataset,
       projectId: row.project_id,
       messageCount: threadRow.messageCount,
       tokenCount: null,

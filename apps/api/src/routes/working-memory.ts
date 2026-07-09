@@ -8,7 +8,9 @@ import {
   compactThread,
   getThreadStats,
 } from '../services/working-memory.service.js';
+import { recall } from '../services/recall.service.js';
 import { generateReply } from '../lib/gemini.js';
+import type { WMChatResponse } from '@memory-soda/types';
 
 const router = Router();
 
@@ -42,14 +44,13 @@ const listMessagesSchema = z.object({
 
 const prepareSchema = z.object({
   messageLimit: z.number().int().min(1).max(100).default(20),
-  query: z.string().max(1000).optional(),
-  include: z.array(z.enum(['episodes', 'synthesis', 'raw'])).optional(),
 });
 
 const chatSchema = z.object({
   content: z.string().min(1),
   systemPrompt: z.string().optional(),
   messageLimit: z.number().int().min(1).max(100).default(20),
+  verbose: z.boolean().optional(),
 });
 
 // ── Message routes ────────────────────────────────────────────────────────────
@@ -127,8 +128,6 @@ router.post(
       const parsed = prepareSchema.parse(req.body ?? {});
       const result = await prepareThread(req.params.threadId, req.projectId!, {
         messageLimit: parsed.messageLimit,
-        query: parsed.query,
-        include: parsed.include,
       });
       if (!result) {
         res.status(404).json({ error: 'Thread not found' });
@@ -149,24 +148,29 @@ router.post(
   validateBody(chatSchema),
   async (req, res) => {
     try {
-      const { content, systemPrompt, messageLimit } = req.body as z.infer<
-        typeof chatSchema
-      >;
+      const { content, systemPrompt, messageLimit, verbose } =
+        req.body as z.infer<typeof chatSchema>;
       const projectId = req.projectId!;
       const threadId = req.params.threadId;
 
-      const { message: userMessage } = await addMessage(
+      const { message: userMessage, thread } = await addMessage(
         threadId,
         projectId,
         'user',
         content,
       );
 
-      const prepared = await prepareThread(threadId, projectId, {
-        messageLimit,
-        query: content,
-        include: ['episodes', 'synthesis', 'raw'],
-      });
+      // Working memory (prepare) and long-term memory (recall) are independent
+      // reads — prepare is pure SQL, recall does the embedding/LLM work — so
+      // they run in parallel; addMessage already gave us the thread's dataset.
+      const [prepared, recalled] = await Promise.all([
+        prepareThread(threadId, projectId, { messageLimit }),
+        recall(projectId, {
+          dataset: thread.dataset,
+          query: content,
+          include: ['episodes', 'synthesis', 'raw'],
+        }),
+      ]);
       if (!prepared) {
         res.status(404).json({ error: 'Thread not found' });
         return;
@@ -174,14 +178,14 @@ router.post(
 
       // Synthesis (prose summary) leads, followed by the structured fact block —
       // both are user-derived semantic memory and share the same framing.
-      const contextBlock = [prepared.synthesis, prepared.context]
+      const contextBlock = [recalled.synthesis, recalled.context]
         .filter((part): part is string => Boolean(part && part.length > 0))
         .join('\n\n');
 
       const replyContent = await generateReply(
         prepared.messages,
         systemPrompt,
-        prepared.episodes,
+        recalled.episodes,
         contextBlock,
       );
 
@@ -207,12 +211,15 @@ router.post(
           messageCount: prepared.messageCount,
           truncated: prepared.truncated,
           compacted: prepared.compacted,
-          episodeCount: prepared.episodes?.episodeCount ?? 0,
-          factCount: prepared.facts?.length ?? 0,
-          hasContext: prepared.context.length > 0,
-          hasSynthesis: Boolean(prepared.synthesis),
         },
-      });
+        recallSummary: {
+          episodeCount: recalled.episodes?.episodeCount ?? 0,
+          factCount: recalled.factCount,
+          hasContext: recalled.context.length > 0,
+          hasSynthesis: Boolean(recalled.synthesis),
+        },
+        ...(verbose ? { recall: recalled } : {}),
+      } satisfies WMChatResponse);
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
       if (code === 'NOT_FOUND') {
