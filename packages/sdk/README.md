@@ -59,21 +59,18 @@ const memory = MemorySodaClient.fromEnv();
 
 ## Running the server
 
-### Local development (Docker)
+Requires a local PostgreSQL instance with the [pgvector](https://github.com/pgvector/pgvector) extension.
 
 ```bash
 git clone https://github.com/your-org/memory-soda
 cd memory-soda
-docker compose up -d                    # databases
-npm install && npm run dev              # api + dashboard
+npm install
+cp .env.example .env                    # set DATABASE_URL and GOOGLE_GENERATIVE_AI_API_KEY
+npm run --workspace=apps/api db:migrate # apply migrations
+npm run dev                             # api + dashboard
 ```
 
-### Self-hosted production
-
-```bash
-cp .env.prod.example .env.prod          # fill in secrets
-docker compose -f docker/docker-compose.prod.yml up -d
-```
+See the [repo README](https://github.com/your-org/memory-soda#quickstart) for full Postgres setup steps.
 
 Dashboard is available at `http://localhost:3000`.
 API is available at `http://localhost:3004`.

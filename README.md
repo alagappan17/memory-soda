@@ -4,14 +4,27 @@ Semantic memory layer for AI agents. Extract facts from conversations, store the
 
 ---
 
-## Self-host (Docker)
+## Quickstart
+
+**Prerequisites:** Node 20+ and a local PostgreSQL instance with the [pgvector](https://github.com/pgvector/pgvector) extension available.
 
 ```bash
 git clone https://github.com/your-org/memory-soda
 cd memory-soda
+npm install
+
+# Create the database, role, and extension (one-time setup)
+createdb memory_db
+psql -d memory_db -c "CREATE ROLE memory_user LOGIN PASSWORD 'memory_pass';"
+psql -d memory_db -c "CREATE EXTENSION IF NOT EXISTS vector;"
+psql -d memory_db -c "ALTER DATABASE memory_db OWNER TO memory_user;"
+
 cp .env.example .env
-# Fill in GOOGLE_GENERATIVE_AI_API_KEY in .env
-docker compose up -d
+# Fill in GOOGLE_GENERATIVE_AI_API_KEY and point DATABASE_URL at your Postgres
+
+# Apply migrations, then start the API + Dashboard
+npm run --workspace=apps/api db:migrate
+npm run dev
 ```
 
 On first boot the API prints a key to its logs — copy it before it scrolls away:
@@ -26,9 +39,7 @@ On first boot the API prints a key to its logs — copy it before it scrolls awa
 └─────────────────────────────────────────────────┘
 ```
 
-```bash
-docker compose logs api   # retrieve it again if you missed it
-```
+If you missed it, the key is stored in the `api_keys` table — or wipe it and restart to print a fresh one.
 
 | Service | URL |
 |---|---|
@@ -113,16 +124,18 @@ npm install                # in your app
 
 ## Local development
 
+Follow the [Quickstart](#quickstart) to set up Postgres and env vars, then:
+
 ```bash
-# Start infra (Postgres) — no app containers
-docker compose -f docker-compose.dev.yml up -d
+npm run dev   # API + Dashboard, hot reload
+```
 
-cp .env.example .env
-# Fill in GOOGLE_GENERATIVE_AI_API_KEY
+Common database tasks (run from `apps/api`):
 
-# Run API + Dashboard natively (hot reload)
-npm install
-npm run dev
+```bash
+npm run db:generate   # generate a migration from schema changes
+npm run db:migrate    # apply pending migrations
+npm run db:studio     # open Drizzle Studio
 ```
 
 ---
@@ -137,14 +150,6 @@ apps/
 packages/
   sdk/          ← @memory-soda/sdk — install this in your app
   types/        ← shared TypeScript types (internal)
-
-docker/
-  Dockerfile.api
-  Dockerfile.dashboard
-  docker-compose.prod.yml   ← production stack (no exposed DB ports)
-
-docker-compose.yml          ← self-hosting entrypoint (all ports exposed)
-docker-compose.dev.yml      ← infra only, for local development
 ```
 
 ---
@@ -154,14 +159,14 @@ docker-compose.dev.yml      ← infra only, for local development
 | Variable | Required | Description |
 |---|---|---|
 | `GOOGLE_GENERATIVE_AI_API_KEY` | **Yes** | Gemini API key — [get one at aistudio.google.com](https://aistudio.google.com) |
-| `HOST` | No | API bind address. Default: `localhost` (use `0.0.0.0` in Docker) |
+| `DATABASE_URL` | **Yes** | Postgres connection string (database must have the `vector` extension). |
+| `HOST` | No | API bind address. Default: `localhost` |
 | `PORT` | No | API port. Default: `3004` |
 | `CORS_ORIGIN` | No | Dashboard URL for CORS. Default: `http://localhost:3000` |
 | `MIGRATE_ON_START` | No | Run DB migrations on startup. Default: `true` |
-| `DATABASE_URL` | No | Postgres connection string. Default: matches docker-compose |
 | `NEXT_PUBLIC_API_URL` | No | API URL as seen from the browser. Default: `http://localhost:3004` |
 
-Copy `.env.example` for local development. See `.env.prod.example` for production variables.
+Copy `.env.example` to `.env` for local development.
 
 ---
 
@@ -173,8 +178,6 @@ Copy `.env.example` for local development. See `.env.prod.example` for productio
 | `npm run build` | Build all projects |
 | `npm run typecheck` | Type-check all projects |
 | `npm run sdk:build` | Build the SDK package |
-| `npm run docker:up` | `docker compose up -d` |
-| `npm run docker:down` | `docker compose down` |
 
 ---
 

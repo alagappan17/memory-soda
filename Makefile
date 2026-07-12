@@ -1,4 +1,4 @@
-.PHONY: serve-dashboard serve-backend serve-all docker-up docker-down
+.PHONY: serve-dashboard serve-backend serve-all
 
 serve-dashboard:
 	npx nx dev dashboard
@@ -8,9 +8,3 @@ serve-backend:
 
 serve-all:
 	npx concurrently "make serve-dashboard" "make serve-backend"
-
-docker-up:
-	docker compose up -d
-
-docker-down:
-	docker compose down
