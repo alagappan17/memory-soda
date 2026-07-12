@@ -6,7 +6,6 @@ networks:
 
 volumes:
   pg_data:
-  redis_data:
 
 services:
   postgres:
@@ -27,19 +26,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    networks:
-      - memory-soda-net
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   api:
     build:
       context: .
@@ -47,7 +33,6 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-memory_user}:${POSTGRES_PASSWORD:-memory_pass}@postgres:5432/memory_db
-      REDIS_URL: redis://redis:6379
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       MIGRATE_ON_START: "true"
     ports:
@@ -56,8 +41,6 @@ services:
       - memory-soda-net
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3004/health || exit 1"]
