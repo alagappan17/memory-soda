@@ -129,7 +129,7 @@ export class MemorySodaClient {
   }
 
   /**
-   * Check the health of the API and its backing services (Postgres, Redis).
+   * Check the health of the API and its backing services (Postgres).
    * @returns Health status per service.
    */
   async health(): Promise<HealthResponse> {
@@ -148,7 +148,6 @@ export class MemorySodaClient {
       ok: h.status === 'ok',
       services: {
         postgres: h.services.postgres,
-        redis: h.services.redis,
       },
     };
   }

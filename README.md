@@ -1,6 +1,6 @@
 # memory-soda
 
-Semantic memory layer for AI agents. Extract facts from conversations, store them in a knowledge graph, and retrieve relevant context for future LLM calls. Graph-native (Neo4j + vector search). Self-hostable.
+Semantic memory layer for AI agents. Extract facts from conversations, store them in Postgres, and retrieve relevant context for future LLM calls. Powered by pgvector similarity search. Self-hostable.
 
 ---
 
@@ -35,9 +35,8 @@ docker compose logs api   # retrieve it again if you missed it
 | Dashboard | http://localhost:3000 |
 | API | http://localhost:3004 |
 | Status page | http://localhost:3000/status |
-| Neo4j browser | http://localhost:7474 |
 
-Open the **Status page** first to confirm all services (Postgres, Redis, Neo4j) are green before integrating the SDK.
+Open the **Status page** first to confirm all services (Postgres) are green before integrating the SDK.
 
 ---
 
@@ -115,7 +114,7 @@ npm install                # in your app
 ## Local development
 
 ```bash
-# Start infra (Postgres, Neo4j, Redis) — no app containers
+# Start infra (Postgres) — no app containers
 docker compose -f docker-compose.dev.yml up -d
 
 cp .env.example .env
@@ -132,7 +131,7 @@ npm run dev
 
 ```
 apps/
-  api/          ← self-hostable Express/Fastify backend (Neo4j + Postgres + Gemini)
+  api/          ← self-hostable Express/Fastify backend (Postgres + Gemini)
   dashboard/    ← memory management dashboard (Next.js)
 
 packages/
@@ -160,10 +159,6 @@ docker-compose.dev.yml      ← infra only, for local development
 | `CORS_ORIGIN` | No | Dashboard URL for CORS. Default: `http://localhost:3000` |
 | `MIGRATE_ON_START` | No | Run DB migrations on startup. Default: `true` |
 | `DATABASE_URL` | No | Postgres connection string. Default: matches docker-compose |
-| `REDIS_URL` | No | Redis connection string. Default: `redis://localhost:6379` |
-| `NEO4J_URI` | No | Neo4j bolt URI. Default: `bolt://localhost:7687` |
-| `NEO4J_USERNAME` | No | Neo4j username. Default: `neo4j` |
-| `NEO4J_PASSWORD` | No | Neo4j password. Default: `memory_pass` |
 | `NEXT_PUBLIC_API_URL` | No | API URL as seen from the browser. Default: `http://localhost:3004` |
 
 Copy `.env.example` for local development. See `.env.prod.example` for production variables.
