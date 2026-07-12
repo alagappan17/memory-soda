@@ -9,9 +9,7 @@
     "test": "nx run-many --target=test --all",
     "typecheck": "nx run-many --target=typecheck --all",
     "sdk:build": "nx build @memory-soda/sdk",
-    "release": "nx release",
-    "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down"
+    "release": "nx release"
   },
   "private": true,
   "devDependencies": {

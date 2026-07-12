@@ -51,7 +51,6 @@ out
 .env
 .env.local
 .env*.local
-.env.prod
 
 test-output
 
