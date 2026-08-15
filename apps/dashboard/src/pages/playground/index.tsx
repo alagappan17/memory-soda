@@ -192,7 +192,7 @@ export default function PlaygroundPage() {
           role: 'user',
           content,
           sequenceNumber: optimisticSeq,
-          tokenCount: null,
+          tokens: null,
           model: null,
           latencyMs: null,
           metadata: null,
@@ -277,7 +277,7 @@ export default function PlaygroundPage() {
           // The response already carries both rows — no refetch needed.
           const blank = {
             threadId: tid,
-            tokenCount: null,
+            tokens: null,
             model: null,
             latencyMs: null,
             metadata: null,

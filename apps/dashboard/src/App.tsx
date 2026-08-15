@@ -1,6 +1,14 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Outlet,
+  useLocation,
+} from 'react-router-dom';
 import QueryProvider from './providers/query-provider';
 import { ProjectProvider } from './providers/project-provider';
+import { AuthProvider } from './providers/auth-provider';
+import RequireAuth from './components/require-auth';
 import {
   SidebarProvider,
   SidebarInset,
@@ -15,6 +23,8 @@ import ProjectsPage from './pages/projects';
 import DatasetsPage from './pages/datasets';
 import PlaygroundPage from './pages/playground';
 import ProjectSettingsPage from './pages/project-settings';
+import LoginPage from './pages/login';
+import UsersPage from './pages/users';
 
 function DashboardHeader() {
   const location = useLocation();
@@ -25,6 +35,7 @@ function DashboardHeader() {
     '/datasets': 'Datasets',
     '/playground': 'Playground',
     '/api-keys': 'API Keys',
+    '/users': 'Users',
     '/status': 'Status',
   };
 
@@ -44,67 +55,55 @@ function DashboardHeader() {
   );
 }
 
+// The authenticated dashboard chrome. Projects only load once the user is
+// authenticated, so ProjectProvider lives inside the auth gate.
+function ProtectedLayout() {
+  return (
+    <RequireAuth>
+      <ProjectProvider>
+        <SidebarProvider>
+          <AppSidebar />
+          <SidebarInset className="flex flex-col h-screen overflow-hidden bg-background">
+            <DashboardHeader />
+            <div className="flex-1 min-h-0 flex flex-col">
+              <Outlet />
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
+      </ProjectProvider>
+    </RequireAuth>
+  );
+}
+
+const scroll = (el: React.ReactNode) => (
+  <div className="flex-1 overflow-y-auto">{el}</div>
+);
+
 export default function App() {
   return (
     <QueryProvider>
-      <ProjectProvider>
+      <AuthProvider>
         <BrowserRouter>
           <TooltipProvider>
-            <SidebarProvider>
-              <AppSidebar />
-              <SidebarInset className="flex flex-col h-screen overflow-hidden bg-background">
-                <DashboardHeader />
-                <div className="flex-1 min-h-0 flex flex-col">
-                  <Routes>
-                    <Route
-                      path="/"
-                      element={
-                        <div className="flex-1 overflow-y-auto">
-                          <HomePage />
-                        </div>
-                      }
-                    />
-                    <Route
-                      path="/projects"
-                      element={
-                        <div className="flex-1 overflow-y-auto">
-                          <ProjectsPage />
-                        </div>
-                      }
-                    />
-                    <Route
-                      path="/projects/:id/settings"
-                      element={
-                        <div className="flex-1 overflow-y-auto">
-                          <ProjectSettingsPage />
-                        </div>
-                      }
-                    />
-                    <Route path="/datasets" element={<DatasetsPage />} />
-                    <Route
-                      path="/api-keys"
-                      element={
-                        <div className="flex-1 overflow-y-auto">
-                          <ApiKeysPage />
-                        </div>
-                      }
-                    />
-                    <Route path="/playground" element={<PlaygroundPage />} />
-                    <Route
-                      path="/status"
-                      element={
-                        <div className="flex-1 overflow-y-auto">
-                          <StatusPage />
-                        </div>
-                      }
-                    />
-                  </Routes>
-                </div>
-              </SidebarInset>
-            </SidebarProvider>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route element={<ProtectedLayout />}>
+                <Route path="/" element={scroll(<HomePage />)} />
+                <Route path="/projects" element={scroll(<ProjectsPage />)} />
+                <Route
+                  path="/projects/:id/settings"
+                  element={scroll(<ProjectSettingsPage />)}
+                />
+                <Route path="/datasets" element={<DatasetsPage />} />
+                <Route path="/api-keys" element={scroll(<ApiKeysPage />)} />
+                <Route path="/users" element={scroll(<UsersPage />)} />
+                <Route path="/playground" element={<PlaygroundPage />} />
+                <Route path="/status" element={scroll(<StatusPage />)} />
+              </Route>
+            </Routes>
           </TooltipProvider>
         </BrowserRouter>
-      </ProjectProvider>
+      </AuthProvider>
     </QueryProvider>
   );
 }

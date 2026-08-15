@@ -19,7 +19,7 @@ const router = Router();
 const addMessageSchema = z.object({
   role: z.enum(['user', 'assistant', 'system', 'tool']),
   content: z.string().min(1),
-  tokenCount: z
+  tokens: z
     .object({
       input: z.number().int().nonnegative().optional(),
       output: z.number().int().nonnegative().optional(),
@@ -60,14 +60,14 @@ router.post(
   validateBody(addMessageSchema),
   async (req, res) => {
     try {
-      const { role, content, tokenCount, model, latencyMs, metadata } =
+      const { role, content, tokens, model, latencyMs, metadata } =
         req.body as z.infer<typeof addMessageSchema>;
       const { message, compacted } = await addMessage(
         req.params.threadId,
         req.projectId!,
         role,
         content,
-        tokenCount,
+        tokens,
         model,
         latencyMs,
         metadata,

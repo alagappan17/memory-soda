@@ -9,6 +9,8 @@ import {
   FlaskConical,
   Database,
   Settings,
+  Users,
+  LogOut,
   ChevronsUpDown,
   Plus,
   Check,
@@ -20,6 +22,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -41,15 +44,33 @@ import {
   SelectItem,
   SelectTrigger,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useProject } from '@/providers/project-provider';
+import { useAuth } from '@/providers/auth-provider';
 
-const navItems = [
-  { to: '/', label: 'Home', icon: Home },
+// Overview link, shown ungrouped at the top.
+const overviewNav = [{ to: '/', label: 'Home', icon: Home }];
+
+// App-wide destinations (not tied to the selected project).
+const applicationNav = [
   { to: '/projects', label: 'Projects', icon: Folder },
+  { to: '/users', label: 'Users', icon: Users },
+  { to: '/status', label: 'Status', icon: Activity },
+];
+
+// Scoped to the currently selected project.
+const projectNav = [
   { to: '/datasets', label: 'Datasets', icon: Database },
   { to: '/playground', label: 'Playground', icon: FlaskConical },
   { to: '/api-keys', label: 'API Keys', icon: KeyRound },
-  { to: '/status', label: 'Status', icon: Activity },
 ];
 
 function NavItem({
@@ -87,9 +108,11 @@ export default function AppSidebar() {
     deleteProject,
     loading,
   } = useProject();
+  const { user, logout } = useAuth();
   const projectInitial = selectedProject
     ? selectedProject.name.slice(0, 1).toUpperCase()
     : 'P';
+  const userInitial = user?.username?.slice(0, 1).toUpperCase() ?? 'U';
   const [showNewProject, setShowNewProject] = useState(false);
   const [newName, setNewName] = useState('');
   const [description, setDescription] = useState('');
@@ -169,7 +192,29 @@ export default function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {overviewNav.map((item) => (
+                <NavItem key={item.to} {...item} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Application</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {applicationNav.map((item) => (
+                <NavItem key={item.to} {...item} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Project</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {projectNav.map((item) => (
                 <NavItem key={item.to} {...item} />
               ))}
               {selectedProject && (
@@ -184,10 +229,40 @@ export default function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Project switcher */}
+      {/* Account + project switcher */}
       <SidebarFooter className="pb-4">
         <SidebarMenu>
-          <SidebarMenuItem>
+          <SidebarMenuItem className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col">
+            {/* Profile circle — click to reveal the sign-out option. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Account"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-xs select-none shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {userInitial}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="top"
+                align="start"
+                className="w-auto min-w-44"
+              >
+                {/* GroupLabel throws unless it is inside a Group. */}
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    <span className="block">Signed in as</span>
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {user?.username ?? '—'}
+                    </span>
+                  </DropdownMenuLabel>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={logout}>
+                  <LogOut />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Select
               value={selectedProject?.id}
               onValueChange={(val: string) => {
@@ -197,7 +272,7 @@ export default function AppSidebar() {
             >
               <SelectTrigger
                 showChevron={false}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm bg-white border border-border shadow-xs hover:bg-muted/50 dark:bg-zinc-950 dark:border-zinc-800 outline-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:shadow-none"
+                className="flex w-full flex-1 min-w-0 items-center gap-2 rounded-xl px-3 py-2 text-left text-sm bg-white border border-border shadow-xs hover:bg-muted/50 dark:bg-zinc-950 dark:border-zinc-800 outline-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:shadow-none"
               >
                 {/* Expanded state */}
                 <div className="flex flex-col gap-0.5 leading-none min-w-0 flex-1 text-left group-data-[collapsible=icon]:hidden">

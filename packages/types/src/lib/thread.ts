@@ -9,7 +9,6 @@ export interface WMThread {
   threadId: string;
   dataset: string;
   tags: string[];
-  messageCount: number;
   metadata: Record<string, unknown> | null;
   createdAt: string;
   lastActivityAt: string;

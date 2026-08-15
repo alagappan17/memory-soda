@@ -68,6 +68,57 @@ export const apiKeysRelations = relations(apiKeys, ({ one, many }) => ({
   threads: many(threads),
 }));
 
+// Dashboard login users. Single role for now (no permissions).
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  username: text('username').notNull().unique(),
+  // Stored as "salt:scryptHex" — never plaintext.
+  passwordHash: text('password_hash').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type UserRow = typeof users.$inferSelect;
+export type NewUserRow = typeof users.$inferInsert;
+
+// Server-side, revocable login sessions (opaque bearer tokens).
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    // SHA-256 hash of the plaintext session token; plaintext shown once at login.
+    token: text('token').notNull().unique(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (t) => [index('sessions_user_idx').on(t.userId)],
+);
+
+export type SessionRow = typeof sessions.$inferSelect;
+export type NewSessionRow = typeof sessions.$inferInsert;
+
+export const usersRelations = relations(users, ({ many }) => ({
+  sessions: many(sessions),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
+}));
+
 // ── Working Memory ───────────────────────────────────────────────────────────
 
 export const messageRoleEnum = pgEnum('message_role', [
@@ -87,7 +138,6 @@ export const threads = pgTable(
       .references(() => projects.id, { onDelete: 'cascade' }),
     tags: text('tags').array().notNull().default([]),
     metadata: jsonb('metadata'),
-    messageCount: integer('message_count').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -124,7 +174,7 @@ export const messages = pgTable(
     role: messageRoleEnum('role').notNull(),
     content: text('content').notNull(),
     sequenceNumber: integer('sequence_number').notNull(),
-    tokenCount: jsonb('token_count'),
+    tokens: jsonb('tokens'),
     model: text('model'),
     latencyMs: integer('latency_ms'),
     metadata: jsonb('metadata'),
@@ -324,7 +374,11 @@ export const facts = pgTable(
     ),
     index('facts_episode_idx').on(t.episodeId),
     // Entity-anchor retrieval also matches on `object`.
-    index('facts_dataset_project_object_idx').on(t.dataset, t.projectId, t.object),
+    index('facts_dataset_project_object_idx').on(
+      t.dataset,
+      t.projectId,
+      t.object,
+    ),
     // No-query fallback: live facts ordered by recency.
     index('facts_dataset_project_recency_idx')
       .on(t.dataset, t.projectId, t.validAt)

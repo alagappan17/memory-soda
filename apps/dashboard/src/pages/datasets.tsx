@@ -50,7 +50,6 @@ interface Message {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   sequenceNumber: number;
-  tokenCount: { prompt?: number; completion?: number; total?: number } | null;
   createdAt: string;
 }
 

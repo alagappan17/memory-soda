@@ -14,7 +14,7 @@ export interface Message {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   sequenceNumber: number;
-  tokenCount: { input?: number; output?: number; total?: number } | null;
+  tokens: { input?: number; output?: number; total?: number } | null;
   model: string | null;
   latencyMs: number | null;
   metadata: Record<string, unknown> | null;
@@ -42,7 +42,7 @@ function rowToMessage(row: typeof messages.$inferSelect): Message {
     role: row.role,
     content: row.content,
     sequenceNumber: row.sequenceNumber,
-    tokenCount: row.tokenCount as Message['tokenCount'],
+    tokens: row.tokens as Message['tokens'],
     model: row.model ?? null,
     latencyMs: row.latencyMs ?? null,
     metadata: row.metadata as Record<string, unknown> | null,
@@ -66,7 +66,7 @@ export async function addMessage(
   projectId: string,
   role: 'user' | 'assistant' | 'system' | 'tool',
   content: string,
-  tokenCount?: { input?: number; output?: number; total?: number },
+  tokens?: { input?: number; output?: number; total?: number },
   model?: string,
   latencyMs?: number,
   metadata?: Record<string, unknown>,
@@ -98,7 +98,7 @@ export async function addMessage(
         role,
         content,
         sequenceNumber: nextSeq,
-        tokenCount: tokenCount ?? null,
+        tokens: tokens ?? null,
         model: model ?? null,
         latencyMs: latencyMs ?? null,
         metadata: metadata ?? null,
@@ -108,7 +108,6 @@ export async function addMessage(
     const [updatedThread] = await tx
       .update(threads)
       .set({
-        messageCount: threadRow.messageCount + 1,
         lastActivityAt: new Date(),
         updatedAt: new Date(),
       })
@@ -306,7 +305,7 @@ export async function compactThread(
         role: 'system',
         content: summaryText,
         sequenceNumber: nextSeq,
-        tokenCount: null,
+        tokens: null,
         model: null,
         latencyMs: null,
         metadata: {
@@ -470,14 +469,14 @@ export async function getThreadStats(
   } | null = null;
 
   const withTokens = allMessages.filter(
-    (m) => m.tokenCount != null && !isSummaryRow(m),
+    (m) => m.tokens != null && !isSummaryRow(m),
   );
   if (withTokens.length > 0) {
     let totalInput = 0,
       totalOutput = 0,
       totalTokens = 0;
     for (const msg of withTokens) {
-      const tc = msg.tokenCount as {
+      const tc = msg.tokens as {
         input?: number;
         output?: number;
         total?: number;

@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, inArray, getTableColumns } from 'drizzle-orm';
 import { db } from '../db/postgres.js';
 import { threads, messages, facts, isLiveFact } from '../db/schema.js';
 
@@ -20,14 +20,30 @@ export interface DashboardMessage {
   role: string;
   content: string;
   sequenceNumber: number;
-  tokenCount: unknown;
+  tokens: unknown;
   model: string | null;
   latencyMs: number | null;
   metadata: unknown;
   createdAt: string;
 }
 
-function mapThread(row: typeof threads.$inferSelect): DashboardThread {
+// `threads.message_count` was a denormalized counter that could drift; the
+// count is derived live instead. Shared by both thread reads below.
+//
+// The outer `threads.id` MUST stay explicitly qualified: drizzle renders
+// interpolated columns unqualified, and a bare `"id"` inside the subquery binds
+// to `messages.id` (the nearer scope), making the predicate always false and
+// every count 0.
+const messageCountSql = sql<number>`(select count(*)::int from ${messages} where ${messages.threadId} = ${threads}."id")`;
+
+const threadColumns = () => ({
+  ...getTableColumns(threads),
+  messageCount: messageCountSql,
+});
+
+function mapThread(
+  row: typeof threads.$inferSelect & { messageCount: number },
+): DashboardThread {
   return {
     threadId: row.id,
     dataset: row.dataset,
@@ -48,7 +64,7 @@ function mapMessage(row: typeof messages.$inferSelect): DashboardMessage {
     role: row.role,
     content: row.content,
     sequenceNumber: row.sequenceNumber,
-    tokenCount: row.tokenCount,
+    tokens: row.tokens,
     model: row.model ?? null,
     latencyMs: row.latencyMs ?? null,
     metadata: row.metadata,
@@ -69,7 +85,7 @@ export async function listThreads(opts: {
 
   const [rows, totalRows] = await Promise.all([
     db
-      .select()
+      .select(threadColumns())
       .from(threads)
       .where(where)
       .orderBy(desc(threads.lastActivityAt))
@@ -165,7 +181,7 @@ export async function getThreadWithMessages(
   projectId: string,
 ): Promise<{ thread: DashboardThread; messages: DashboardMessage[] } | null> {
   const [threadRow] = await db
-    .select()
+    .select(threadColumns())
     .from(threads)
     .where(and(eq(threads.id, threadId), eq(threads.projectId, projectId)));
 
