@@ -10,6 +10,12 @@
   },
   "nx": {
     "targets": {
+      "test": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "node --test \"apps/api/src/**/*.test.ts\""
+        }
+      },
       "build": {
         "executor": "@nx/esbuild:esbuild",
         "outputs": [

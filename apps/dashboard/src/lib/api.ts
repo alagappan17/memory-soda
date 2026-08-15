@@ -29,17 +29,29 @@ api.interceptors.request.use((config) => {
 });
 
 // On an expired/invalid session, clear the token and bounce to /login.
+//
+// `/auth/login` and `/auth/me` are exempt. Login owns its own error display, and
+// `/auth/me` is the hydration call in AuthProvider — redirecting here would force
+// a full document reload, discarding the `from` path RequireAuth records and
+// racing the provider's own catch block. Let the route guard do it instead.
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    const status = error?.response?.status;
-    const url: string = error?.config?.url ?? '';
-    const isAuthCall = url.includes('/auth/login');
-    if (status === 401 && !isAuthCall) {
-      localStorage.removeItem(AUTH_TOKEN_KEY);
-      if (window.location.pathname !== '/login') {
-        window.location.assign('/login');
-      }
+    if (error?.response?.status !== 401) return Promise.reject(error);
+
+    const path: string = (error?.config?.url ?? '').split('?')[0];
+
+    // A rejected login is not an expired session — the form shows the error.
+    if (path.endsWith('/auth/login')) return Promise.reject(error);
+
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+
+    // Hydration failure: let RequireAuth navigate, so the attempted path is
+    // preserved and AuthProvider's own catch still runs.
+    if (path.endsWith('/auth/me')) return Promise.reject(error);
+
+    if (window.location.pathname !== '/login') {
+      window.location.assign('/login');
     }
     return Promise.reject(error);
   },

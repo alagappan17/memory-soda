@@ -23,9 +23,9 @@ export default function RequireAuth({
   }
 
   if (!user) {
-    return (
-      <Navigate to="/login" replace state={{ from: location.pathname }} />
-    );
+    // Keep the query string and hash so deep links survive the round trip.
+    const from = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to="/login" replace state={{ from }} />;
   }
 
   return <>{children}</>;
