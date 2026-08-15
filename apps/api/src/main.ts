@@ -1,4 +1,5 @@
 import express from 'express';
+import { randomBytes } from 'node:crypto';
 import cors from 'cors';
 import morgan from 'morgan';
 import path from 'node:path';
@@ -86,9 +87,17 @@ async function bootstrap(): Promise<void> {
 
   if ((await countUsers()) === 0) {
     const adminUsername = process.env.ADMIN_USERNAME ?? 'admin';
-    const adminPassword = process.env.ADMIN_PASSWORD ?? 'admin-pass';
+    // Never fall back to a fixed password: a literal here is in the published
+    // source, so every deployment that skips ADMIN_PASSWORD would ship the same
+    // known credentials. A random one is printed once, below.
+    const generated = !process.env.ADMIN_PASSWORD;
+    const adminPassword =
+      process.env.ADMIN_PASSWORD ?? randomBytes(12).toString('base64url');
     await createUser(adminUsername, adminPassword);
     setupLines.push(`Login:    ${adminUsername} / ${adminPassword}`);
+    if (generated) {
+      setupLines.push('          (generated — set ADMIN_PASSWORD to choose)');
+    }
   }
 
   if (setupLines.length > 0) {

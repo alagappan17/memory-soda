@@ -1,20 +1,24 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/providers/auth-provider';
 
 export default function LoginPage() {
   const { user, loading, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Where RequireAuth bounced the user from, so a deep link survives sign-in.
+  const from = (location.state as { from?: string } | null)?.from ?? '/';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Already authenticated — go to the home page.
+  // Already authenticated — carry on to wherever they were headed.
   if (!loading && user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={from} replace />;
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -24,7 +28,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await login(username.trim(), password);
-      navigate('/', { replace: true });
+      navigate(from, { replace: true });
     } catch {
       setError('Invalid username or password');
     } finally {

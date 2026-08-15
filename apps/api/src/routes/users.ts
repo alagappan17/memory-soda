@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateBody } from '../middleware/validate.js';
+import { isUniqueViolation } from '../db/postgres.js';
 import {
   createUser,
   listUsers,
-  deleteUser,
+  deleteUserIfNotLast,
   getUserByUsername,
-  countUsers,
 } from '../services/user.service.js';
 
 const router = Router();
@@ -48,6 +48,13 @@ router.post('/', validateBody(createBodySchema), async (req, res) => {
     const user = await createUser(username, password);
     res.status(201).json({ user });
   } catch (err) {
+    // The pre-check above is racy — two concurrent creates for the same name
+    // both pass it and one loses on the unique index. That is still a conflict,
+    // not a server error.
+    if (isUniqueViolation(err)) {
+      res.status(409).json({ error: 'Username already taken' });
+      return;
+    }
     console.error(err);
     res.status(500).json({ error: 'Failed to create user' });
   }
@@ -68,13 +75,16 @@ router.delete('/:id', async (req, res) => {
       return;
     }
 
-    const total = await countUsers();
-    if (total <= 1) {
+    const result = await deleteUserIfNotLast(targetId);
+    if (result === 'not_found') {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    if (result === 'last_user') {
       res.status(400).json({ error: 'Cannot delete the last user' });
       return;
     }
 
-    await deleteUser(targetId);
     res.status(204).send();
   } catch (err) {
     console.error(err);

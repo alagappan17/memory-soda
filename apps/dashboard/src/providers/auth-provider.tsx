@@ -37,7 +37,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { user } = await getMe();
       setUser(user);
     } catch {
-      // Invalid/expired token — the api interceptor already cleared it.
+      // Invalid/expired token. The interceptor cleared it but deliberately did
+      // not redirect — RequireAuth does that, keeping the attempted path.
       setUser(null);
     } finally {
       setLoading(false);

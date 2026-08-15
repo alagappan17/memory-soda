@@ -7,7 +7,9 @@
     "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "exclude": [],
+  // Tests import sibling modules by their real `.ts` path (node runs them
+  // directly, stripping types) and are never part of the shipped build.
+  "exclude": ["src/**/*.test.ts"],
   "references": [
     {
       "path": "../../packages/types/tsconfig.lib.json"
