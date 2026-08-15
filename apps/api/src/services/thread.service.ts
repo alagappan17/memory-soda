@@ -1,7 +1,7 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { generateUserId } from '../lib/generate-user-id.js';
 import { db } from '../db/postgres.js';
-import { threads } from '../db/schema.js';
+import { threads, messages } from '../db/schema.js';
 import {
   getProjectEpisodicSettings,
   createPendingEpisode,
@@ -16,7 +16,6 @@ export interface Thread {
   dataset: string;
   projectId: string;
   tags: string[];
-  messageCount: number;
   metadata: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
@@ -35,7 +34,6 @@ export function rowToThread(row: typeof threads.$inferSelect): Thread {
     dataset: row.dataset,
     projectId: row.projectId,
     tags: row.tags ?? [],
-    messageCount: row.messageCount,
     metadata: row.metadata as Record<string, unknown> | null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -128,11 +126,16 @@ export async function endThread(
     return { thread, episodeQueued: false };
   }
 
+  const [{ count: messageCount }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(messages)
+    .where(eq(messages.threadId, threadId));
+
   const episode = await createPendingEpisode({
     threadId,
     dataset: row.dataset,
     projectId,
-    messageCount: row.messageCount,
+    messageCount,
     tokenCount: null,
     startedAt: row.createdAt,
     endedAt: new Date(),

@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import type { ApiKey } from '@memory-soda/types';
 import { useProject } from '@/providers/project-provider';
-
-const api = axios.create({ baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3004' });
+import api from '@/lib/api';
 
 export default function ApiKeysPage() {
   const { selectedProject } = useProject();

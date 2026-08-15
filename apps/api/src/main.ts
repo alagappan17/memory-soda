@@ -6,7 +6,10 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import healthRouter from './routes/health.js';
 import apiKeysRouter from './routes/api-keys.js';
 import projectsRouter from './routes/projects.js';
+import authRouter from './routes/auth.js';
+import usersRouter from './routes/users.js';
 import { requireApiKey } from './middleware/auth.js';
+import { requireSession } from './middleware/session.js';
 import workingMemoryRouter from './routes/working-memory.js';
 import episodicMemoryRouter from './routes/episodic-memory.js';
 import semanticMemoryRouter from './routes/semantic-memory.js';
@@ -16,6 +19,7 @@ import dashboardDatasetsRouter from './routes/dashboard-datasets.js';
 import recallRouter from './routes/recall.js';
 import { db, checkPostgres } from './db/postgres.js';
 import { listApiKeys, createApiKey } from './services/api-key.service.js';
+import { countUsers, createUser } from './services/user.service.js';
 import {
   retryFailedEpisodes,
   processScheduledEpisodes,
@@ -41,7 +45,12 @@ app.use(morgan('dev'));
 
 app.use('/health', healthRouter);
 
-// Dashboard Routes
+// Public auth routes (login/logout/me)
+app.use('/auth', authRouter);
+
+// Dashboard Routes — gated by a login session.
+app.use('/dashboard', requireSession);
+app.use('/dashboard/users', usersRouter);
 app.use('/dashboard/api-keys', apiKeysRouter);
 app.use('/dashboard/projects', projectsRouter);
 app.use('/dashboard/threads', threadsRouter);
@@ -64,20 +73,39 @@ async function bootstrap(): Promise<void> {
     console.log('[ db ] migrations applied');
   }
 
+  // First-time setup: seed a default API key and an admin login user, then
+  // print their credentials once. The API key is never shown again; the admin
+  // password can be changed later from the Users page.
+  const setupLines: string[] = [];
+
   const existingKeys = await listApiKeys();
   if (existingKeys.length === 0) {
     const { key } = await createApiKey('default');
-    const line = `│  API Key: ${key}`;
-    const padded = line.padEnd(50) + '│';
-    console.log('');
-    console.log('┌──────────────────────────────────────────────────┐');
-    console.log('│  Memory Soda — First-time setup                  │');
-    console.log('│                                                  │');
-    console.log(padded);
-    console.log('│                                                  │');
-    console.log('│  Save this — it will not be shown again.         │');
-    console.log('└──────────────────────────────────────────────────┘');
-    console.log('');
+    setupLines.push(`API Key:  ${key}`);
+  }
+
+  if ((await countUsers()) === 0) {
+    const adminUsername = process.env.ADMIN_USERNAME ?? 'admin';
+    const adminPassword = process.env.ADMIN_PASSWORD ?? 'admin-pass';
+    await createUser(adminUsername, adminPassword);
+    setupLines.push(`Login:    ${adminUsername} / ${adminPassword}`);
+  }
+
+  if (setupLines.length > 0) {
+    // Width is derived from the content so the box can't drift out of
+    // alignment when a credential line changes length.
+    const rows = [
+      'Memory Soda — First-time setup',
+      '',
+      ...setupLines,
+      '',
+      'Save these — the API key will not be shown again.',
+    ];
+    const inner = Math.max(...rows.map((r) => r.length)) + 4;
+    const bar = '─'.repeat(inner);
+    console.log(`\n┌${bar}┐`);
+    for (const row of rows) console.log(`│  ${row.padEnd(inner - 2)}│`);
+    console.log(`└${bar}┘\n`);
   }
 
   app.listen(port, host, () => {

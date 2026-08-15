@@ -55,7 +55,6 @@ function serializeThread(thread: Thread) {
     threadId: thread.threadId,
     dataset: thread.dataset,
     tags: thread.tags,
-    messageCount: thread.messageCount,
     metadata: thread.metadata,
     createdAt: thread.createdAt,
     lastActivityAt: thread.lastActivityAt,

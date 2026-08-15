@@ -15,7 +15,7 @@ import { Separator } from '../../components/ui/separator';
 // to track what's been compacted (lastCompactedSequence), independent of timestamps.
 
 function MessageMeta({ msg, isUser }: { msg: WMMessage; isUser: boolean }) {
-  const tc = msg.tokenCount;
+  const tc = msg.tokens;
   const hasTokens = tc && (tc.input !== undefined || tc.output !== undefined);
   const time = new Date(msg.createdAt).toLocaleTimeString([], {
     hour: '2-digit',
@@ -51,7 +51,7 @@ function MessageMeta({ msg, isUser }: { msg: WMMessage; isUser: boolean }) {
 }
 
 function MessageDetailCard({ msg }: { msg: WMMessage }) {
-  const tc = msg.tokenCount;
+  const tc = msg.tokens;
   const hasTokens =
     tc &&
     (tc.input !== undefined ||
@@ -177,7 +177,7 @@ function ManualMessageForm({
     if (model.trim()) req.model = model.trim();
     if (latencyMs) req.latencyMs = parseInt(latencyMs, 10);
     if (input !== undefined || output !== undefined) {
-      req.tokenCount = {
+      req.tokens = {
         ...(input !== undefined ? { input } : {}),
         ...(output !== undefined ? { output } : {}),
         total: (input ?? 0) + (output ?? 0),
@@ -247,7 +247,7 @@ function ManualMessageForm({
       </div>
       <p className="text-[10px] text-muted-foreground">
         Calls addMessage directly — inserts into the thread without triggering
-        an AI reply. Demos tool/system messages, tokenCount, model, latencyMs.
+        an AI reply. Demos tool/system messages, tokens, model, latencyMs.
       </p>
     </div>
   );

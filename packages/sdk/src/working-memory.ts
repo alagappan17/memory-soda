@@ -28,7 +28,7 @@ export class WorkingMemoryClient {
    * @param threadId - The thread to append to.
    * @param opts.role - `user`, `assistant`, `system`, or `tool`.
    * @param opts.content - The message text.
-   * @param opts.tokenCount - Optional token breakdown for the message.
+   * @param opts.tokens - Optional token breakdown for the message.
    * @param opts.model - Model ID used to generate the message (for assistant turns).
    * @param opts.latencyMs - Time in ms the model took to respond (for assistant turns).
    * @param opts.metadata - Optional structured metadata (`stopReason`, `agentName`).

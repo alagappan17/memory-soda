@@ -13,7 +13,7 @@ export interface WMMessage {
   role: MessageRole;
   content: string;
   sequenceNumber: number;
-  tokenCount: WMTokenCount | null;
+  tokens: WMTokenCount | null;
   model: string | null;
   latencyMs: number | null;
   metadata: WMMessageMetadata | null;
@@ -32,7 +32,7 @@ export interface WMTokenCount {
 export interface WMAddMessageRequest {
   role: MessageRole;
   content: string;
-  tokenCount?: WMTokenCount;
+  tokens?: WMTokenCount;
   model?: string;
   latencyMs?: number;
   metadata?: WMMessageMetadata;

@@ -1,8 +1,16 @@
 import axios from 'axios';
-import type { ProjectSettings, ProjectSettingsPatch } from '@memory-soda/types';
+import type {
+  ProjectSettings,
+  ProjectSettingsPatch,
+  LoginResponse,
+  SessionUser,
+  User,
+} from '@memory-soda/types';
 
 export const API_URL: string =
   import.meta.env.VITE_API_URL ?? 'http://localhost:3004';
+
+export const AUTH_TOKEN_KEY = 'authToken';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -10,6 +18,32 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Attach the session token (if any) to every request.
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// On an expired/invalid session, clear the token and bounce to /login.
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    const status = error?.response?.status;
+    const url: string = error?.config?.url ?? '';
+    const isAuthCall = url.includes('/auth/login');
+    if (status === 401 && !isAuthCall) {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login');
+      }
+    }
+    return Promise.reject(error);
+  },
+);
 
 export async function getProjectSettings(
   projectId: string,
@@ -27,6 +61,42 @@ export async function updateProjectSettings(
     patch,
   );
   return res.data;
+}
+
+// ----- Auth -----
+
+export async function login(
+  username: string,
+  password: string,
+): Promise<LoginResponse> {
+  const res = await api.post('/auth/login', { username, password });
+  return res.data;
+}
+
+export async function logout(): Promise<void> {
+  await api.post('/auth/logout');
+}
+
+export async function getMe(): Promise<{ user: SessionUser }> {
+  const res = await api.get('/auth/me');
+  return res.data;
+}
+
+export async function listUsers(): Promise<User[]> {
+  const res = await api.get('/dashboard/users');
+  return res.data.users;
+}
+
+export async function createUser(
+  username: string,
+  password: string,
+): Promise<User> {
+  const res = await api.post('/dashboard/users', { username, password });
+  return res.data.user;
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  await api.delete(`/dashboard/users/${id}`);
 }
 
 export default api;

@@ -573,10 +573,17 @@ export async function processScheduledEpisodes(): Promise<void> {
 
   const uniqueThreadIds = [...new Set(dueRows.map((r) => r.thread_id))];
   const threadRows = await db
-    .select({ id: threads.id, dataset: threads.dataset, messageCount: threads.messageCount, createdAt: threads.createdAt })
+    .select({ id: threads.id, dataset: threads.dataset, createdAt: threads.createdAt })
     .from(threads)
     .where(inArray(threads.id, uniqueThreadIds));
   const threadMap = new Map(threadRows.map((r) => [r.id, r]));
+
+  const msgCountRows = await db
+    .select({ threadId: messages.threadId, count: sql<number>`count(*)::int` })
+    .from(messages)
+    .where(inArray(messages.threadId, uniqueThreadIds))
+    .groupBy(messages.threadId);
+  const msgCountMap = new Map(msgCountRows.map((r) => [r.threadId, r.count]));
 
   for (const row of dueRows) {
     const settings = settingsMap.get(row.project_id) ?? mergeWithDefaults(null).episodic;
@@ -589,7 +596,7 @@ export async function processScheduledEpisodes(): Promise<void> {
       threadId: row.thread_id,
       dataset: threadRow.dataset,
       projectId: row.project_id,
-      messageCount: threadRow.messageCount,
+      messageCount: msgCountMap.get(row.thread_id) ?? 0,
       tokenCount: null,
       startedAt: threadRow.createdAt,
       endedAt: new Date(),
