@@ -1,0 +1,123 @@
+{
+  "title": "memory-soda",
+  "tagline": "A self-hostable memory layer for AI agents",
+  "baseUrls": {
+    "api": "http://localhost:3004",
+    "dashboard": "http://localhost:3000"
+  },
+  "sections": [
+    {
+      "title": "Introduction",
+      "slug": "introduction",
+      "pages": [
+        { "title": "Overview", "path": "introduction/overview.md", "slug": "overview" },
+        { "title": "How it works", "path": "introduction/how-it-works.md", "slug": "how-it-works" },
+        { "title": "Architecture", "path": "introduction/architecture.md", "slug": "architecture" }
+      ]
+    },
+    {
+      "title": "Getting started",
+      "slug": "getting-started",
+      "pages": [
+        { "title": "Installation", "path": "getting-started/installation.md", "slug": "installation" },
+        { "title": "Quickstart", "path": "getting-started/quickstart.md", "slug": "quickstart" },
+        { "title": "Your first integration", "path": "getting-started/your-first-integration.md", "slug": "your-first-integration" },
+        { "title": "Configuration", "path": "getting-started/configuration.md", "slug": "configuration" }
+      ]
+    },
+    {
+      "title": "Concepts",
+      "slug": "concepts",
+      "pages": [
+        { "title": "Projects and datasets", "path": "concepts/projects-and-datasets.md", "slug": "projects-and-datasets" },
+        { "title": "Working memory", "path": "concepts/working-memory.md", "slug": "working-memory" },
+        { "title": "Episodic memory", "path": "concepts/episodic-memory.md", "slug": "episodic-memory" },
+        { "title": "Semantic memory", "path": "concepts/semantic-memory.md", "slug": "semantic-memory" },
+        { "title": "The bi-temporal model", "path": "concepts/bi-temporal-model.md", "slug": "bi-temporal-model" },
+        { "title": "Retrieval", "path": "concepts/retrieval.md", "slug": "retrieval" },
+        { "title": "The extraction pipeline", "path": "concepts/extraction-pipeline.md", "slug": "extraction-pipeline" }
+      ]
+    },
+    {
+      "title": "SDK reference",
+      "slug": "sdk",
+      "pages": [
+        { "title": "Overview", "path": "sdk/index.md", "slug": "index" },
+        { "title": "MemorySodaClient", "path": "sdk/client.md", "slug": "client" },
+        { "title": "client.threads", "path": "sdk/threads.md", "slug": "threads" },
+        { "title": "client.workingMemory", "path": "sdk/working-memory.md", "slug": "working-memory" },
+        { "title": "client.semantic", "path": "sdk/semantic-memory.md", "slug": "semantic-memory" },
+        { "title": "Error handling", "path": "sdk/errors.md", "slug": "errors" },
+        { "title": "Type reference", "path": "sdk/types.md", "slug": "types" }
+      ]
+    },
+    {
+      "title": "HTTP API",
+      "slug": "api",
+      "pages": [
+        { "title": "Conventions", "path": "api/index.md", "slug": "index" },
+        { "title": "Authentication", "path": "api/authentication.md", "slug": "authentication" },
+        { "title": "Threads", "path": "api/threads.md", "slug": "threads" },
+        { "title": "Working memory", "path": "api/working-memory.md", "slug": "working-memory" },
+        { "title": "Recall", "path": "api/recall.md", "slug": "recall" },
+        { "title": "Semantic memory", "path": "api/semantic-memory.md", "slug": "semantic-memory" },
+        { "title": "Episodic memory", "path": "api/episodic-memory.md", "slug": "episodic-memory" },
+        { "title": "Dashboard routes", "path": "api/dashboard.md", "slug": "dashboard" }
+      ]
+    },
+    {
+      "title": "Dashboard",
+      "slug": "dashboard",
+      "pages": [
+        { "title": "Overview", "path": "dashboard/index.md", "slug": "index" },
+        { "title": "Users and sign-in", "path": "dashboard/users-and-auth.md", "slug": "users-and-auth" },
+        { "title": "Projects", "path": "dashboard/projects.md", "slug": "projects" },
+        { "title": "API keys", "path": "dashboard/api-keys.md", "slug": "api-keys" },
+        { "title": "Datasets", "path": "dashboard/datasets.md", "slug": "datasets" },
+        { "title": "Playground", "path": "dashboard/playground.md", "slug": "playground" },
+        { "title": "Project settings", "path": "dashboard/project-settings.md", "slug": "project-settings" }
+      ]
+    },
+    {
+      "title": "Guides",
+      "slug": "guides",
+      "pages": [
+        { "title": "Build a chatbot with memory", "path": "guides/build-a-chatbot.md", "slug": "build-a-chatbot" },
+        { "title": "Handling long conversations", "path": "guides/long-conversations.md", "slug": "long-conversations" },
+        { "title": "Curating and correcting memory", "path": "guides/curating-memory.md", "slug": "curating-memory" },
+        { "title": "Point-in-time recall", "path": "guides/point-in-time-recall.md", "slug": "point-in-time-recall" },
+        { "title": "Tuning retrieval quality", "path": "guides/tuning-retrieval.md", "slug": "tuning-retrieval" }
+      ]
+    },
+    {
+      "title": "Operations",
+      "slug": "operations",
+      "pages": [
+        { "title": "Self-hosting", "path": "operations/self-hosting.md", "slug": "self-hosting" },
+        { "title": "Database migrations", "path": "operations/migrations.md", "slug": "migrations" },
+        { "title": "Background jobs", "path": "operations/background-jobs.md", "slug": "background-jobs" },
+        { "title": "Privacy and data deletion", "path": "operations/privacy-and-deletion.md", "slug": "privacy-and-deletion" }
+      ]
+    },
+    {
+      "title": "Reference",
+      "slug": "reference",
+      "pages": [
+        { "title": "Environment variables", "path": "reference/environment-variables.md", "slug": "environment-variables" },
+        { "title": "Database schema", "path": "reference/database-schema.md", "slug": "database-schema" },
+        { "title": "Project settings", "path": "reference/project-settings.md", "slug": "project-settings" },
+        { "title": "Errors", "path": "reference/errors.md", "slug": "errors" },
+        { "title": "Limits and defaults", "path": "reference/limits.md", "slug": "limits" }
+      ]
+    },
+    {
+      "title": "Contributing",
+      "slug": "contributing",
+      "pages": [
+        { "title": "Development setup", "path": "contributing/development.md", "slug": "development" },
+        { "title": "Testing", "path": "contributing/testing.md", "slug": "testing" },
+        { "title": "Releasing the SDK", "path": "contributing/releasing.md", "slug": "releasing" }
+      ]
+    }
+  ]
+}
