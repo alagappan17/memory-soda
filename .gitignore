@@ -64,3 +64,6 @@ plans
 
 # Local tool config
 .codex/
+
+# Astro build cache — created if `astro dev` is run from the wrong directory
+.astro/

@@ -38,6 +38,17 @@ export default defineConfig({
       },
       lastUpdated: true,
       customCss: ['./src/styles/custom.css'],
+      // Pinned rather than left to the default so the greyscale filter in
+      // custom.css has a predictable lightness distribution to work from.
+      expressiveCode: {
+        themes: ['github-dark', 'github-light'],
+        styleOverrides: {
+          borderRadius: '0.45rem',
+          borderColor: 'var(--sl-color-hairline)',
+          codeBackground: 'var(--sl-color-bg-inline-code)',
+          frames: { shadowColor: 'transparent' },
+        },
+      },
       sidebar: nav.sections.map((section) => ({
         label: section.title,
         items: section.pages.map((page) => ({
