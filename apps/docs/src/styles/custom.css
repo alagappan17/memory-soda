@@ -1,0 +1,33 @@
+/* memory-soda accent — amber, applied over Starlight's defaults. */
+:root {
+  --sl-color-accent-low: #40260a;
+  --sl-color-accent: #b45309;
+  --sl-color-accent-high: #fcd9a4;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #fdeccd;
+  --sl-color-accent: #b45309;
+  --sl-color-accent-high: #52310c;
+}
+
+/*
+ * Several pages use ASCII diagrams inside fenced blocks (the extraction
+ * pipeline, the retrieval flow, the runtime topology). They must not wrap, and
+ * they must not push the page into horizontal scroll — so the block scrolls
+ * instead.
+ */
+.sl-markdown-content pre {
+  overflow-x: auto;
+}
+
+.sl-markdown-content pre code {
+  white-space: pre;
+}
+
+/* Wide reference tables scroll on their own rather than overflowing the page. */
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
