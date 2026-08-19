@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { monoDark, monoLight } from './src/styles/code-themes.mjs';
 
 /**
  * The sidebar is generated from nav.json rather than the filesystem: order is
@@ -38,16 +39,12 @@ export default defineConfig({
       },
       lastUpdated: true,
       customCss: ['./src/styles/custom.css'],
-      // Pinned rather than left to the default so the greyscale filter in
-      // custom.css has a predictable lightness distribution to work from.
+      // Only the token colours are set here. The frame — size, padding,
+      // background, border — is styled in custom.css: Expressive Code's
+      // styleOverrides silently no-op'd (--ec-* custom properties came back
+      // empty), and plain CSS is verifiable.
       expressiveCode: {
-        themes: ['github-dark', 'github-light'],
-        styleOverrides: {
-          borderRadius: '0.45rem',
-          borderColor: 'var(--sl-color-hairline)',
-          codeBackground: 'var(--sl-color-bg-inline-code)',
-          frames: { shadowColor: 'transparent' },
-        },
+        themes: [monoDark, monoLight],
       },
       sidebar: nav.sections.map((section) => ({
         label: section.title,

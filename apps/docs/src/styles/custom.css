@@ -3,8 +3,7 @@
  *
  * That theme is already pure neutral — every colour is oklch(L 0 0), zero
  * chroma — so the values below are copied across verbatim rather than
- * approximated. If the dashboard palette changes, change it here too; these are
- * the same numbers.
+ * approximated. If the dashboard palette changes, change it here too.
  *
  *   dashboard token          light            dark
  *   ----------------------------------------------------------
@@ -19,15 +18,17 @@
 
 @import '@fontsource-variable/geist';
 
-/* ── Dark (Starlight's default :root) ─────────────────────────────────────── */
+/* ── Palette ──────────────────────────────────────────────────────────────── */
 
 :root {
   --sl-font: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --sl-font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono',
+    Menlo, Consolas, monospace;
 
-  /* Starlight's scale runs light → dark; in dark mode gray-1 is the brightest. */
+  /* Starlight's ramp runs light → dark; in dark mode gray-1 is brightest. */
   --sl-color-white: oklch(0.985 0 0);
   --sl-color-gray-1: oklch(0.985 0 0);
-  --sl-color-gray-2: oklch(0.92 0 0);
+  --sl-color-gray-2: oklch(0.87 0 0);
   --sl-color-gray-3: oklch(0.708 0 0);
   --sl-color-gray-4: oklch(0.556 0 0);
   --sl-color-gray-5: oklch(0.371 0 0);
@@ -45,34 +46,36 @@
   --sl-color-bg-sidebar: oklch(0.145 0 0);
   --sl-color-bg-inline-code: oklch(0.269 0 0);
 
-  --sl-color-hairline: oklch(1 0 0 / 10%);
-  --sl-color-hairline-light: oklch(1 0 0 / 10%);
-  --sl-color-hairline-shade: oklch(1 0 0 / 10%);
+  --sl-color-hairline: oklch(1 0 0 / 9%);
+  --sl-color-hairline-light: oklch(1 0 0 / 6%);
+  --sl-color-hairline-shade: oklch(1 0 0 / 9%);
 
-  /* Asides/callouts are neutral too — differentiated by weight, not colour. */
+  /* Asides differentiate by weight and rule, not by colour. */
   --sl-color-blue: oklch(0.708 0 0);
-  --sl-color-blue-low: oklch(0.269 0 0);
+  --sl-color-blue-low: oklch(0.235 0 0);
   --sl-color-blue-high: oklch(0.92 0 0);
   --sl-color-purple: oklch(0.708 0 0);
-  --sl-color-purple-low: oklch(0.269 0 0);
+  --sl-color-purple-low: oklch(0.235 0 0);
   --sl-color-purple-high: oklch(0.92 0 0);
   --sl-color-green: oklch(0.708 0 0);
-  --sl-color-green-low: oklch(0.269 0 0);
+  --sl-color-green-low: oklch(0.235 0 0);
   --sl-color-green-high: oklch(0.92 0 0);
   --sl-color-orange: oklch(0.708 0 0);
-  --sl-color-orange-low: oklch(0.269 0 0);
+  --sl-color-orange-low: oklch(0.235 0 0);
   --sl-color-orange-high: oklch(0.92 0 0);
   --sl-color-red: oklch(0.708 0 0);
-  --sl-color-red-low: oklch(0.269 0 0);
+  --sl-color-red-low: oklch(0.235 0 0);
   --sl-color-red-high: oklch(0.92 0 0);
-}
 
-/* ── Light ────────────────────────────────────────────────────────────────── */
+  /* Consumed by the Expressive Code overrides in astro.config.mjs. */
+  --code-bg: oklch(0.185 0 0);
+  --code-chrome-bg: oklch(0.205 0 0);
+}
 
 :root[data-theme='light'] {
   --sl-color-white: oklch(0.145 0 0);
   --sl-color-gray-1: oklch(0.205 0 0);
-  --sl-color-gray-2: oklch(0.29 0 0);
+  --sl-color-gray-2: oklch(0.35 0 0);
   --sl-color-gray-3: oklch(0.556 0 0);
   --sl-color-gray-4: oklch(0.708 0 0);
   --sl-color-gray-5: oklch(0.922 0 0);
@@ -87,104 +90,449 @@
   --sl-color-bg: oklch(1 0 0);
   --sl-color-bg-nav: oklch(1 0 0);
   --sl-color-bg-sidebar: oklch(1 0 0);
-  --sl-color-bg-inline-code: oklch(0.97 0 0);
+  --sl-color-bg-inline-code: oklch(0.965 0 0);
 
   --sl-color-hairline: oklch(0.922 0 0);
-  --sl-color-hairline-light: oklch(0.922 0 0);
+  --sl-color-hairline-light: oklch(0.945 0 0);
   --sl-color-hairline-shade: oklch(0.922 0 0);
 
   --sl-color-blue: oklch(0.556 0 0);
-  --sl-color-blue-low: oklch(0.97 0 0);
+  --sl-color-blue-low: oklch(0.975 0 0);
   --sl-color-blue-high: oklch(0.29 0 0);
   --sl-color-purple: oklch(0.556 0 0);
-  --sl-color-purple-low: oklch(0.97 0 0);
+  --sl-color-purple-low: oklch(0.975 0 0);
   --sl-color-purple-high: oklch(0.29 0 0);
   --sl-color-green: oklch(0.556 0 0);
-  --sl-color-green-low: oklch(0.97 0 0);
+  --sl-color-green-low: oklch(0.975 0 0);
   --sl-color-green-high: oklch(0.29 0 0);
   --sl-color-orange: oklch(0.556 0 0);
-  --sl-color-orange-low: oklch(0.97 0 0);
+  --sl-color-orange-low: oklch(0.975 0 0);
   --sl-color-orange-high: oklch(0.29 0 0);
   --sl-color-red: oklch(0.556 0 0);
-  --sl-color-red-low: oklch(0.97 0 0);
+  --sl-color-red-low: oklch(0.975 0 0);
   --sl-color-red-high: oklch(0.29 0 0);
+
+  --code-bg: oklch(0.981 0 0);
+  --code-chrome-bg: oklch(0.965 0 0);
 }
 
-/* ── Chrome ───────────────────────────────────────────────────────────────── */
+/* ── Type scale ───────────────────────────────────────────────────────────── */
 
-/* The dashboard separates surfaces with hairlines, not fills. */
+/*
+ * Starlight's defaults are sized for prose. This is reference documentation —
+ * dense tables, long signatures, a lot of scanning — so the whole scale comes
+ * down roughly 15% and headings lose their display-face proportions.
+ */
+:root {
+  --sl-text-body: 0.9375rem;
+  --sl-text-body-sm: 0.875rem;
+  --sl-text-code: 0.8125rem;
+  --sl-text-code-sm: 0.75rem;
+  --sl-text-h1: 1.875rem;
+  --sl-text-h2: 1.375rem;
+  --sl-text-h3: 1.0625rem;
+  --sl-text-h4: 0.9375rem;
+  --sl-text-h5: 0.875rem;
+  --sl-line-height: 1.7;
+  --sl-line-height-headings: 1.25;
+  --sl-content-width: 48rem;
+  --sl-sidebar-width: 17rem;
+  --sl-nav-height: 3.5rem;
+}
+
+.sl-markdown-content {
+  font-size: var(--sl-text-body);
+}
+
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600;
+  letter-spacing: -0.011em;
+}
+
+.sl-markdown-content h1 {
+  letter-spacing: -0.021em;
+}
+
+/*
+ * Section rule above each h2.
+ *
+ * It has to go on the wrapper, not the heading: Starlight's anchor-links
+ * feature renders headings as `display: inline` inside
+ * `.sl-heading-wrapper`, so a border on the h2 itself draws only under the
+ * text box and reads as a short stray stub.
+ */
+.sl-markdown-content :is(h2, h3, h4):not(:where(.not-content *)) {
+  margin-top: 0;
+}
+
+.sl-markdown-content .sl-heading-wrapper.level-h2 {
+  margin-top: 2.75rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--sl-color-hairline-light);
+}
+
+.sl-markdown-content .sl-heading-wrapper:is(.level-h3, .level-h4) {
+  margin-top: 2rem;
+}
+
+.sl-markdown-content > :first-child.sl-heading-wrapper {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* The docs use `---` between sections; keep it a true full-width hairline. */
+.sl-markdown-content hr {
+  border: none;
+  border-top: 1px solid var(--sl-color-hairline-light);
+  margin-block: 2.5rem;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+
 .header {
   border-bottom: 1px solid var(--sl-color-hairline);
   box-shadow: none;
+  background: var(--sl-color-bg-nav);
 }
+
+.site-title {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  letter-spacing: -0.01em;
+}
+
+/* The default search field is wider than it needs to be at desktop widths. */
+site-search button[data-open-modal] {
+  max-width: 15rem;
+  border-radius: 0.45rem;
+  font-size: 0.8125rem;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
 
 #starlight__sidebar,
 .sidebar-pane {
   border-inline-end: 1px solid var(--sl-color-hairline);
+  background: var(--sl-color-bg-sidebar);
 }
 
-/* Sidebar: current page marked by weight and a rule, not a colour wash. */
+.sidebar-content {
+  padding-top: 0.75rem;
+}
+
+/* Group labels recede: small, uppercase, muted — chrome, not content. */
+.sidebar-content summary,
+.sidebar-content > ul > li > span,
+.sidebar-content .large {
+  font-size: 0.6875rem !important;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sl-color-gray-3);
+}
+
+.sidebar-content ul ul {
+  /* Guide line for the group, so nesting reads without indentation noise. */
+  border-inline-start: 1px solid var(--sl-color-hairline);
+  padding-inline-start: 0;
+  margin-inline-start: 0.3rem;
+}
+
+.sidebar-content a {
+  font-size: 0.8125rem;
+  padding-block: 0.3rem;
+  padding-inline-start: 0.75rem;
+  border-radius: 0;
+  color: var(--sl-color-gray-2);
+}
+
+.sidebar-content a:hover {
+  color: var(--sl-color-white);
+  background: transparent;
+}
+
+/*
+ * Current page: the group's guide line thickens and goes solid beside it.
+ * The previous inset box-shadow sat next to that border and read as a stray
+ * bracket.
+ */
 .sidebar-content a[aria-current='page'],
 .sidebar-content a[aria-current='page']:hover {
-  background-color: transparent;
+  background: transparent;
   color: var(--sl-color-white);
+  font-weight: 550;
+  box-shadow: inset 1px 0 0 var(--sl-color-white);
+}
+
+/* ── Right-hand table of contents ─────────────────────────────────────────── */
+
+.right-sidebar {
+  border-inline-start: 1px solid var(--sl-color-hairline);
+}
+
+starlight-toc nav > h2 {
+  font-size: 0.6875rem;
   font-weight: 600;
-  box-shadow: inset 2px 0 0 var(--sl-color-white);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sl-color-gray-3);
+}
+
+starlight-toc nav a {
+  font-size: 0.8125rem;
+  padding-block: 0.28rem;
+  color: var(--sl-color-gray-3);
+}
+
+starlight-toc nav a[aria-current='true'],
+starlight-toc nav a:hover {
+  color: var(--sl-color-white);
 }
 
 /* ── Code ─────────────────────────────────────────────────────────────────── */
 
-/* Match the dashboard's --radius: 0.45rem. */
-.expressive-code .frame pre,
-.expressive-code .frame .header,
-.sl-markdown-content pre {
+/*
+ * Code needs to read as a distinct surface. Without a background and border it
+ * sits directly on the page and looks like pasted plain text — which is
+ * especially bad here, where several pages are ASCII diagrams.
+ *
+ * Token colours are authored monochrome in ./code-themes.mjs rather than
+ * produced by desaturating a colour theme, which flattens everything onto the
+ * same value.
+ */
+/*
+ * The size goes on the `pre`, not just the `code`. Expressive Code renders
+ * `code` as `display: inline`, so with a smaller size only on the child the
+ * first line box still uses the parent's larger font metrics and opens the
+ * block with ~26px of stray leading.
+ */
+.expressive-code .frame pre {
+  background: var(--code-bg);
+  border: 1px solid var(--sl-color-hairline);
   border-radius: 0.45rem;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  padding-block: 0.85rem;
 }
 
 /*
- * Syntax highlighting desaturated to greyscale. The underlying theme's
- * *lightness* differences survive, so tokens stay distinguishable without any
- * hue. Delete this rule to get colour back.
+ * `display: block` on the code element too: it ships as `inline` but contains
+ * block-level `.ec-line` divs, so the anonymous inline box in front of them
+ * adds another empty line's worth of height at the top of every block.
  */
-.expressive-code .frame pre code {
-  filter: saturate(0);
+.expressive-code .frame pre > code {
+  display: block;
+  font-size: inherit;
+  line-height: inherit;
 }
-
-/* ── Content ──────────────────────────────────────────────────────────────── */
 
 /*
- * Several pages use ASCII diagrams inside fenced blocks (the extraction
- * pipeline, the retrieval flow, the runtime topology). They must not wrap, and
- * they must not push the page into horizontal scroll — so the block scrolls.
+ * Horizontal padding goes on the innermost line element, not on `code`.
+ * Padding on `code` sits inside the `overflow-x` container and is added to its
+ * scroll width, so every block reported ~35px of overflow and showed a
+ * scrollbar even when the content fitted.
  */
-.sl-markdown-content pre {
-  overflow-x: auto;
+.expressive-code .ec-line .code {
+  padding-inline: 1.1rem;
 }
 
+.expressive-code .frame.is-terminal .header {
+  background: var(--code-chrome-bg);
+  border-color: var(--sl-color-hairline);
+  font-size: 0.75rem;
+}
+
+/* The copy button should be quiet until the block is hovered. */
+.expressive-code .copy button {
+  background: var(--code-chrome-bg);
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 0.3rem;
+}
+
+/*
+ * ASCII diagrams overflow on narrow viewports; the default overlay scrollbar
+ * renders as a stray dark pill under the frame. Make it part of the block.
+ */
+.expressive-code pre::-webkit-scrollbar {
+  height: 0.5rem;
+}
+
+.expressive-code pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.expressive-code pre::-webkit-scrollbar-thumb {
+  background: var(--sl-color-gray-5);
+  border-radius: 999px;
+}
+
+/* ASCII diagrams must not wrap, and must not push the page sideways. */
+.expressive-code pre code,
 .sl-markdown-content pre code {
   white-space: pre;
 }
 
-/* Wide reference tables scroll on their own rather than overflowing the page. */
+.expressive-code pre,
+.sl-markdown-content pre {
+  overflow-x: auto;
+}
+
+.sl-markdown-content :not(pre) > code {
+  font-size: 0.85em;
+  padding: 0.15em 0.36em;
+  border-radius: 0.3rem;
+  border: 1px solid var(--sl-color-hairline-light);
+  font-weight: 450;
+}
+
+/* ── Tables ───────────────────────────────────────────────────────────────── */
+
+/*
+ * Horizontal rules only. A full grid turns every reference table — and there
+ * are many — into a heavy box that competes with the prose around it.
+ */
 .sl-markdown-content table {
   display: block;
   overflow-x: auto;
   max-width: 100%;
   border-collapse: collapse;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.sl-markdown-content :is(th, td) {
+  border: none;
+  border-bottom: 1px solid var(--sl-color-hairline-light);
+  padding: 0.5rem 1.15rem 0.5rem 0;
+  vertical-align: baseline;
 }
 
 .sl-markdown-content th {
+  font-size: 0.6875rem;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sl-color-gray-3);
   text-align: start;
+  border-bottom-color: var(--sl-color-hairline);
+  white-space: nowrap;
 }
 
-.sl-markdown-content th,
-.sl-markdown-content td {
-  border: 1px solid var(--sl-color-hairline);
+.sl-markdown-content tbody tr:last-child :is(th, td) {
+  border-bottom: none;
 }
 
-/* Blockquotes — the docs use these for warnings. A rule, not a tint. */
+/* ── Asides and quotes ────────────────────────────────────────────────────── */
+
 .sl-markdown-content blockquote {
   border-inline-start: 2px solid var(--sl-color-gray-4);
+  padding-inline-start: 1.15rem;
   color: var(--sl-color-gray-2);
+  font-style: normal;
+}
+
+.starlight-aside {
+  border-inline-start-width: 2px;
+  border-radius: 0 0.45rem 0.45rem 0;
+  padding: 0.9rem 1.1rem;
+}
+
+.starlight-aside__title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Landing page ─────────────────────────────────────────────────────────── */
+
+/*
+ * The splash template lets content run the full viewport width, which at 1440px
+ * gives unreadable line lengths. Constrain it to the same measure as a normal
+ * page, and pull the hero's proportions back from display size.
+ */
+/*
+ * The hero sits in a 1080px container while the body is 768px, so the two
+ * start at different left edges — 156px apart, which reads as a mistake.
+ * Constrain the hero's stack to the same measure so they share an edge.
+ */
+/*
+ * Starlight lays the hero out as a two-column grid (~7fr text / 4fr image).
+ * There is no hero image, so the second track is 380px of dead space and the
+ * text is squeezed into 667px — which is why it did not line up with the 768px
+ * body below it. One column, and the stack below can take the full measure.
+ */
+.hero {
+  padding-block: 3rem 2.5rem;
+  grid-template-columns: 1fr;
+}
+
+/* `.sl-flex.stack` rather than `.stack`: Astro's scoped class raises the
+   specificity of Starlight's own rule, and a single class loses to it. */
+.hero > .sl-flex.stack {
+  max-width: 48rem;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.hero h1 {
+  font-size: clamp(2.25rem, 4.5vw, 3rem);
+  letter-spacing: -0.03em;
+}
+
+.hero .tagline {
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--sl-color-gray-2);
+  max-width: 36rem;
+}
+
+.hero .actions {
+  margin-top: 1.25rem;
+  gap: 0.6rem;
+}
+
+/* Starlight's hero buttons are `.sl-link-button`, not `.action`. */
+.hero .sl-link-button {
+  border-radius: 0.45rem;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.95rem;
+}
+
+.hero .sl-link-button.primary {
+  background: var(--sl-color-white);
+  color: var(--sl-color-black);
+  border: 1px solid var(--sl-color-white);
+}
+
+.hero .sl-link-button.minimal {
+  border: 1px solid var(--sl-color-hairline);
+  color: var(--sl-color-gray-2);
+  padding-inline: 0.95rem;
+}
+
+.hero .sl-link-button.minimal:hover {
+  color: var(--sl-color-white);
+  border-color: var(--sl-color-gray-4);
+}
+
+[data-has-hero] .sl-markdown-content {
+  max-width: 48rem;
+  margin-inline: auto;
+}
+
+/* The generic "getting started" tables on the landing page read as link rows. */
+[data-has-hero] .sl-markdown-content table :is(th, td):first-child {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/*
+ * Most pages open a section with `---` followed by `## Heading`. That renders
+ * an <hr> immediately above a heading that already draws its own rule, giving
+ * two hairlines a few pixels apart. Drop the redundant one.
+ */
+.sl-markdown-content hr:has(+ .sl-heading-wrapper.level-h2) {
+  display: none;
 }

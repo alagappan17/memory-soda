@@ -1,0 +1,563 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { Code } from '@astrojs/starlight/components';
+
+const REPO = 'https://github.com/alagappan17/memory-soda';
+
+const integration = `import { MemorySodaClient } from '@memory-soda/sdk';
+
+const memory = MemorySodaClient.fromEnv();
+
+// Before the model call.
+const { context } = await memory.recall({
+  dataset: userId,
+  query: userMessage,
+});
+
+const reply = await yourModel({
+  system: \`You are a helpful assistant.\\n\\n\${context}\`,
+  messages,
+});
+
+// After the turn. Extraction runs in the background.
+await memory.workingMemory.addMessage(threadId, {
+  role: 'assistant',
+  content: reply,
+});`;
+
+const contextBlock = `Known facts about the user, most relevant first.
+
+# FACTS  (format: fact (valid: from – to))
+- user lives in lisbon        (valid: 2026-08-01 – present)
+- user is vegetarian          (valid: 2026-03-02 – present)
+- user shoots travel vlogging (valid: 2026-08-16 – present)
+
+# ENTITIES
+- lisbon (PLACE)
+- travel vlogging (TOPIC)`;
+
+const install = `git clone ${REPO.replace('https://', '')}
+npm install && npm run dev`;
+
+const layers = [
+  {
+    name: 'Working',
+    holds: 'The live conversation window, compacted automatically.',
+    read: 'prepare()',
+    cost: 'Pure SQL, milliseconds.',
+  },
+  {
+    name: 'Episodic',
+    holds: 'A summary of each stretch of a conversation, and where every fact came from.',
+    read: "recall({ include: ['episodes'] })",
+    cost: 'One vector search.',
+  },
+  {
+    name: 'Semantic',
+    holds: 'Durable subject–predicate–object facts with the window of time they are true for.',
+    read: 'recall()',
+    cost: 'One embedding, three parallel queries.',
+  },
+];
+
+const features = [
+  {
+    title: 'Contradictions supersede',
+    body: 'Say you moved to Lisbon and the Berlin fact is marked superseded, not deleted. An LLM judge decides which of two conflicting claims survives; exclusive states replace, compatible ones coexist.',
+    href: '/concepts/bi-temporal-model/',
+  },
+  {
+    title: 'Three retrieval signals, fused',
+    body: 'Vector similarity, entity-anchored lookup and Postgres full-text run in parallel and are merged by rank. The anchor signal is what connects “a trip to Thailand” to “favourite dessert is mango sticky rice”.',
+    href: '/concepts/retrieval/',
+  },
+  {
+    title: 'Time travel',
+    body: 'asOf answers what the system believed at any past instant — because nothing is ever really deleted. Useful for auditing a decision, and for telling a retrieval bug apart from a memory that legitimately changed.',
+    href: '/guides/point-in-time-recall/',
+  },
+  {
+    title: 'Provenance on every fact',
+    body: 'Each claim keeps the verbatim quote it came from and the episode that produced it, so you can always answer why the assistant thinks it knows something.',
+    href: '/concepts/semantic-memory/',
+  },
+  {
+    title: 'Postgres and nothing else',
+    body: 'No vector database, no graph database, no queue, no vendor. CREATE EXTENSION vector, run one process, and you are done.',
+    href: '/operations/self-hosting/',
+  },
+  {
+    title: 'A pipeline you can watch',
+    body: 'The bundled playground shows every request, every extracted triple and every contradiction verdict as it happens — so “why was that not remembered?” is a question with an answer.',
+    href: '/dashboard/playground/',
+  },
+];
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'memory-soda',
+    template: 'splash',
+    head: [
+      { tag: 'title', content: 'memory-soda — a memory layer for AI agents' },
+    ],
+  }}
+  hasSidebar={false}
+>
+  <div class="landing not-content">
+    <section class="hero-block">
+      <p class="eyebrow">Open source · Self-hosted · MIT</p>
+      <h1>Memory for agents that<br />actually holds up over time.</h1>
+      <p class="lede">
+        Send memory-soda your conversations. It works out which statements are
+        worth keeping, resolves them against what it already believes, and hands
+        back a prompt-ready block of text before your next model call.
+      </p>
+      <div class="cta">
+        <a class="btn btn-primary" href="/getting-started/installation/">Get started</a>
+        <a class="btn" href="/getting-started/quickstart/">Quickstart</a>
+        <a class="btn" href={REPO} target="_blank" rel="noreferrer">GitHub</a>
+      </div>
+      <div class="install">
+        <Code code={install} lang="bash" frame="none" />
+      </div>
+    </section>
+
+    <section class="band">
+      <header class="band-head">
+        <p class="eyebrow">The integration</p>
+        <h2>Two calls per turn.</h2>
+        <p class="band-lede">
+          One before the model to fetch what is known, one after to hand over
+          what was said. Extraction runs in the background — you never wait for it.
+        </p>
+      </header>
+      <div class="split">
+        <div class="split-col">
+          <p class="col-label">Your code</p>
+          <Code code={integration} lang="ts" />
+        </div>
+        <div class="split-col">
+          <p class="col-label">What <code>context</code> contains</p>
+          <Code code={contextBlock} lang="text" />
+          <p class="col-note">
+            A string. It goes straight into your system prompt — no formatting,
+            no embeddings to handle, no JSON to walk.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <header class="band-head">
+        <p class="eyebrow">What it stores</p>
+        <h2>Three layers, one message stream.</h2>
+      </header>
+      <ul class="layers">
+        {layers.map((l, i) => (
+          <li>
+            <span class="layer-index">{String(i + 1).padStart(2, '0')}</span>
+            <div class="layer-body">
+              <h3>{l.name}</h3>
+              <p>{l.holds}</p>
+            </div>
+            <div class="layer-meta">
+              <code>{l.read}</code>
+              <span>{l.cost}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="band">
+      <header class="band-head">
+        <p class="eyebrow">Why this one</p>
+        <h2>It stores claims, not transcripts.</h2>
+        <p class="band-lede">
+          Embedding a conversation retrieves messages. “I moved to Berlin” and “I
+          moved to Lisbon last month” come back with similar scores and the model
+          has to guess which is current. Every claim here carries the window of
+          time it is true for.
+        </p>
+      </header>
+      <div class="grid">
+        {features.map((f) => (
+          <a class="cell" href={f.href}>
+            <h3>{f.title}</h3>
+            <p>{f.body}</p>
+            <span class="cell-more">Read more</span>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="honest">
+        <p class="eyebrow">Before you adopt it</p>
+        <p>
+          memory-soda is pre-1.0. Facts can only be derived from conversation —
+          there is no write API yet — every fact must be about the user, and a
+          statement takes tens of seconds to become retrievable. Those limits are
+          written down rather than glossed over.
+        </p>
+        <a class="btn" href="/introduction/overview/#known-limitations">
+          Known limitations
+        </a>
+      </div>
+    </section>
+
+    <section class="band closing">
+      <h2>Start reading.</h2>
+      <div class="closing-grid">
+        <a href="/introduction/how-it-works/"><strong>How it works</strong><span>The write path and the read path, in detail.</span></a>
+        <a href="/getting-started/your-first-integration/"><strong>Your first integration</strong><span>A complete chat turn with your own model.</span></a>
+        <a href="/sdk/"><strong>SDK reference</strong><span>Every method and every exported type.</span></a>
+        <a href="/api/"><strong>HTTP API</strong><span>Every endpoint, with request and response bodies.</span></a>
+      </div>
+    </section>
+  </div>
+</StarlightPage>
+
+<style is:global>
+  /*
+   * `template: splash` still renders the frontmatter title as an <h1> above the
+   * slot. The landing page supplies its own headline, so that would be two h1s
+   * — bad for the outline and for the document. Scoped by :has() so only this
+   * page is affected.
+   */
+  body:has(.landing) .sl-container > h1#_top {
+    display: none;
+  }
+
+  /* The landing page runs wider than the 48rem doc measure. */
+  body:has(.landing) .sl-container > .sl-markdown-content {
+    max-width: none;
+  }
+</style>
+
+<style>
+  .landing {
+    --measure: 68rem;
+    width: 100%;
+    max-width: var(--measure);
+    margin-inline: auto;
+    padding-inline: 1.5rem;
+  }
+
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--sl-color-gray-3);
+    margin: 0 0 0.9rem;
+  }
+
+  /* ── Hero ─────────────────────────────────────────────────────────────── */
+
+  .hero-block {
+    padding-block: 4.5rem 4rem;
+  }
+
+  .hero-block h1 {
+    font-size: clamp(2rem, 4.6vw, 3.1rem);
+    line-height: 1.08;
+    letter-spacing: -0.033em;
+    font-weight: 600;
+    margin: 0 0 1.4rem;
+    color: var(--sl-color-white);
+  }
+
+  .lede {
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    color: var(--sl-color-gray-2);
+    max-width: 38rem;
+    margin: 0 0 2rem;
+  }
+
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.45rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--sl-color-gray-2);
+    text-decoration: none;
+    transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+  }
+
+  .btn:hover {
+    color: var(--sl-color-white);
+    border-color: var(--sl-color-gray-4);
+  }
+
+  .btn-primary,
+  .btn-primary:hover {
+    background: var(--sl-color-white);
+    border-color: var(--sl-color-white);
+    color: var(--sl-color-black);
+  }
+
+  .install {
+    max-width: 32rem;
+  }
+
+  /* ── Bands ────────────────────────────────────────────────────────────── */
+
+  .band {
+    padding-block: 4rem;
+    border-top: 1px solid var(--sl-color-hairline);
+  }
+
+  .band-head {
+    max-width: 40rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .band h2 {
+    font-size: clamp(1.375rem, 2.4vw, 1.75rem);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    margin: 0;
+    color: var(--sl-color-white);
+  }
+
+  .band-lede {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--sl-color-gray-3);
+    margin: 0.9rem 0 0;
+  }
+
+  /* ── Split demo ───────────────────────────────────────────────────────── */
+
+  .split {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .col-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--sl-color-gray-3);
+    margin: 0 0 0.6rem;
+  }
+
+  .col-label code {
+    font-size: 0.75rem;
+    color: var(--sl-color-gray-2);
+  }
+
+  .col-note {
+    font-size: 0.8125rem;
+    line-height: 1.65;
+    color: var(--sl-color-gray-3);
+    margin: 0.9rem 0 0;
+  }
+
+  /* ── Layers ───────────────────────────────────────────────────────────── */
+
+  .layers {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .layers li {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr) minmax(0, 15rem);
+    gap: 1.5rem;
+    align-items: baseline;
+    padding-block: 1.5rem;
+    border-top: 1px solid var(--sl-color-hairline-light);
+  }
+
+  .layers li:first-child {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .layer-index {
+    font-family: var(--sl-font-mono);
+    font-size: 0.75rem;
+    color: var(--sl-color-gray-4);
+  }
+
+  .layer-body h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.35rem;
+    color: var(--sl-color-white);
+  }
+
+  .layer-body p {
+    font-size: 0.875rem;
+    line-height: 1.65;
+    color: var(--sl-color-gray-3);
+    margin: 0;
+  }
+
+  .layer-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .layer-meta code {
+    font-family: var(--sl-font-mono);
+    font-size: 0.75rem;
+    color: var(--sl-color-gray-2);
+    background: var(--sl-color-bg-inline-code);
+    border: 1px solid var(--sl-color-hairline-light);
+    border-radius: 0.3rem;
+    padding: 0.15em 0.4em;
+    width: fit-content;
+  }
+
+  .layer-meta span {
+    font-size: 0.75rem;
+    color: var(--sl-color-gray-4);
+  }
+
+  /* ── Feature grid ─────────────────────────────────────────────────────── */
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 1px;
+    background: var(--sl-color-hairline-light);
+    border: 1px solid var(--sl-color-hairline-light);
+    border-radius: 0.45rem;
+    overflow: hidden;
+  }
+
+  .cell {
+    display: block;
+    background: var(--sl-color-bg);
+    padding: 1.6rem;
+    text-decoration: none;
+    transition: background-color 0.15s;
+  }
+
+  .cell:hover {
+    background: var(--sl-color-gray-7);
+  }
+
+  .cell h3 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin: 0 0 0.55rem;
+    color: var(--sl-color-white);
+  }
+
+  .cell p {
+    font-size: 0.8125rem;
+    line-height: 1.65;
+    color: var(--sl-color-gray-3);
+    margin: 0 0 0.9rem;
+  }
+
+  .cell-more {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--sl-color-gray-4);
+  }
+
+  .cell:hover .cell-more {
+    color: var(--sl-color-white);
+  }
+
+  /* ── Honest note ──────────────────────────────────────────────────────── */
+
+  .honest {
+    max-width: 44rem;
+    padding: 1.75rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.45rem;
+  }
+
+  .honest p {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--sl-color-gray-2);
+    margin: 0 0 1.25rem;
+  }
+
+  /* ── Closing ──────────────────────────────────────────────────────────── */
+
+  .closing-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--sl-color-hairline-light);
+    margin-top: 2rem;
+    border-block: 1px solid var(--sl-color-hairline-light);
+  }
+
+  .closing-grid a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    background: var(--sl-color-bg);
+    padding: 1.35rem 1.25rem;
+    text-decoration: none;
+    transition: background-color 0.15s;
+  }
+
+  .closing-grid a:hover {
+    background: var(--sl-color-gray-7);
+  }
+
+  .closing-grid strong {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+
+  .closing-grid span {
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    color: var(--sl-color-gray-3);
+  }
+
+  @media (max-width: 62rem) {
+    .closing-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 34rem) {
+    .closing-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 50rem) {
+    .layers li {
+      grid-template-columns: 1.75rem minmax(0, 1fr);
+    }
+    .layer-meta {
+      grid-column: 2;
+      flex-direction: row;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-top: 0.6rem;
+    }
+  }
+</style>
