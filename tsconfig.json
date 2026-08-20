@@ -12,11 +12,14 @@
     {
       "path": "./apps/api"
     },
-{
+    {
       "path": "./packages/types"
     },
     {
       "path": "./packages/sdk"
+    },
+    {
+      "path": "./apps/docs"
     }
   ]
 }

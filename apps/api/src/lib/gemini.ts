@@ -3,22 +3,19 @@ import { generateObject, generateText } from 'ai';
 import axios from 'axios';
 import type { z } from 'zod';
 import type { EpisodeContext } from '@memory-soda/types';
+import { config } from '../config.js';
 
-const apiKey = process.env['GOOGLE_GENERATIVE_AI_API_KEY'];
-if (!apiKey || apiKey.trim().length === 0) {
-  throw new Error(
-    'GOOGLE_GENERATIVE_AI_API_KEY environment variable is required but not set',
-  );
-}
-const google = createGoogleGenerativeAI({
+const {
   apiKey,
-});
+  model: GEMINI_MODEL,
+  timeoutMs: GEMINI_TIMEOUT_MS,
+  structuredTimeoutMs: STRUCTURED_TIMEOUT_MS,
+  embedModel: EMBED_MODEL,
+  embedDim: EMBED_DIM,
+  embedUrl: EMBED_URL,
+} = config.gemini;
 
-const GEMINI_TIMEOUT_MS = 30000; // 30 seconds
-const GEMINI_MODEL = 'gemini-2.5-flash';
-const EMBED_MODEL = 'models/gemini-embedding-001';
-const EMBED_DIM = 768;
-const EMBED_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001';
+const google = createGoogleGenerativeAI({ apiKey });
 
 async function generateTextWithTimeout<T>(
   fn: (signal: AbortSignal) => Promise<T>,
@@ -64,11 +61,6 @@ export async function generateContent(
   );
   return text;
 }
-
-// Structured calls run in background jobs (extraction, contradiction judging),
-// not on a request path — allow for gemini-2.5-flash's thinking-mode tail
-// latency, which routinely exceeds the interactive 30s budget.
-const STRUCTURED_TIMEOUT_MS = 90000;
 
 /**
  * Structured completion: the model's output is constrained to and validated

@@ -93,21 +93,26 @@ The fact count is prompt guidance, not enforcement — a model can exceed it.
 
 ## Model and timeouts
 
-**Hard-coded** in `apps/api/src/lib/gemini.ts`.
+Defaults. The first six are overridable per
+[environment variable](./environment-variables/#model-and-endpoint); the rest are
+hard-coded in `apps/api/src/lib/gemini.ts`.
 
-| | Value |
-|---|---|
-| LLM | `gemini-2.5-flash` |
-| Embedding model | `gemini-embedding-001` |
-| Embedding dimensions | **768** — also baked into the schema |
-| Text call timeout | 30 s |
-| Structured call timeout | 90 s |
-| Embedding timeout | 30 s |
-| Embedding batch size | 100 texts per request |
-| Thinking budget (structured calls) | 0 — disabled |
+| | Default | Override |
+|---|---|---|
+| LLM | `gemini-2.5-flash` | `GEMINI_MODEL` |
+| Text call timeout | 30 s | `GEMINI_TIMEOUT_MS` |
+| Structured call timeout | 90 s | `GEMINI_STRUCTURED_TIMEOUT_MS` |
+| Embedding model | `models/gemini-embedding-001` | `GEMINI_EMBED_MODEL` |
+| Embedding dimensions | **768** | `GEMINI_EMBED_DIM` — but see below |
+| API base URL | `…googleapis.com/v1beta` | `GEMINI_API_BASE_URL` |
+| Embedding timeout | 30 s | — |
+| Embedding batch size | 100 texts per request | — |
+| Thinking budget (structured calls) | 0 — disabled | — |
 
-Changing the embedding dimension is not a config change: it needs a migration and
-a re-embed of every stored vector.
+> Embedding dimensionality is an environment variable but not really a runtime
+> setting: the pgvector columns are `vector(768)`, so any other value is rejected
+> on insert. Changing it needs a migration *and* a re-embed of every stored
+> vector. The API warns at startup when the two disagree.
 
 ---
 

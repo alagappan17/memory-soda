@@ -75,6 +75,47 @@ scrolls.
 
 ---
 
+## Model and endpoint
+
+All optional. Defaults shown; omit them and nothing changes.
+
+| Variable | Default | Description |
+|---|---|---|
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Model for summarisation, extraction, contradiction judging and synthesis. |
+| `GEMINI_TIMEOUT_MS` | `30000` | Timeout for interactive text calls. |
+| `GEMINI_STRUCTURED_TIMEOUT_MS` | `90000` | Timeout for schema-constrained calls (extraction, judging). Higher because these run in background jobs and tolerate thinking-mode tail latency. |
+| `GEMINI_EMBED_MODEL` | `models/gemini-embedding-001` | Embedding model. Include the `models/` prefix. |
+| `GEMINI_API_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta` | Base for the REST embedding endpoint. Point it at a proxy or gateway. |
+| `GEMINI_EMBED_DIM` | `768` | Embedding dimensionality. **See the warning below.** |
+
+The embedding URL is **derived** as `${GEMINI_API_BASE_URL}/${GEMINI_EMBED_MODEL}`
+rather than configured separately, so changing the model cannot leave the URL
+pointing at the previous one.
+
+A malformed numeric value logs a warning and falls back to the default rather
+than failing silently:
+
+```
+[gemini] GEMINI_TIMEOUT_MS="soon" is not a positive number — using 30000
+```
+
+> **`GEMINI_EMBED_DIM` is not really a runtime setting.** The `facts`, `entities`
+> and `episodes` tables declare `vector(768)` columns, so any other value is
+> rejected on insert. Changing it means a migration *and* re-embedding every
+> stored vector. The API warns at startup if the two disagree:
+>
+> ```
+> [gemini] GEMINI_EMBED_DIM=1536 does not match the vector(768) columns in the
+> database — embedding writes will fail until the schema is migrated.
+> ```
+
+> Switching `GEMINI_EMBED_MODEL` has the same consequence whenever the new model
+> emits a different number of dimensions, and existing vectors were produced by
+> the old model — mixing them in one index gives meaningless similarities even
+> when the dimensions happen to match.
+
+---
+
 ## Dashboard
 
 Build-time only. Vite inlines these into the bundle.
@@ -127,9 +168,17 @@ MIGRATE_ON_START=true
 # Requires the pgvector extension — `CREATE EXTENSION vector;`
 DATABASE_URL=postgresql://memory_user:memory_pass@localhost:5432/memory_db
 
-# ── Google Gemini (required) ─────────────────────────────────────────
+# ── Google Gemini ────────────────────────────────────────────────────
 # https://aistudio.google.com
 GOOGLE_GENERATIVE_AI_API_KEY=
+
+# Model and endpoint overrides. All optional; the defaults are shown.
+# GEMINI_MODEL=gemini-2.5-flash
+# GEMINI_TIMEOUT_MS=30000
+# GEMINI_STRUCTURED_TIMEOUT_MS=90000
+# GEMINI_EMBED_MODEL=models/gemini-embedding-001
+# GEMINI_API_BASE_URL=https://generativelanguage.googleapis.com/v1beta
+# GEMINI_EMBED_DIM=768
 
 # ── Dashboard (build time) ───────────────────────────────────────────
 VITE_API_URL=http://localhost:3004
@@ -148,12 +197,7 @@ Hard-coded in the source. Changing them means editing code.
 
 | Setting | Value | Location |
 |---|---|---|
-| LLM model | `gemini-2.5-flash` | `apps/api/src/lib/gemini.ts` |
-| Embedding model | `gemini-embedding-001` | same |
-| Embedding dimensions | `768` | same, **and baked into the schema** |
-| Text call timeout | 30 s | same |
-| Structured call timeout | 90 s | same |
-| Embedding batch size | 100 | same |
+| Embedding batch size | 100 | `apps/api/src/lib/gemini.ts` |
 | Postgres pool max | 20 | `apps/api/src/db/postgres.ts` |
 | Pool idle timeout | 30 s | same |
 | Pool connection timeout | 2 s | same |
@@ -165,19 +209,32 @@ Hard-coded in the source. Changing them means editing code.
 | Session lifetime | 7 days | `apps/api/src/services/session.service.ts` |
 | scrypt parameters | `N=2^15, r=8, p=3` | `apps/api/src/lib/password.ts` |
 
-Changing the embedding dimension is not a config change — it requires a migration
-and re-embedding every stored vector.
-
 ---
 
 ## Precedence and loading
 
-The API reads `process.env` directly. It does **not** load `.env` itself — that
-comes from the Nx dev server during `npm run dev`.
+Every variable is read in exactly one place — `apps/api/src/config.ts` — parsed
+and validated once at import. Nothing else in the API touches `process.env`.
 
-In production, supply variables through your process manager, container runtime
-or secret store. A `.env` file sitting next to a production build will be
-ignored.
+That means a misconfigured deployment fails on boot with **every** problem listed
+at once, rather than one variable at a time:
+
+```
+Error: Invalid environment configuration:
+  DATABASE_URL: DATABASE_URL is required
+  GOOGLE_GENERATIVE_AI_API_KEY: GOOGLE_GENERATIVE_AI_API_KEY is required
+
+See .env.example for the full list of supported variables.
+```
+
+A malformed value is an error too, not a silent fallback — `PORT=not-a-port`
+stops the boot instead of quietly reverting to 3004.
+
+The API does **not** load `.env` itself; that comes from the Nx dev server during
+`npm run dev`. In production, supply variables through your process manager,
+container runtime or secret store.
+
+A `.env` file sitting next to a production build is ignored.
 
 ---
 

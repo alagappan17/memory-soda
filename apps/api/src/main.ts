@@ -18,6 +18,7 @@ import threadRouter from './routes/thread.js';
 import threadsRouter from './routes/threads.js';
 import dashboardDatasetsRouter from './routes/dashboard-datasets.js';
 import recallRouter from './routes/recall.js';
+import { config } from './config.js';
 import { db, checkPostgres } from './db/postgres.js';
 import { listApiKeys, createApiKey } from './services/api-key.service.js';
 import { countUsers, createUser } from './services/user.service.js';
@@ -30,16 +31,13 @@ import { sweepSemanticMemory } from './services/semantic-memory.service.js';
 // In compiled output (dist/apps/api/src/), drizzle/ is at dist/drizzle/
 const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle');
 
-const host = process.env.HOST ?? 'localhost';
-const port = process.env.PORT ? Number(process.env.PORT) : 3004;
+const { host, port } = config.server;
 
 const app = express();
 
-const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
-  .split(',')
-  .map((s) => s.trim());
+const corsOrigins = config.server.corsOrigins;
 app.use(
-  cors({ origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins }),
+  cors({ origin: corsOrigins.length === 1 ? corsOrigins[0] : [...corsOrigins] }),
 );
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
@@ -69,7 +67,7 @@ async function bootstrap(): Promise<void> {
   await checkPostgres();
   console.log('[ postgres ] connected');
 
-  if (process.env.MIGRATE_ON_START === 'true') {
+  if (config.server.migrateOnStart) {
     await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
     console.log('[ db ] migrations applied');
   }
@@ -86,13 +84,13 @@ async function bootstrap(): Promise<void> {
   }
 
   if ((await countUsers()) === 0) {
-    const adminUsername = process.env.ADMIN_USERNAME ?? 'admin';
+    const adminUsername = config.admin.username;
     // Never fall back to a fixed password: a literal here is in the published
     // source, so every deployment that skips ADMIN_PASSWORD would ship the same
     // known credentials. A random one is printed once, below.
-    const generated = !process.env.ADMIN_PASSWORD;
+    const generated = config.admin.password === undefined;
     const adminPassword =
-      process.env.ADMIN_PASSWORD ?? randomBytes(12).toString('base64url');
+      config.admin.password ?? randomBytes(12).toString('base64url');
     await createUser(adminUsername, adminPassword);
     setupLines.push(`Login:    ${adminUsername} / ${adminPassword}`);
     if (generated) {
