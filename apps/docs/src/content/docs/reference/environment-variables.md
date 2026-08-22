@@ -123,6 +123,7 @@ Build-time only. Vite inlines these into the bundle.
 | Variable | Default | Description |
 |---|---|---|
 | `VITE_API_URL` | `http://localhost:3004` | API URL **as the browser sees it**. |
+| `DASHBOARD_PORT` | `3000` | Port the Vite dev server binds to. Read at dev-server start, not inlined. |
 
 ```bash
 VITE_API_URL=https://api.memory.example.com npm run build
@@ -132,6 +133,11 @@ VITE_API_URL=https://api.memory.example.com npm run build
 > Docker network and is useless to a user's browser.
 >
 > Changing it requires a **rebuild** — it is not read at runtime.
+
+`DASHBOARD_PORT` is the exception: it is a dev-server setting, not a bundled
+value. Move the dashboard off `3000` and `CORS_ORIGIN` on the API has to follow,
+or the browser's requests are rejected. `npm create memory-soda@latest` writes
+both from one answer.
 
 ---
 

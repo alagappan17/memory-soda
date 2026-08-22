@@ -10,9 +10,11 @@ Semantic memory layer for AI agents. Extract facts from conversations, store the
 npm create memory-soda@latest
 ```
 
-Asks for a folder, a Gemini API key, and how you want Postgres (a pgvector
-container, or your own instance), then clones, configures, and installs. Then
-`cd` in and `npm run dev`.
+Asks for a folder, a Gemini API key, your `DATABASE_URL`, and which ports to
+use — then clones, configures, installs, and checks that the database is
+reachable with pgvector available. Then `cd` in and `npm run dev`.
+
+You bring the Postgres; see the prerequisites below.
 
 ---
 
