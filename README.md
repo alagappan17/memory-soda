@@ -6,10 +6,22 @@ Semantic memory layer for AI agents. Extract facts from conversations, store the
 
 ## Quickstart
 
+```bash
+npm create memory-soda@latest
+```
+
+Asks for a folder, a Gemini API key, and how you want Postgres (a pgvector
+container, or your own instance), then clones, configures, and installs. Then
+`cd` in and `npm run dev`.
+
+---
+
+## Manual setup
+
 **Prerequisites:** Node 20+ and a local PostgreSQL instance with the [pgvector](https://github.com/pgvector/pgvector) extension available.
 
 ```bash
-git clone https://github.com/your-org/memory-soda
+git clone https://github.com/alagappan17/memory-soda
 cd memory-soda
 npm install
 

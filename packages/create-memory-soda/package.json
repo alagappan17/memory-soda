@@ -1,0 +1,28 @@
+{
+  "name": "create-memory-soda",
+  "version": "0.1.0",
+  "description": "Scaffold a self-hosted memory-soda instance — API, dashboard, and Postgres",
+  "keywords": ["ai", "memory", "agent", "llm", "create", "scaffold"],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "create-memory-soda": "./index.js"
+  },
+  "files": ["index.js", "README.md"],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "targets": {
+      "test": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "node --test packages/create-memory-soda/*.test.js"
+        }
+      }
+    }
+  }
+}

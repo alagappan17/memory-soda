@@ -6,6 +6,29 @@ memory-soda is self-hosted. You run Postgres, you bring a Gemini API key.
 
 ---
 
+## The short way
+
+```bash
+npm create memory-soda@latest
+```
+
+The installer asks for a folder name, your Gemini API key, how you want Postgres,
+and the dashboard admin login — then clones the repo, writes `.env`, optionally
+starts a pgvector container, and installs dependencies. Skip to
+[Quickstart](/getting-started/quickstart/) once it finishes.
+
+Choosing the container answers the pgvector question for you: the image ships
+the extension and connects as a superuser, so the first migration creates it
+without any manual `psql`.
+
+> Planning to send patches? Clone instead. The installer removes `.git` so your
+> project is not a fork of this repo — see
+> [Development setup](/contributing/development/).
+
+Everything below is the same setup done by hand.
+
+---
+
 ## Prerequisites
 
 | Requirement | Version | Notes |

@@ -236,6 +236,11 @@ container runtime or secret store.
 
 A `.env` file sitting next to a production build is ignored.
 
+A `.env` written by `npm create memory-soda@latest` sets only the values the
+installer asks for — `DATABASE_URL`, the Gemini key, and the admin login.
+Everything else stays on the defaults in `config.ts` rather than being pinned to
+a copy of them, so the file does not go stale when a default changes.
+
 ---
 
 ## Validating a deployment

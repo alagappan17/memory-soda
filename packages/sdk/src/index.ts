@@ -33,6 +33,9 @@ export type {
   WMAddMessageResponse,
   WMListMessagesResponse,
   WMPrepareResponse,
+  // Recall
+  RecallRequest,
+  RecallResponse,
   // Prepare context block
   RankedContextGroup,
   // Episodic context (surfaced in prepare response)
