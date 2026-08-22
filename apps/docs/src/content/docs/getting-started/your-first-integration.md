@@ -22,7 +22,7 @@ inference.
 ## Minimal version
 
 ```ts
-import { MemorySodaClient } from '@memory-soda/sdk';
+import { MemorySodaClient } from '@alagappan17/memory-soda';
 
 const memory = MemorySodaClient.fromEnv(); // MEMORY_SODA_BASE_URL + MEMORY_SODA_API_KEY
 
@@ -115,7 +115,7 @@ await memory.threads.create({ dataset: 'user_42' }); // Friday's chat — rememb
 
 ```ts
 import express from 'express';
-import { MemorySodaClient, ApiError } from '@memory-soda/sdk';
+import { MemorySodaClient, ApiError } from '@alagappan17/memory-soda';
 
 const app = express();
 app.use(express.json());

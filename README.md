@@ -70,11 +70,11 @@ Open the **Status page** first to confirm all services (Postgres) are green befo
 ### Install from npm
 
 ```bash
-npm install @memory-soda/sdk
+npm install @alagappan17/memory-soda
 ```
 
 ```ts
-import { MemorySodaClient } from '@memory-soda/sdk';
+import { MemorySodaClient } from '@alagappan17/memory-soda';
 
 const memory = new MemorySodaClient({
   baseUrl: 'http://localhost:3004',   // your self-hosted API URL
@@ -115,7 +115,7 @@ cd packages/sdk && npm run build && cd ../..
 npm link --workspace=packages/sdk
 
 # In your app
-npm link @memory-soda/sdk
+npm link @alagappan17/memory-soda
 
 # When you change SDK code, just rebuild — the link picks up the new dist:
 npm run sdk:build
@@ -125,7 +125,7 @@ npm run sdk:build
 
 ```bash
 # In your app's package.json:
-"@memory-soda/sdk": "file:../memory-soda/packages/sdk"
+"@alagappan17/memory-soda": "file:../memory-soda/packages/sdk"
 
 npm install
 
@@ -162,7 +162,7 @@ apps/
   dashboard/    ← memory management dashboard (Next.js)
 
 packages/
-  sdk/          ← @memory-soda/sdk — install this in your app
+  sdk/          ← @alagappan17/memory-soda — install this in your app
   types/        ← shared TypeScript types (internal)
 ```
 

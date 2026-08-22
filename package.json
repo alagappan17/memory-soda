@@ -8,7 +8,7 @@
     "lint": "nx run-many --target=lint --all",
     "test": "nx run-many --target=test --all",
     "typecheck": "nx run-many --target=typecheck --all",
-    "sdk:build": "nx build @memory-soda/sdk",
+    "sdk:build": "nx build @alagappan17/memory-soda",
     "docs:dev": "nx dev @memory-soda/docs",
     "docs:build": "nx build @memory-soda/docs",
     "docs:check-links": "nx check-links @memory-soda/docs",

@@ -27,7 +27,7 @@ Two reads before the model, two writes after. That is the whole thing.
 
 ```ts
 // lib/memory.ts
-import { MemorySodaClient } from '@memory-soda/sdk';
+import { MemorySodaClient } from '@alagappan17/memory-soda';
 
 export const memory = new MemorySodaClient({
   baseUrl: process.env.MEMORY_SODA_BASE_URL!,
@@ -78,7 +78,7 @@ the thread, so every conversation this user ever has feeds the same memory. See
 ```ts
 // lib/context.ts
 import { memory } from './memory';
-import { AuthError } from '@memory-soda/sdk';
+import { AuthError } from '@alagappan17/memory-soda';
 
 export async function loadContext(
   threadId: string,

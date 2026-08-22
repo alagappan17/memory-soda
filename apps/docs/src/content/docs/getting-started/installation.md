@@ -198,11 +198,11 @@ Then sign in to the dashboard at http://localhost:3000 and open **Status**.
 ## Installing the SDK in your app
 
 ```bash
-npm install @memory-soda/sdk
+npm install @alagappan17/memory-soda
 ```
 
 ```ts
-import { MemorySodaClient } from '@memory-soda/sdk';
+import { MemorySodaClient } from '@alagappan17/memory-soda';
 
 const memory = new MemorySodaClient({
   baseUrl: 'http://localhost:3004',
@@ -220,7 +220,7 @@ npm run sdk:build
 npm link --workspace=packages/sdk
 
 # in your app
-npm link @memory-soda/sdk
+npm link @alagappan17/memory-soda
 ```
 
 After changing SDK source, `npm run sdk:build` is enough — the link picks up the
@@ -229,7 +229,7 @@ new `dist`.
 Alternatively, pin a file path in your app's `package.json`:
 
 ```json
-{ "dependencies": { "@memory-soda/sdk": "file:../memory-soda/packages/sdk" } }
+{ "dependencies": { "@alagappan17/memory-soda": "file:../memory-soda/packages/sdk" } }
 ```
 
 ---

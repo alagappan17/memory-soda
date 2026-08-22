@@ -5,7 +5,7 @@ description: "The root client. Owns configuration and the two top-level reads."
 The root client. Owns configuration and the two top-level reads.
 
 ```ts
-import { MemorySodaClient } from '@memory-soda/sdk';
+import { MemorySodaClient } from '@alagappan17/memory-soda';
 
 const memory = new MemorySodaClient({
   baseUrl: 'http://localhost:3004',
@@ -203,7 +203,7 @@ const reachable = await memory.ping().then((r) => r.ok).catch(() => false);
 ## Full turn
 
 ```ts
-import { MemorySodaClient } from '@memory-soda/sdk';
+import { MemorySodaClient } from '@alagappan17/memory-soda';
 
 const memory = MemorySodaClient.fromEnv();
 

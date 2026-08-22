@@ -5,7 +5,7 @@ description: "Every SDK method rejects on failure. Nothing returns null to signa
 Every SDK method rejects on failure. Nothing returns `null` to signal an error.
 
 ```ts
-import { ApiError, AuthError, NetworkError, MemorySodaError } from '@memory-soda/sdk';
+import { ApiError, AuthError, NetworkError, MemorySodaError } from '@alagappan17/memory-soda';
 ```
 
 ---
@@ -94,7 +94,7 @@ Full list: [Errors](/reference/errors/).
 ## Handling by kind
 
 ```ts
-import { ApiError, AuthError, NetworkError } from '@memory-soda/sdk';
+import { ApiError, AuthError, NetworkError } from '@alagappan17/memory-soda';
 
 async function safeRecall(dataset: string, query: string): Promise<string> {
   try {

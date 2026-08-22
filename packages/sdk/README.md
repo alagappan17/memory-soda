@@ -1,11 +1,11 @@
-# @memory-soda/sdk
+# @alagappan17/memory-soda
 
 Memory layer SDK for AI agents. Store, retrieve, and manage user memories across conversations.
 
 ## Installation
 
 ```bash
-npm install @memory-soda/sdk
+npm install @alagappan17/memory-soda
 ```
 
 Requires Node.js 18+ (uses native `fetch`).
@@ -13,7 +13,7 @@ Requires Node.js 18+ (uses native `fetch`).
 ## Quick start
 
 ```ts
-import { MemorySodaClient } from '@memory-soda/sdk';
+import { MemorySodaClient } from '@alagappan17/memory-soda';
 
 const memory = new MemorySodaClient({
   baseUrl: 'http://localhost:3004',

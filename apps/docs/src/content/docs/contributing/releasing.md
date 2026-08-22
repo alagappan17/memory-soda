@@ -1,8 +1,8 @@
 ---
 title: "Releasing the SDK"
-description: "@memory-soda/sdk is the only published package. The API and dashboard are deployed, not published; @memory-soda/types is private and bundled into the SDK's…"
+description: "@alagappan17/memory-soda is the only published package. The API and dashboard are deployed, not published; @memory-soda/types is private and bundled into the SDK's…"
 ---
-`@memory-soda/sdk` is the only published package. The API and dashboard are
+`@alagappan17/memory-soda` is the only published package. The API and dashboard are
 deployed, not published; `@memory-soda/types` is private and bundled into the
 SDK's declarations.
 
@@ -12,7 +12,7 @@ SDK's declarations.
 
 ```json
 {
-  "name": "@memory-soda/sdk",
+  "name": "@alagappan17/memory-soda",
   "version": "0.1.0",
   "type": "module",
   "main":   "./dist/index.cjs",
@@ -113,10 +113,10 @@ npm run sdk:build
 npm link --workspace=packages/sdk
 
 mkdir /tmp/sdk-smoke && cd /tmp/sdk-smoke && npm init -y
-npm link @memory-soda/sdk
+npm link @alagappan17/memory-soda
 
 cat > test.mjs <<'EOF'
-import { MemorySodaClient } from '@memory-soda/sdk';
+import { MemorySodaClient } from '@alagappan17/memory-soda';
 const m = new MemorySodaClient({ baseUrl: 'http://localhost:3004', apiKey: process.env.KEY });
 console.log(await m.ping());
 const { threadId } = await m.threads.create({ dataset: 'smoke_test' });
@@ -131,7 +131,7 @@ KEY=ms_… node test.mjs
 Check CJS too, since it is a separate build output:
 
 ```bash
-node -e "const { MemorySodaClient } = require('@memory-soda/sdk'); console.log(typeof MemorySodaClient)"
+node -e "const { MemorySodaClient } = require('@alagappan17/memory-soda'); console.log(typeof MemorySodaClient)"
 ```
 
 ---

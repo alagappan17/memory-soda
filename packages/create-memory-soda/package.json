@@ -13,7 +13,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "create-memory-soda": "./index.js"
+    "create-memory-soda": "index.js"
   },
   "files": [
     "index.js",

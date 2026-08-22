@@ -1,15 +1,15 @@
 ---
 title: "SDK reference"
-description: "@memory-soda/sdk — a typed, zero-dependency TypeScript client."
+description: "@alagappan17/memory-soda — a typed, zero-dependency TypeScript client."
 ---
-`@memory-soda/sdk` — a typed, zero-dependency TypeScript client.
+`@alagappan17/memory-soda` — a typed, zero-dependency TypeScript client.
 
 ---
 
 ## Install
 
 ```bash
-npm install @memory-soda/sdk
+npm install @alagappan17/memory-soda
 ```
 
 | | |
@@ -24,7 +24,7 @@ npm install @memory-soda/sdk
 ## Initialise
 
 ```ts
-import { MemorySodaClient } from '@memory-soda/sdk';
+import { MemorySodaClient } from '@alagappan17/memory-soda';
 
 const memory = new MemorySodaClient({
   baseUrl: 'http://localhost:3004',
@@ -131,7 +131,7 @@ import {
   ApiError,
   AuthError,
   NetworkError,
-} from '@memory-soda/sdk';
+} from '@alagappan17/memory-soda';
 
 import type {
   MemorySodaConfig,
@@ -146,7 +146,7 @@ import type {
   RecallRequest, RecallResponse, RankedContextGroup,
   SemanticFact, SemanticEntity, EntityType,
   EpisodeContext, EpisodeContextItem,
-} from '@memory-soda/sdk';
+} from '@alagappan17/memory-soda';
 ```
 
 ---

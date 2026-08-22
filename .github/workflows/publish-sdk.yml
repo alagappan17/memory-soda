@@ -7,7 +7,7 @@ on:
 
 jobs:
   publish:
-    name: Build and publish @memory-soda/sdk
+    name: Build and publish @alagappan17/memory-soda
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,7 +28,7 @@ jobs:
         run: npm ci
 
       - name: Build SDK
-        run: npx nx build @memory-soda/sdk
+        run: npx nx build @alagappan17/memory-soda
 
       - name: Publish to npm
         run: npm publish --workspace=packages/sdk --provenance --access public

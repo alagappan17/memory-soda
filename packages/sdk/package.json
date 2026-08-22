@@ -1,8 +1,14 @@
 {
-  "name": "@memory-soda/sdk",
-  "version": "0.1.0",
+  "name": "@alagappan17/memory-soda",
+  "version": "0.1.1",
   "description": "Memory layer SDK for AI agents",
-  "keywords": ["ai", "memory", "agent", "llm", "sdk"],
+  "keywords": [
+    "ai",
+    "memory",
+    "agent",
+    "llm",
+    "sdk"
+  ],
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -18,7 +24,10 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "engines": {
     "node": ">=18"
   },
@@ -30,17 +39,24 @@
     "targets": {
       "build": {
         "executor": "nx:run-commands",
-        "outputs": ["{projectRoot}/dist"],
+        "outputs": [
+          "{projectRoot}/dist"
+        ],
         "cache": true,
         "options": {
           "cwd": "packages/sdk",
           "command": "tsup"
         },
-        "dependsOn": ["^build"]
+        "dependsOn": [
+          "^build"
+        ]
       }
     }
   },
   "devDependencies": {
     "tsup": "^8.5.0"
+  },
+  "scripts": {
+    "prepublishOnly": "tsup"
   }
 }

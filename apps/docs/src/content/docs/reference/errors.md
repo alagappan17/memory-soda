@@ -158,7 +158,7 @@ failed.
 `ApiError`.
 
 ```ts
-import { ApiError, AuthError, NetworkError } from '@memory-soda/sdk';
+import { ApiError, AuthError, NetworkError } from '@alagappan17/memory-soda';
 
 try {
   await memory.recall({ dataset, query });

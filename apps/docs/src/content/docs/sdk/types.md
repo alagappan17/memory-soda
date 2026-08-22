@@ -1,11 +1,11 @@
 ---
 title: "Type reference"
-description: "Every type exported from @memory-soda/sdk. All are type-only exports."
+description: "Every type exported from @alagappan17/memory-soda. All are type-only exports."
 ---
-Every type exported from `@memory-soda/sdk`. All are type-only exports.
+Every type exported from `@alagappan17/memory-soda`. All are type-only exports.
 
 ```ts
-import type { RecallResponse, SemanticFact } from '@memory-soda/sdk';
+import type { RecallResponse, SemanticFact } from '@alagappan17/memory-soda';
 ```
 
 ---

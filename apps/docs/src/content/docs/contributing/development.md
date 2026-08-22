@@ -44,7 +44,7 @@ apps/
       main.ts             wiring, first-boot seed, background jobs
   dashboard/              Vite + React 19 + React Router
 packages/
-  sdk/                    @memory-soda/sdk — published
+  sdk/                    @alagappan17/memory-soda — published
   types/                  shared types, type-only at runtime
 developer-docs/           this documentation
 ```
@@ -153,7 +153,7 @@ Testing against a local app:
 npm run sdk:build
 npm link --workspace=packages/sdk
 # in your app
-npm link @memory-soda/sdk
+npm link @alagappan17/memory-soda
 ```
 
 After changing SDK source, `npm run sdk:build` is enough — the link picks up the

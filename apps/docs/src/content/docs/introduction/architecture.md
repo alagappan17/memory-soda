@@ -22,7 +22,7 @@ memory-soda/
 │   │       └── main.ts    wiring, first-boot seed, background jobs
 │   └── dashboard/         Vite + React 19 + React Router + Tailwind/shadcn
 ├── packages/
-│   ├── sdk/               @memory-soda/sdk — published to npm
+│   ├── sdk/               @alagappan17/memory-soda — published to npm
 │   └── types/             shared TypeScript types, type-only at runtime
 └── developer-docs/        this documentation
 ```

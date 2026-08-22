@@ -10,11 +10,11 @@ Store your first memory and read it back. Assumes you have completed
 ## With the SDK
 
 ```bash
-npm install @memory-soda/sdk
+npm install @alagappan17/memory-soda
 ```
 
 ```ts
-import { MemorySodaClient } from '@memory-soda/sdk';
+import { MemorySodaClient } from '@alagappan17/memory-soda';
 
 const memory = new MemorySodaClient({
   baseUrl: 'http://localhost:3004',
