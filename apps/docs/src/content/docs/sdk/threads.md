@@ -1,17 +1,17 @@
 ---
-title: "`client.threads`"
+title: "Threads"
 description: "Thread lifecycle. A thread is one conversation; memory belongs to the dataset, not the thread."
 ---
 Thread lifecycle. A thread is one conversation; memory belongs to the
 [dataset](/concepts/projects-and-datasets/), not the thread.
 
 ```ts
-const thread = await memory.threads.create({ dataset: 'user_42' });
+const thread = await memory.createThread({ dataset: 'user_42' });
 ```
 
 ---
 
-## `create()`
+## `createThread()`
 
 ```ts
 create(opts: WMCreateThreadRequest): Promise<WMCreateThreadResponse>
@@ -26,7 +26,7 @@ create(opts: WMCreateThreadRequest): Promise<WMCreateThreadResponse>
 | `settings.episodic` | `Partial<ProjectEpisodicSettings>` | project defaults | Per-thread episodic overrides. |
 
 ```ts
-const { threadId, dataset, createdAt, settings } = await memory.threads.create({
+const { threadId, dataset, createdAt, settings } = await memory.createThread({
   dataset: 'user_42',
   tags: ['support', 'billing'],
   metadata: { channel: 'web', ticketId: 'T-1094' },
@@ -46,7 +46,7 @@ const { threadId, dataset, createdAt, settings } = await memory.threads.create({
 Turn off long-term memory for one conversation:
 
 ```ts
-await memory.threads.create({
+await memory.createThread({
   dataset: 'user_42',
   settings: { episodic: { enabled: false } },
 });
@@ -56,14 +56,14 @@ Messages are still stored and `prepare()` still works — nothing becomes a fact
 
 ---
 
-## `get()`
+## `getThread()`
 
 ```ts
 get(threadId: string): Promise<WMThread>
 ```
 
 ```ts
-const thread = await memory.threads.get(threadId);
+const thread = await memory.getThread(threadId);
 ```
 
 ```json
@@ -86,12 +86,12 @@ const thread = await memory.threads.get(threadId);
 Throws `ApiError` with `status: 404` when the thread does not exist **or belongs
 to another project** — the two are deliberately indistinguishable.
 
-> `WMThread` has no `messageCount`. Use
-> [`getThreadStats()`](/sdk/working-memory/#getthreadstats) for counts.
+> `WMThread` has no `messageCount`. Counts come from
+> [thread stats](/sdk/working-memory/#thread-stats), an HTTP-only endpoint.
 
 ---
 
-## `update()`
+## `updateThread()`
 
 Merge-updates metadata. Existing keys are preserved; only the keys you send are
 overwritten.
@@ -102,7 +102,7 @@ update(threadId: string, opts: WMPatchThreadRequest): Promise<WMThread>
 
 ```ts
 // before: { channel: 'web', ticketId: 'T-1094' }
-await memory.threads.update(threadId, { metadata: { resolved: true } });
+await memory.updateThread(threadId, { metadata: { resolved: true } });
 // after:  { channel: 'web', ticketId: 'T-1094', resolved: true }
 ```
 
@@ -110,9 +110,9 @@ Merging is one level deep — a nested object is replaced wholesale, not merged.
 
 ```ts
 // removing a key requires reading, deleting and writing the whole object
-const { metadata } = await memory.threads.get(threadId);
+const { metadata } = await memory.getThread(threadId);
 delete metadata!.ticketId;
-await memory.threads.update(threadId, { metadata: metadata! });
+await memory.updateThread(threadId, { metadata: metadata! });
 ```
 
 Only `metadata` is patchable. `tags`, `autoCompactThreshold` and `settings` are
@@ -120,14 +120,14 @@ fixed at creation.
 
 ---
 
-## `end()`
+## `endThread()`
 
 ```ts
 end(threadId: string): Promise<WMEndThreadResponse>
 ```
 
 ```ts
-const { threadId, episodeQueued } = await memory.threads.end(threadId);
+const { threadId, episodeQueued } = await memory.endThread(threadId);
 // { threadId: 'f2cb…', episodeQueued: true }
 ```
 
@@ -161,7 +161,7 @@ async function getThread(userId: string, conversationId: string) {
   const stored = await db.conversations.findOne({ id: conversationId });
   if (stored?.threadId) return stored.threadId;
 
-  const { threadId } = await memory.threads.create({
+  const { threadId } = await memory.createThread({
     dataset: userId,
     metadata: { conversationId },
   });
@@ -174,7 +174,7 @@ async function getThread(userId: string, conversationId: string) {
 
 ```ts
 // Every session gets a fresh thread; all of them feed user_42's memory.
-const { threadId } = await memory.threads.create({
+const { threadId } = await memory.createThread({
   dataset: 'user_42',
   metadata: { sessionId, startedAt: new Date().toISOString() },
 });
@@ -184,7 +184,7 @@ const { threadId } = await memory.threads.create({
 
 ```ts
 socket.on('disconnect', () => {
-  memory.threads.end(threadId).catch((err) =>
+  memory.endThread(threadId).catch((err) =>
     logger.warn({ err, threadId }, 'failed to queue extraction'),
   );
 });
@@ -197,12 +197,12 @@ socket.on('disconnect', () => {
 | | Status |
 |---|---|
 | Delete a thread | No endpoint. Deleting the row cascades to messages; do it in SQL. |
-| List threads for a dataset | Dashboard only — [`GET /dashboard/threads`](/api/dashboard/). |
+| List threads for a dataset | Dashboard only — [`GET /dashboard/browse/threads`](/api/dashboard/). |
 | Change `tags` or `autoCompactThreshold` after creation | Not patchable. |
 
 ---
 
 ## Next
 
-- [`client.workingMemory`](/sdk/working-memory/) — appending and reading messages
+- [`memory.working`](/sdk/working-memory/) — appending and reading messages
 - [Working memory](/concepts/working-memory/) — the concepts

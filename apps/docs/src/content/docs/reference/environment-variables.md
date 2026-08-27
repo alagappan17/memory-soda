@@ -23,7 +23,7 @@ GOOGLE_GENERATIVE_AI_API_KEY=AIza…
 
 > **`GOOGLE_GENERATIVE_AI_API_KEY` is checked at module import.** The process
 > throws and exits without it, even for endpoints that never call a model. There
-> is no way to run memory-soda without a Gemini key.
+> is no way to run Memory Soda without a Gemini key.
 
 `DATABASE_URL` accepts the standard libpq form, including `?sslmode=require`:
 
@@ -143,7 +143,7 @@ both from one answer.
 
 ## SDK (your application)
 
-Read by `MemorySodaClient.fromEnv()` in your app, not by the server.
+Read by `new MemorySoda()` in your app, not by the server.
 
 | Variable | Description |
 |---|---|
@@ -151,7 +151,7 @@ Read by `MemorySodaClient.fromEnv()` in your app, not by the server.
 | `MEMORY_SODA_API_KEY` | `ms_…` |
 
 ```ts
-const memory = MemorySodaClient.fromEnv();
+const memory = new MemorySoda();
 ```
 
 Throws a plain `Error` if either is missing — a startup misconfiguration, not a

@@ -1,12 +1,12 @@
 ---
-title: "`client.workingMemory`"
-description: "Messages, the LLM-ready window, compaction and stats."
+title: "Messages"
+description: "Writing the conversation, reading it back, and folding it down."
 ---
-Messages, the LLM-ready window, compaction and stats.
+Writing the conversation, reading it back, and folding it down.
 
 ```ts
-await memory.workingMemory.addMessage(threadId, { role: 'user', content: 'Hello' });
-const { messages } = await memory.workingMemory.prepare(threadId);
+await memory.addMessage(threadId, { role: 'user', content: 'Hello' });
+const { messages } = await memory.prepare(threadId);
 ```
 
 ---
@@ -27,7 +27,7 @@ addMessage(threadId: string, opts: WMAddMessageRequest): Promise<WMAddMessageRes
 | `metadata` | `{ stopReason?, agentName? }` | no | Only these two keys are accepted. |
 
 ```ts
-const res = await memory.workingMemory.addMessage(threadId, {
+const res = await memory.addMessage(threadId, {
   role: 'assistant',
   content: reply,
   model: 'gpt-4o',
@@ -83,7 +83,7 @@ prepare(threadId: string, opts?: { messageLimit?: number }): Promise<WMPrepareRe
 
 ```ts
 const { messages, messageCount, truncated, compacted, warning } =
-  await memory.workingMemory.prepare(threadId, { messageLimit: 30 });
+  await memory.prepare(threadId, { messageLimit: 30 });
 ```
 
 ```json
@@ -134,7 +134,7 @@ listMessages(threadId: string, opts?: WMListMessagesQuery): Promise<WMListMessag
 | `order` | `'asc'` | or `'desc'` |
 
 ```ts
-const { messages, total, hasMore } = await memory.workingMemory.listMessages(threadId, {
+const { messages, total, hasMore } = await memory.listMessages(threadId, {
   limit: 50,
   order: 'desc',
 });
@@ -150,7 +150,7 @@ Each `WMMessage` carries `messageId`, `threadId`, `role`, `content`,
 async function* allMessages(threadId: string) {
   let before: number | undefined;
   for (;;) {
-    const page = await memory.workingMemory.listMessages(threadId, {
+    const page = await memory.listMessages(threadId, {
       limit: 100, order: 'desc', before,
     });
     yield* page.messages;
@@ -169,7 +169,7 @@ compact(threadId: string): Promise<WMCompactResult>
 ```
 
 ```ts
-const result = await memory.workingMemory.compact(threadId);
+const result = await memory.compact(threadId);
 // { threadId, summaryMessageId, compactedCount, fromSequence, toSequence }
 ```
 
@@ -178,7 +178,7 @@ When there is nothing to compact the endpoint returns
 match `WMCompactResult`. Guard on the field you need:
 
 ```ts
-const result = await memory.workingMemory.compact(threadId);
+const result = await memory.compact(threadId);
 if ('summaryMessageId' in result) {
   logger.info({ compacted: result.compactedCount }, 'thread compacted');
 }
@@ -191,56 +191,15 @@ See [Handling long conversations](/guides/long-conversations/).
 
 ---
 
-## `getThreadStats()`
+## Thread stats
 
-```ts
-getThreadStats(threadId: string): Promise<WMThreadStatsResponse>
+Counts, token totals and session duration are on the HTTP API but not the SDK:
+they are arithmetic over the `tokens` **you** supplied, so the client would only
+be handing your own numbers back.
+
+```http
+GET /v1/memory/working/threads/:threadId/stats
 ```
-
-```json
-{
-  "threadId": "f2cb…",
-  "messageCount": 42,
-  "tokenUsage": {
-    "totalInput": 8120, "totalOutput": 3310,
-    "totalTokens": 11430, "averagePerMessage": 272
-  },
-  "sessionDuration": { "ms": 918000, "seconds": 918 },
-  "createdAt": "…",
-  "lastActivityAt": "…"
-}
-```
-
-- `tokenUsage` is `null` unless you supplied `tokens` on messages.
-- `sessionDuration` is `null` for threads with fewer than two real messages.
-- `messageCount` counts un-compacted messages **including** the summary row.
-
----
-
-## `startConversation()`
-
-Create a thread, append the first message, and prepare — one call.
-
-```ts
-startConversation(opts: {
-  dataset?: string;
-  firstMessage: WMAddMessageRequest;
-  tags?: string[];
-  metadata?: Record<string, unknown>;
-  autoCompactThreshold?: number;
-  settings?: WMCreateThreadRequest['settings'];
-}): Promise<{ threadId: string; prepare: WMPrepareResponse }>
-```
-
-```ts
-const { threadId, prepare } = await memory.workingMemory.startConversation({
-  dataset: 'user_42',
-  firstMessage: { role: 'user', content: 'Hi, I need help with my order.' },
-});
-```
-
-Three sequential HTTP requests under the hood, not a batch — the saving is
-ergonomic, not network. Only useful for the opening turn.
 
 ---
 
@@ -249,7 +208,7 @@ ergonomic, not network. Only useful for the opening turn.
 ```ts
 // read
 const [{ messages }, { context }] = await Promise.all([
-  memory.workingMemory.prepare(threadId, { messageLimit: 20 }),
+  memory.prepare(threadId, { messageLimit: 20 }),
   memory.recall({ dataset: userId, query: userMessage }),
 ]);
 
@@ -257,13 +216,13 @@ const [{ messages }, { context }] = await Promise.all([
 const reply = await yourLLM({ system: context, messages: [...messages, { role: 'user', content: userMessage }] });
 
 // write
-await memory.workingMemory.addMessage(threadId, { role: 'user', content: userMessage });
-await memory.workingMemory.addMessage(threadId, { role: 'assistant', content: reply });
+await memory.addMessage(threadId, { role: 'user', content: userMessage });
+await memory.addMessage(threadId, { role: 'assistant', content: reply });
 ```
 
 ---
 
 ## Next
 
-- [`client.semantic`](/sdk/semantic-memory/) — reading and curating facts
+- [Facts and entities](/sdk/semantic-memory/) — reading and curating facts
 - [Handling long conversations](/guides/long-conversations/) — compaction in practice

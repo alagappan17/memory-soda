@@ -31,7 +31,7 @@ class ApiError extends MemorySodaError {
 
 ```ts
 try {
-  await memory.threads.get(threadId);
+  await memory.getThread(threadId);
 } catch (err) {
   if (err instanceof ApiError && err.status === 404) {
     // gone, or belongs to another project — indistinguishable by design
@@ -170,7 +170,7 @@ the server committed will duplicate.
 Set once on the client, applied per request:
 
 ```ts
-const memory = new MemorySodaClient({ baseUrl, apiKey, timeout: 15_000 });
+const memory = new MemorySoda({ baseUrl, apiKey, timeout: 15_000 });
 ```
 
 Defaults to 60 seconds — deliberately generous, because two operations are slow:
@@ -184,8 +184,8 @@ A tight global timeout will cut those off. Use two clients if you want a short
 timeout on the hot path:
 
 ```ts
-const fast = new MemorySodaClient({ baseUrl, apiKey, timeout: 5_000 });
-const slow = new MemorySodaClient({ baseUrl, apiKey, timeout: 60_000 });
+const fast = new MemorySoda({ baseUrl, apiKey, timeout: 5_000 });
+const slow = new MemorySoda({ baseUrl, apiKey, timeout: 60_000 });
 ```
 
 ---
@@ -194,7 +194,7 @@ const slow = new MemorySodaClient({ baseUrl, apiKey, timeout: 60_000 });
 
 ```ts
 try {
-  await memory.workingMemory.addMessage(threadId, { role: 'user', content: '' });
+  await memory.addMessage(threadId, { role: 'user', content: '' });
 } catch (err) {
   if (err instanceof ApiError && err.status === 400) {
     console.log(err.body);

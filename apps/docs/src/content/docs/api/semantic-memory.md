@@ -7,7 +7,7 @@ Base path: `/v1/memory/semantic` · Auth: [API key](/api/authentication/)
 Unranked, chronological reads over the fact store, plus soft deletion. For
 prompt-ready ranked output use [`POST /v1/memory/recall`](/api/recall/).
 
-SDK equivalent: [`client.semantic`](/sdk/semantic-memory/)
+SDK equivalent: [`memory.facts`](/sdk/semantic-memory/)
 
 > `:dataset` is a path segment. **Percent-encode it** if it can contain `/`,
 > `?`, `#` or spaces.

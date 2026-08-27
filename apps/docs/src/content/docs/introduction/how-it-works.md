@@ -89,7 +89,7 @@ the last N messages, oldest first, ready to spread into a chat-completion
 request.
 
 ```ts
-const { messages } = await memory.workingMemory.prepare(threadId, { messageLimit: 20 });
+const { messages } = await memory.prepare(threadId, { messageLimit: 20 });
 // [{ role: 'system', content: 'Summary of earlier turns…' },
 //  { role: 'user', content: '…' }, { role: 'assistant', content: '…' }]
 ```
@@ -136,7 +136,7 @@ See [Retrieval](/concepts/retrieval/).
 ```ts
 // 1. Read — both calls are independent, so run them together
 const [{ messages }, { context }] = await Promise.all([
-  memory.workingMemory.prepare(threadId, { messageLimit: 20 }),
+  memory.prepare(threadId, { messageLimit: 20 }),
   memory.recall({ dataset, query: userMessage }),
 ]);
 
@@ -147,8 +147,8 @@ const reply = await yourLLM({
 });
 
 // 3. Write — fire and forget; extraction happens in the background
-await memory.workingMemory.addMessage(threadId, { role: 'user', content: userMessage });
-await memory.workingMemory.addMessage(threadId, { role: 'assistant', content: reply });
+await memory.addMessage(threadId, { role: 'user', content: userMessage });
+await memory.addMessage(threadId, { role: 'assistant', content: reply });
 ```
 
 `prepareAndRecall()` collapses step 1 into one call. See

@@ -24,9 +24,9 @@ npm install @alagappan17/memory-soda
 ## Initialise
 
 ```ts
-import { MemorySodaClient } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@alagappan17/memory-soda';
 
-const memory = new MemorySodaClient({
+const memory = new MemorySoda({
   baseUrl: 'http://localhost:3004',
   apiKey: process.env.MEMORY_SODA_API_KEY!,
   timeout: 60_000, // optional, default 60s
@@ -36,7 +36,7 @@ const memory = new MemorySodaClient({
 Or from the environment:
 
 ```ts
-const memory = MemorySodaClient.fromEnv();
+const memory = new MemorySoda();
 // reads MEMORY_SODA_BASE_URL and MEMORY_SODA_API_KEY, throws if either is missing
 ```
 
@@ -48,41 +48,53 @@ const memory = MemorySodaClient.fromEnv();
 ## Shape
 
 ```
-MemorySodaClient
-├── recall(req)                    long-term memory, thread-free
-├── prepareAndRecall(threadId, o)  both reads in one call
-├── health() / ping()
+MemorySoda
 │
-├── threads
-│   ├── create(opts)
-│   ├── get(threadId)
-│   ├── update(threadId, opts)
-│   └── end(threadId)
+│  Every turn
+├── addMessage(threadId, message)      append to the conversation
+├── prepare(threadId, opts?)           thread state for the next model call
+├── recall(req)                        long-term memory, thread-free
+├── prepareAndRecall(threadId, opts?)  both halves at once
 │
-├── workingMemory
-│   ├── addMessage(threadId, opts)
-│   ├── listMessages(threadId, opts)
-│   ├── prepare(threadId, opts)
-│   ├── compact(threadId)
-│   ├── getThreadStats(threadId)
-│   └── startConversation(opts)
+│  Conversations
+├── createThread(opts?)
+├── getThread(threadId)
+├── updateThread(threadId, opts)
+├── endThread(threadId)                cut an episode here
+├── addMessages(threadId, messages)
+├── listMessages(threadId, opts?)
+├── compact(threadId)
 │
-└── semantic
-    ├── listFacts(dataset, opts)
-    ├── searchFacts(dataset, q, opts)
-    ├── deleteFact(dataset, factId)
-    ├── listEntities(dataset)
-    └── listEntityFacts(dataset, name)
+│  What was learned
+├── listFacts(dataset, opts?)
+├── deleteFact(dataset, factId)        soft delete
+├── listEntities(dataset)
+├── listEpisodes(dataset, opts?)
+├── searchEpisodes(dataset, q, opts?)
+├── getEpisode(episodeId)
+│
+│  Whole datasets
+├── exportDataset(dataset)
+├── forgetDataset(dataset)             hard delete
+│
+└── health()
 ```
+
+Names carry the tiering: the calls a chat turn makes are short — `recall`,
+`prepare`, `addMessage` — and the occasional ones are compound.
+
+A separate subpath, `@alagappan17/memory-soda/ai`, wires all of this into the
+Vercel AI SDK — see [AI SDK integration](/sdk/ai-sdk/).
 
 | Page | Covers |
 |---|---|
-| [`MemorySodaClient`](/sdk/client/) | `recall`, `prepareAndRecall`, `health`, `ping`, config |
-| [`client.threads`](/sdk/threads/) | thread lifecycle |
-| [`client.workingMemory`](/sdk/working-memory/) | messages, prepare, compact, stats |
-| [`client.semantic`](/sdk/semantic-memory/) | facts and entities |
-| [Error handling](/sdk/errors/) | error classes and retry patterns |
-| [Type reference](/sdk/types/) | every exported type |
+| [`MemorySoda`](/sdk/client/) | constructor, `recall`, `prepareAndRecall`, `health` |
+| [Threads](/sdk/threads/) | thread lifecycle |
+| [Messages](/sdk/working-memory/) | `addMessage`, `listMessages`, `prepare`, `compact` |
+| [Facts and entities](/sdk/semantic-memory/) | `listFacts`, `deleteFact`, `listEntities` |
+| [Episodes](/sdk/episodes/) | `listEpisodes`, `searchEpisodes`, `getEpisode` |
+| [Datasets](/sdk/datasets/) | export and erase |
+| [AI SDK integration](/sdk/ai-sdk/) | middleware, tool, message bridge |
 
 ---
 
@@ -91,12 +103,12 @@ MemorySodaClient
 For a chat app, four methods:
 
 ```ts
-const { threadId } = await memory.threads.create({ dataset: userId });
+const { threadId } = await memory.createThread({ dataset: userId });
 
 const { context } = await memory.recall({ dataset: userId, query: message });
-const { messages } = await memory.workingMemory.prepare(threadId);
+const { messages } = await memory.prepare(threadId);
 
-await memory.workingMemory.addMessage(threadId, { role: 'user', content: message });
+await memory.addMessage(threadId, { role: 'user', content: message });
 ```
 
 Everything else is inspection, curation or convenience.
@@ -123,7 +135,7 @@ two HTTP requests and two embedding calls.
 
 ```ts
 import {
-  MemorySodaClient,
+  MemorySoda,
   ThreadClient,
   WorkingMemoryClient,
   SemanticMemoryClient,
@@ -168,5 +180,5 @@ from messages. See [Known limitations](/introduction/overview/#known-limitations
 
 ## Next
 
-- [`MemorySodaClient`](/sdk/client/)
+- [`MemorySoda`](/sdk/client/)
 - [Your first integration](/getting-started/your-first-integration/)

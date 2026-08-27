@@ -182,7 +182,7 @@ Not errors, but worth knowing — these succeed while doing less than you expect
 |---|---|
 | **Unknown fields are stripped, not rejected** | A typo in an optional field name returns `201` and is ignored. Sending `tokenCount` instead of `tokens` silently discards the token data. |
 | `recall()` with no matches | `200` with `context: ""` — not a `404` |
-| `listEntityFacts` on an unknown entity | `200` with `{ "facts": [] }` |
+| `listFacts({ entity })` on an unknown entity | `200` with `{ "facts": [] }` |
 | `compact()` with nothing to do | `200` with a **different response shape** — `{ ok, compacted: false, message }` |
 | `prepare()` with `messageLimit < autoCompactThreshold` | `200` with a `warning` field. Messages are missing from context. |
 | Extraction failure | No error anywhere on the API. `semantic_status` becomes `failed` and is not exposed on any endpoint |

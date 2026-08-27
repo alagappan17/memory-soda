@@ -14,7 +14,7 @@ takes.
 3. **Call your model** with both.
 4. **Write** — append the user turn and the assistant turn.
 
-memory-soda never calls your model for you. It gives you strings; you own the
+Memory Soda never calls your model for you. It gives you strings; you own the
 inference.
 
 ---
@@ -22,9 +22,9 @@ inference.
 ## Minimal version
 
 ```ts
-import { MemorySodaClient } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@alagappan17/memory-soda';
 
-const memory = MemorySodaClient.fromEnv(); // MEMORY_SODA_BASE_URL + MEMORY_SODA_API_KEY
+const memory = new MemorySoda(); // MEMORY_SODA_BASE_URL + MEMORY_SODA_API_KEY
 
 export async function chat(
   userId: string,
@@ -45,11 +45,11 @@ export async function chat(
   });
 
   // 4. Write — order matters, sequence numbers are assigned on insert
-  await memory.workingMemory.addMessage(threadId, {
+  await memory.addMessage(threadId, {
     role: 'user',
     content: userMessage,
   });
-  await memory.workingMemory.addMessage(threadId, {
+  await memory.addMessage(threadId, {
     role: 'assistant',
     content: reply,
   });
@@ -88,7 +88,7 @@ A thread is one conversation. You decide what that means.
 
 ```ts
 // New conversation
-const { threadId } = await memory.threads.create({
+const { threadId } = await memory.createThread({
   dataset: userId,
   tags: ['support'],
   metadata: { channel: 'web', locale: 'en-GB' },
@@ -105,8 +105,8 @@ every conversation they ever have.
 
 ```ts
 // Same dataset, different threads → shared memory
-await memory.threads.create({ dataset: 'user_42' }); // Monday's chat
-await memory.threads.create({ dataset: 'user_42' }); // Friday's chat — remembers Monday
+await memory.createThread({ dataset: 'user_42' }); // Monday's chat
+await memory.createThread({ dataset: 'user_42' }); // Friday's chat — remembers Monday
 ```
 
 ---
@@ -115,11 +115,11 @@ await memory.threads.create({ dataset: 'user_42' }); // Friday's chat — rememb
 
 ```ts
 import express from 'express';
-import { MemorySodaClient, ApiError } from '@alagappan17/memory-soda';
+import { MemorySoda, ApiError } from '@alagappan17/memory-soda';
 
 const app = express();
 app.use(express.json());
-const memory = MemorySodaClient.fromEnv();
+const memory = new MemorySoda();
 
 app.post('/chat', async (req, res) => {
   const { userId, message } = req.body;
@@ -128,7 +128,7 @@ app.post('/chat', async (req, res) => {
   try {
     // 1. Thread
     if (!threadId) {
-      const thread = await memory.threads.create({ dataset: userId });
+      const thread = await memory.createThread({ dataset: userId });
       threadId = thread.threadId;
     }
 
@@ -146,8 +146,8 @@ app.post('/chat', async (req, res) => {
     });
 
     // 4. Write
-    await memory.workingMemory.addMessage(threadId, { role: 'user', content: message });
-    await memory.workingMemory.addMessage(threadId, {
+    await memory.addMessage(threadId, { role: 'user', content: message });
+    await memory.addMessage(threadId, {
       role: 'assistant',
       content: reply,
       // optional telemetry, surfaced in the dashboard
@@ -183,7 +183,7 @@ Same for writes — append in the background if you would rather not pay the
 latency:
 
 ```ts
-void memory.workingMemory
+void memory
   .addMessage(threadId, { role: 'assistant', content: reply })
   .catch((err) => logger.warn({ err }, 'memory write failed'));
 ```
@@ -192,17 +192,20 @@ The tradeoff: a dropped write is a fact never learned. Log it.
 
 ---
 
-## Opening turn shortcut
+## The opening turn
 
-For the first message of a brand-new conversation, `startConversation` collapses
-create + append + prepare:
+The first turn is the only one that needs a thread created, and it is three
+plain calls:
 
 ```ts
-const { threadId, prepare } = await memory.workingMemory.startConversation({
-  dataset: userId,
-  firstMessage: { role: 'user', content: message },
-});
+const { threadId } = await memory.createThread({ dataset: userId });
+await memory.addMessage(threadId, { role: 'user', content: message });
+const { context } = await memory.recall({ dataset: userId, query: message });
 ```
+
+After that the loop is just `addMessage` and `recall` — there is no separate
+opening-turn helper to learn, because the shape it would teach is wrong for
+every turn that follows.
 
 ---
 

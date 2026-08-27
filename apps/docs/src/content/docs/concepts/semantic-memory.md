@@ -147,7 +147,7 @@ Any fact whose subject is not the literal string `user` is **discarded**.
 **Why:** without it, the model fills the store with encyclopedia content scraped
 from its own answers, and retrieval quality collapses.
 
-**The cost:** memory-soda can only remember things about a *person*. Facts about
+**The cost:** Memory Soda can only remember things about a *person*. Facts about
 a project, a codebase, a task or an agent are architecturally impossible today.
 If you need those, this is the constraint to know about before adopting.
 
@@ -201,15 +201,15 @@ const { context } = await memory.recall({ dataset: 'user_42', query: userMessage
 chronological:
 
 ```ts
-const { facts, total } = await memory.semantic.listFacts('user_42', {
+const { facts, total } = await memory.listFacts('user_42', {
   q: 'camera',              // optional keyword filter
   limit: 50,                // 1–100
   includeInvalidated: true, // include superseded/deleted
   asOf: '2026-06-01',       // point-in-time
 });
 
-const entities = await memory.semantic.listEntities('user_42');
-const entityFacts = await memory.semantic.listEntityFacts('user_42', 'berlin');
+const entities = await memory.listEntities('user_42');
+const { facts: entityFacts } = await memory.listFacts('user_42', { entity: 'berlin' });
 ```
 
 ---
@@ -223,7 +223,7 @@ to a thread.
 You can, however, **remove** one:
 
 ```ts
-await memory.semantic.deleteFact('user_42', factId);
+await memory.deleteFact('user_42', factId);
 ```
 
 This is a soft delete — it stamps `invalidAt`, so the fact disappears from

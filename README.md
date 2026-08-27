@@ -1,4 +1,4 @@
-# memory-soda
+# Memory Soda
 
 Semantic memory layer for AI agents. Extract facts from conversations, store them in Postgres, and retrieve relevant context for future LLM calls. Powered by pgvector similarity search. Self-hostable.
 
@@ -67,43 +67,81 @@ Open the **Status page** first to confirm all services (Postgres) are green befo
 
 ## Use the SDK
 
-### Install from npm
-
 ```bash
 npm install @alagappan17/memory-soda
 ```
 
 ```ts
-import { MemorySodaClient } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@alagappan17/memory-soda';
 
-const memory = new MemorySodaClient({
-  baseUrl: 'http://localhost:3004',   // your self-hosted API URL
-  apiKey: 'ms_xxxx',                  // key from first-boot output
+const memory = new MemorySoda({
+  baseUrl: 'http://localhost:3004',   // your self-hosted API
+  apiKey: 'ms_xxxx',                  // from the first-boot output
 });
-
-// Verify connectivity
-const { ok, services } = await memory.ping();
-
-// Store facts from a conversation turn
-await memory.add(userId, messages);
-
-// Retrieve relevant context before an LLM call
-const { contextText } = await memory.retrieve(userId, userMessage);
-
-// Or let memory-soda handle the full agent turn end-to-end
-const response = await memory.chat(userId, messages);
 ```
 
-Or use environment variables:
+Or set `MEMORY_SODA_BASE_URL` and `MEMORY_SODA_API_KEY` and call
+`new MemorySoda()` with no arguments.
 
-```bash
-MEMORY_SODA_BASE_URL=http://localhost:3004
-MEMORY_SODA_API_KEY=ms_xxxx
-```
+### The loop
+
+Memory is written by having the conversation and read by asking for it back.
 
 ```ts
-const memory = MemorySodaClient.fromEnv();
+// Once per conversation. `dataset` is whose memory this is — a user id works.
+const { threadId, dataset } = await memory.createThread({ dataset: 'user_42' });
+
+// Every turn: write what was said…
+await memory.addMessage(threadId, { role: 'user', content: input });
+
+// …and read what matters, as a prompt-ready block.
+const { context } = await memory.recall({ dataset, query: input });
+
+const reply = await yourModel({
+  system: context ? `What you know about this user:\n${context}` : undefined,
+  prompt: input,
+});
+
+await memory.addMessage(threadId, { role: 'assistant', content: reply });
 ```
+
+Facts are extracted in the background — you never call an "extract" endpoint.
+A few seconds after a burst of messages, `recall()` starts returning what the
+conversation revealed.
+
+### With the Vercel AI SDK
+
+Wrap the model once and memory becomes invisible: it recalls before every call
+and records every turn.
+
+```ts
+import { google } from '@ai-sdk/google';
+import { generateText, wrapLanguageModel } from 'ai';
+import { memoryMiddleware } from '@alagappan17/memory-soda/ai';
+
+const model = wrapLanguageModel({
+  model: google('gemini-2.5-flash'),
+  middleware: memoryMiddleware({ memory, dataset, threadId }),
+});
+
+const { text } = await generateText({ model, prompt: 'What should I cook?' });
+```
+
+A recall failure degrades to an unaugmented call rather than throwing, and the
+write-back never blocks the response. There is also `memoryTool()` for agents
+that should decide when to look something up themselves.
+
+### The rest
+
+```ts
+await memory.listFacts('user_42');            // what is known, most recent first
+await memory.deleteFact('user_42', factId);  // retire something we got wrong
+await memory.exportDataset('user_42');       // everything held, for a SAR
+await memory.forgetDataset('user_42');       // erase it, for real
+```
+
+> **Server-side only.** An API key grants full read and write access to every
+> dataset in its project. Never ship it to a browser or a mobile app.
 
 ### Install locally (pre-publish / contributors)
 
@@ -144,13 +182,15 @@ Follow the [Quickstart](#quickstart) to set up Postgres and env vars, then:
 npm run dev   # API + Dashboard, hot reload
 ```
 
-Common database tasks (run from `apps/api`):
+Common database tasks:
 
 ```bash
-npm run db:generate   # generate a migration from schema changes
-npm run db:migrate    # apply pending migrations
-npm run db:studio     # open Drizzle Studio
+npm run db:generate                        # generate a migration from schema changes
+npm run db:migrate                         # apply pending migrations
+npm run --workspace=apps/api db:studio     # open Drizzle Studio
 ```
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request.
 
 ---
 
@@ -158,12 +198,14 @@ npm run db:studio     # open Drizzle Studio
 
 ```
 apps/
-  api/          ← self-hostable Express/Fastify backend (Postgres + Gemini)
-  dashboard/    ← memory management dashboard (Next.js)
+  api/          ← Express API: the memory pipeline, Drizzle schema, worker
+  dashboard/    ← Vite + React dashboard and playground
+  docs/         ← Astro Starlight documentation site
 
 packages/
   sdk/          ← @alagappan17/memory-soda — install this in your app
-  types/        ← shared TypeScript types (internal)
+  types/        ← shared types and settings defaults (internal)
+  create-memory-soda/ ← the `npm create memory-soda` installer
 ```
 
 ---
@@ -178,7 +220,7 @@ packages/
 | `PORT` | No | API port. Default: `3004` |
 | `CORS_ORIGIN` | No | Dashboard URL for CORS. Default: `http://localhost:3000` |
 | `MIGRATE_ON_START` | No | Run DB migrations on startup. Default: `true` |
-| `NEXT_PUBLIC_API_URL` | No | API URL as seen from the browser. Default: `http://localhost:3004` |
+| `VITE_API_URL` | No | API URL as seen from the browser. Default: `http://localhost:3004` |
 
 Copy `.env.example` to `.env` for local development.
 
@@ -191,7 +233,10 @@ Copy `.env.example` to `.env` for local development.
 | `npm run dev` | Start API + Dashboard in watch mode |
 | `npm run build` | Build all projects |
 | `npm run typecheck` | Type-check all projects |
+| `npm run test` | Run the test suites |
+| `npm run lint` | Lint everything |
 | `npm run sdk:build` | Build the SDK package |
+| `npm run db:migrate` | Apply pending migrations |
 
 ---
 

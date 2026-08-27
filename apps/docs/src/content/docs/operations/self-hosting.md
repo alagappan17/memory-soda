@@ -1,8 +1,8 @@
 ---
 title: "Self-hosting"
-description: "memory-soda is self-hosted only. There is no managed offering."
+description: "Memory Soda is self-hosted only. There is no managed offering."
 ---
-memory-soda is self-hosted only. There is no managed offering.
+Memory Soda is self-hosted only. There is no managed offering.
 
 ---
 
@@ -203,7 +203,7 @@ Boot takes a few seconds — migrations run before the listener opens.
 
 ## Security
 
-memory-soda expects to sit **behind your own boundary**. Put a reverse proxy in
+Memory Soda expects to sit **behind your own boundary**. Put a reverse proxy in
 front of it.
 
 ### What it does not do

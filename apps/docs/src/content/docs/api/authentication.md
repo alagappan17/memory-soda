@@ -37,7 +37,7 @@ curl http://localhost:3004/v1/threads \
 ```
 
 ```ts
-const memory = new MemorySodaClient({ baseUrl, apiKey: process.env.MEMORY_SODA_API_KEY! });
+const memory = new MemorySoda({ baseUrl, apiKey: process.env.MEMORY_SODA_API_KEY! });
 ```
 
 ### Getting one
@@ -223,7 +223,7 @@ Known gaps, so you can compensate:
 | No API key expiry | Rotate manually |
 | No audit log | Front it with request logging if you need one |
 
-memory-soda is designed to run **behind your own network boundary**. Do not
+Memory Soda is designed to run **behind your own network boundary**. Do not
 expose it directly to the internet without a proxy handling TLS, rate limiting
 and access control.
 

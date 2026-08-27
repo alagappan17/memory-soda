@@ -93,7 +93,7 @@ MEMORY_SODA_API_KEY=ms_3f9a…
 ```
 
 ```ts
-const memory = MemorySodaClient.fromEnv();
+const memory = new MemorySoda();
 ```
 
 If you need one tenant to be unable to reach another's data even by mistake, the

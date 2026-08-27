@@ -142,13 +142,13 @@ Extraction takes 20–60 seconds by default. Two ways to make it tractable:
 
 ```ts
 // 1. shrink the timer
-await memory.threads.create({
+await memory.createThread({
   dataset: DATASET,
   settings: { episodic: { autoEpisodeIntervalMs: 1000 } },
 });
 
 // 2. force it
-await memory.threads.end(threadId);
+await memory.endThread(threadId);
 ```
 
 Then poll rather than sleeping a fixed amount:
@@ -169,7 +169,7 @@ async function waitFor<T>(
 }
 
 const { facts } = await waitFor(
-  () => memory.semantic.listFacts(DATASET),
+  () => memory.listFacts(DATASET),
   (r) => r.facts.length > 0,
 );
 ```

@@ -31,7 +31,7 @@ msg 40  user      "what about…"                camera under $1000, rejected
 Per thread, at creation:
 
 ```ts
-await memory.threads.create({
+await memory.createThread({
   dataset: 'user_42',
   autoCompactThreshold: 40,   // compact once 40 un-compacted messages accumulate
 });
@@ -64,7 +64,7 @@ never sees them.
 `prepare()` detects this and returns a `warning`:
 
 ```ts
-const { messages, warning } = await memory.workingMemory.prepare(threadId, {
+const { messages, warning } = await memory.prepare(threadId, {
   messageLimit: 10,
 });
 
@@ -80,8 +80,8 @@ Keep them equal and you cannot get it wrong:
 ```ts
 const WINDOW = 40;
 
-await memory.threads.create({ dataset: userId, autoCompactThreshold: WINDOW });
-await memory.workingMemory.prepare(threadId, { messageLimit: WINDOW });
+await memory.createThread({ dataset: userId, autoCompactThreshold: WINDOW });
+await memory.prepare(threadId, { messageLimit: WINDOW });
 ```
 
 > `messageLimit` maxes out at **100**, so `autoCompactThreshold` above 100 is
@@ -117,7 +117,7 @@ Auto-compaction runs **inline** in `addMessage`. That call makes an LLM request
 and can take up to 30 seconds.
 
 ```ts
-const res = await memory.workingMemory.addMessage(threadId, { role: 'user', content: msg });
+const res = await memory.addMessage(threadId, { role: 'user', content: msg });
 if (res.compacted) {
   // this call just paid for a summarisation
 }
@@ -132,9 +132,9 @@ Leave `autoCompactThreshold` unset and compact yourself:
 ```ts
 // after responding, off the critical path
 void (async () => {
-  const { messageCount } = await memory.workingMemory.prepare(threadId, { messageLimit: 1 });
+  const { messageCount } = await memory.prepare(threadId, { messageLimit: 1 });
   if (messageCount >= 40) {
-    await memory.workingMemory.compact(threadId);
+    await memory.compact(threadId);
   }
 })().catch((err) => logger.warn({ err }, 'background compaction failed'));
 ```
@@ -146,7 +146,7 @@ Or run it on a schedule for idle threads.
 `compact()` returns different objects depending on whether there was work:
 
 ```ts
-const result = await memory.workingMemory.compact(threadId);
+const result = await memory.compact(threadId);
 
 if ('summaryMessageId' in result) {
   logger.info({ count: result.compactedCount, to: result.toSequence }, 'compacted');
@@ -194,10 +194,10 @@ summaries.
 ```ts
 // what the model will see
 const { messages, messageCount, truncated, compacted } =
-  await memory.workingMemory.prepare(threadId, { messageLimit: 40 });
+  await memory.prepare(threadId, { messageLimit: 40 });
 
 // everything, including compacted rows
-const all = await memory.workingMemory.listMessages(threadId, { limit: 100 });
+const all = await memory.listMessages(threadId, { limit: 100 });
 const summaries = all.messages.filter((m) => m.role === 'system' && m.compactedAt === null);
 ```
 

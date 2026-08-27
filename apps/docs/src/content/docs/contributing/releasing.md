@@ -116,12 +116,12 @@ mkdir /tmp/sdk-smoke && cd /tmp/sdk-smoke && npm init -y
 npm link @alagappan17/memory-soda
 
 cat > test.mjs <<'EOF'
-import { MemorySodaClient } from '@alagappan17/memory-soda';
-const m = new MemorySodaClient({ baseUrl: 'http://localhost:3004', apiKey: process.env.KEY });
-console.log(await m.ping());
-const { threadId } = await m.threads.create({ dataset: 'smoke_test' });
-await m.workingMemory.addMessage(threadId, { role: 'user', content: 'hello' });
-console.log(await m.workingMemory.prepare(threadId));
+import { MemorySoda } from '@alagappan17/memory-soda';
+const m = new MemorySoda({ baseUrl: 'http://localhost:3004', apiKey: process.env.KEY });
+console.log(await m.health());
+const { threadId } = await m.createThread({ dataset: 'smoke_test' });
+await m.addMessage(threadId, { role: 'user', content: 'hello' });
+console.log(await m.prepare(threadId));
 console.log(await m.recall({ dataset: 'smoke_test' }));
 EOF
 
@@ -131,7 +131,7 @@ KEY=ms_… node test.mjs
 Check CJS too, since it is a separate build output:
 
 ```bash
-node -e "const { MemorySodaClient } = require('@alagappan17/memory-soda'); console.log(typeof MemorySodaClient)"
+node -e "const { MemorySoda } = require('@alagappan17/memory-soda'); console.log(typeof MemorySoda)"
 ```
 
 ---

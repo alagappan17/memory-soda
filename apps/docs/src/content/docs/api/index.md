@@ -68,7 +68,7 @@ Collections use a named key plus counts:
 | Code | When |
 |---|---|
 | `200` | Success |
-| `201` | Created — `POST /v1/threads`, `POST …/messages`, `POST …/chat` |
+| `201` | Created — `POST /v1/threads`, `POST …/messages` |
 | `204` | Success, no body — logout, delete |
 | `400` | Validation failed |
 | `401` | Missing, invalid or revoked credential |
@@ -139,7 +139,7 @@ GET /v1/memory/episodic/datasets/:dataset/episodes?limit=10&before=2026-08-01T00
 **Offset** — dashboard lists only:
 
 ```
-GET /dashboard/threads?projectId=…&limit=20&offset=40
+GET /dashboard/browse/threads?projectId=…&limit=20&offset=40
 → { threads, total }
 ```
 
@@ -207,7 +207,7 @@ change; changes will be noted in the changelog.
 | Endpoint | Page |
 |---|---|
 | `POST /v1/threads`, `GET/PATCH /v1/threads/:id`, `POST /v1/threads/:id/end` | [Threads](/api/threads/) |
-| `POST/GET …/threads/:id/messages`, `…/prepare`, `…/chat`, `…/compact`, `…/stats` | [Working memory](/api/working-memory/) |
+| `POST/GET …/threads/:id/messages`, `…/prepare`, `…/compact`, `…/stats` | [Working memory](/api/working-memory/) |
 | `POST /v1/memory/recall` | [Recall](/api/recall/) |
 | `GET/DELETE …/semantic/datasets/:dataset/facts`, `…/entities` | [Semantic memory](/api/semantic-memory/) |
 | `GET/DELETE/POST …/episodic/…` | [Episodic memory](/api/episodic-memory/) |

@@ -101,7 +101,7 @@ The default 10-second inactivity timer plus a 5-second tick makes each cycle slo
 Create test threads with a low override:
 
 ```ts
-await memory.threads.create({
+await memory.createThread({
   dataset: 'dev_scratch',
   settings: { episodic: { autoEpisodeIntervalMs: 1000 } },
 });

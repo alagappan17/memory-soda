@@ -4,7 +4,7 @@ description: "Base path: /v1/memory/working · Auth: API key"
 ---
 Base path: `/v1/memory/working` · Auth: [API key](/api/authentication/)
 
-SDK equivalent: [`client.workingMemory`](/sdk/working-memory/)
+SDK equivalent: [`memory.working`](/sdk/working-memory/)
 
 ---
 
@@ -168,15 +168,19 @@ curl -X POST http://localhost:3004/v1/memory/working/threads/$THREAD/prepare \
 
 ---
 
-## `POST /v1/memory/working/threads/:threadId/chat`
+## `POST /dashboard/chat/threads/:threadId/chat`
 
 Runs a complete turn **server-side**: appends the user message, prepares, recalls,
 calls Gemini, appends the reply.
 
-> **Demo endpoint.** It exists for the [Playground](/dashboard/playground/)
-> and is deliberately absent from the SDK. It hard-codes Gemini and a
-> system-prompt format. For real integrations use `prepare` + `recall` with your
-> own model.
+> **Dashboard only.** This route lives behind a login session, not an API key,
+> and is absent from the SDK. It exists for the
+> [Playground](/dashboard/playground/); it hard-codes Gemini and a system-prompt
+> format, so shipping it on the `/v1` surface would advertise a demo as part of
+> the product. For real integrations use `prepare` + `recall` with your own
+> model, or the [AI SDK middleware](/sdk/ai-sdk/).
+>
+> Takes `?projectId=` like every other dashboard route.
 
 ### Request
 

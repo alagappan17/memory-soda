@@ -30,7 +30,7 @@ midnight UTC).
 Also available on the fact list:
 
 ```ts
-await memory.semantic.listFacts('user_42', { asOf: '2026-06-01' });
+await memory.listFacts('user_42', { asOf: '2026-06-01' });
 ```
 
 ---
@@ -164,7 +164,7 @@ moment, not the top 8.
 ### Full history, unfiltered by time
 
 ```ts
-const { facts } = await memory.semantic.listFacts('user_42', {
+const { facts } = await memory.listFacts('user_42', {
   includeInvalidated: true,
 });
 ```
@@ -175,7 +175,7 @@ when both are passed.
 ### A timeline for one fact
 
 ```ts
-const { facts } = await memory.semantic.listFacts('user_42', {
+const { facts } = await memory.listFacts('user_42', {
   q: 'berlin',
   includeInvalidated: true,
 });

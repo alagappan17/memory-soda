@@ -4,7 +4,7 @@ description: "Base path: /v1/threads · Auth: API key"
 ---
 Base path: `/v1/threads` · Auth: [API key](/api/authentication/)
 
-SDK equivalent: [`client.threads`](/sdk/threads/)
+SDK equivalent: [`memory.threads`](/sdk/threads/)
 
 ---
 
@@ -173,7 +173,7 @@ curl -X POST http://localhost:3004/v1/threads/$THREAD/end \
 | Operation | Status |
 |---|---|
 | Delete a thread | No endpoint. Deleting the row in SQL cascades to messages. |
-| List threads | Dashboard only — [`GET /dashboard/threads`](/api/dashboard/). |
+| List threads | Dashboard only — [`GET /dashboard/browse/threads`](/api/dashboard/). |
 | Reassign a thread to another dataset | Not supported. |
 
 ---
@@ -181,4 +181,4 @@ curl -X POST http://localhost:3004/v1/threads/$THREAD/end \
 ## Next
 
 - [Working memory API](/api/working-memory/) — appending and reading messages
-- [`client.threads`](/sdk/threads/)
+- [`memory.threads`](/sdk/threads/)

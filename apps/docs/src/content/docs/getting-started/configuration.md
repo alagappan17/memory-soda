@@ -36,7 +36,7 @@ read from it.
 
 ### SDK-side
 
-Read by `MemorySodaClient.fromEnv()` in *your* application, not by the server.
+Read by `new MemorySoda()` in *your* application, not by the server.
 
 | Variable | Description |
 |---|---|
@@ -97,7 +97,7 @@ A thread can override the project's **episodic** settings at creation. Useful
 for a thread that should extract on a different cadence, or not at all.
 
 ```ts
-await memory.threads.create({
+await memory.createThread({
   dataset: 'user_42',
   settings: {
     episodic: {
@@ -109,7 +109,7 @@ await memory.threads.create({
 
 ```ts
 // Ephemeral thread — never becomes long-term memory
-await memory.threads.create({
+await memory.createThread({
   dataset: 'user_42',
   settings: { episodic: { enabled: false } },
 });
@@ -132,7 +132,7 @@ built-in defaults  ─►  project.settings  ─►  thread.episodicSettings
 Off by default. Enable it per thread by setting a threshold:
 
 ```ts
-await memory.threads.create({
+await memory.createThread({
   dataset: 'user_42',
   autoCompactThreshold: 30, // summarise once 30 un-compacted messages accumulate
 });

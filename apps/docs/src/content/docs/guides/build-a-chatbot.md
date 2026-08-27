@@ -27,9 +27,9 @@ Two reads before the model, two writes after. That is the whole thing.
 
 ```ts
 // lib/memory.ts
-import { MemorySodaClient } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@alagappan17/memory-soda';
 
-export const memory = new MemorySodaClient({
+export const memory = new MemorySoda({
   baseUrl: process.env.MEMORY_SODA_BASE_URL!,
   apiKey: process.env.MEMORY_SODA_API_KEY!,
   timeout: 30_000,
@@ -53,7 +53,7 @@ export async function resolveThread(userId: string, conversationId: string) {
   const row = await db.conversation.findUnique({ where: { id: conversationId } });
   if (row?.threadId) return row.threadId;
 
-  const { threadId } = await memory.threads.create({
+  const { threadId } = await memory.createThread({
     dataset: userId,                      // ← the identity that owns the memory
     metadata: { conversationId },
     autoCompactThreshold: 40,
@@ -86,7 +86,7 @@ export async function loadContext(
   message: string,
 ) {
   const [prepared, recalled] = await Promise.all([
-    memory.workingMemory
+    memory
       .prepare(threadId, { messageLimit: 40 })
       .catch((err) => {
         if (err instanceof AuthError) throw err;         // config problem
@@ -164,7 +164,7 @@ export async function POST(req: Request) {
 
   // Persist the user turn immediately — before generation, so it survives a
   // client disconnect mid-stream.
-  await memory.workingMemory.addMessage(threadId, { role: 'user', content: message });
+  await memory.addMessage(threadId, { role: 'user', content: message });
 
   const started = Date.now();
   const stream = await yourModel.stream({
@@ -186,7 +186,7 @@ export async function POST(req: Request) {
 
         // Write the assistant turn after the stream completes. Fire and forget:
         // the user already has their answer.
-        void memory.workingMemory
+        void memory
           .addMessage(threadId, {
             role: 'assistant',
             content: full,
@@ -216,7 +216,7 @@ Extraction fires after `autoEpisodeIntervalMs` of silence anyway, but when you
 ```ts
 export async function endConversation(conversationId: string) {
   const { threadId } = await db.conversation.findUniqueOrThrow({ where: { id: conversationId } });
-  await memory.threads.end(threadId).catch((err) =>
+  await memory.endThread(threadId).catch((err) =>
     logger.warn({ err, threadId }, 'failed to queue extraction'),
   );
 }
@@ -250,7 +250,7 @@ leave `autoCompactThreshold` unset and compact from a job:
 
 ```ts
 // every N turns, or on a schedule
-void memory.workingMemory.compact(threadId).catch(() => {});
+void memory.compact(threadId).catch(() => {});
 ```
 
 ---
@@ -275,17 +275,17 @@ Extraction is asynchronous, which makes tests awkward. Force it:
 
 ```ts
 // integration test
-const { threadId } = await memory.threads.create({ dataset: 'test_user_1' });
+const { threadId } = await memory.createThread({ dataset: 'test_user_1' });
 
-await memory.workingMemory.addMessage(threadId, {
+await memory.addMessage(threadId, {
   role: 'user', content: 'I am vegetarian and allergic to peanuts.',
 });
 
-await memory.threads.end(threadId);          // queue extraction now
+await memory.endThread(threadId);          // queue extraction now
 
 // poll rather than sleeping a fixed amount
 const facts = await waitFor(
-  () => memory.semantic.listFacts('test_user_1'),
+  () => memory.listFacts('test_user_1'),
   (r) => r.facts.length > 0,
   { timeout: 60_000, interval: 2_000 },
 );

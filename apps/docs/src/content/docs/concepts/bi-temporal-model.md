@@ -1,9 +1,9 @@
 ---
 title: "The bi-temporal model"
-description: "Every fact carries four timestamps, in two independent pairs. This is the design decision that makes memory-soda more than a fact list, and the one most…"
+description: "Every fact carries four timestamps, in two independent pairs. This is the design decision that makes Memory Soda more than a fact list, and the one most…"
 ---
 Every fact carries four timestamps, in two independent pairs. This is the design
-decision that makes memory-soda more than a fact list, and the one most worth
+decision that makes Memory Soda more than a fact list, and the one most worth
 understanding before you use `asOf`.
 
 ---
@@ -81,7 +81,7 @@ correct bi-temporal behaviour and surprising the first time you hit it.
 To see them:
 
 ```ts
-await memory.semantic.listFacts('user_42', { includeInvalidated: true });
+await memory.listFacts('user_42', { includeInvalidated: true });
 ```
 
 ---
