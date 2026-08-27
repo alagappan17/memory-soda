@@ -2,8 +2,13 @@ import { eq, and, lt, desc, asc, sql, max, inArray, isNull } from 'drizzle-orm';
 import { summarizeMessages } from '../lib/gemini.js';
 import { db } from '../db/postgres.js';
 import { threads, messages, scheduledEpisodes } from '../db/schema.js';
-import { getProjectEpisodicSettings } from './episodic-memory.service.js';
-import type { WMPrepareResponse } from '@memory-soda/types';
+import { getEffectiveEpisodicSettings } from './episodic-memory.service.js';
+import type {
+  MessageRole,
+  WMMessageMetadata,
+  WMPrepareResponse,
+  WMTokenCount,
+} from '@memory-soda/types';
 import { type Thread, rowToThread } from './thread.service.js';
 
 export type { Thread };
@@ -11,13 +16,13 @@ export type { Thread };
 export interface Message {
   messageId: string;
   threadId: string;
-  role: 'user' | 'assistant' | 'system' | 'tool';
+  role: MessageRole;
   content: string;
   sequenceNumber: number;
-  tokens: { input?: number; output?: number; total?: number } | null;
+  tokens: WMTokenCount | null;
   model: string | null;
   latencyMs: number | null;
-  metadata: Record<string, unknown> | null;
+  metadata: WMMessageMetadata | null;
   compactedAt: string | null;
   createdAt: string;
 }
@@ -42,18 +47,17 @@ function rowToMessage(row: typeof messages.$inferSelect): Message {
     role: row.role,
     content: row.content,
     sequenceNumber: row.sequenceNumber,
-    tokens: row.tokens as Message['tokens'],
+    tokens: row.tokens,
     model: row.model ?? null,
     latencyMs: row.latencyMs ?? null,
-    metadata: row.metadata as Record<string, unknown> | null,
+    metadata: row.metadata,
     compactedAt: row.compactedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
 
-function isSummaryRow(row: { metadata: unknown }): boolean {
-  const meta = row.metadata as Record<string, unknown> | null;
-  return meta?.['type'] === 'compact_summary';
+function isSummaryRow(row: { metadata: WMMessageMetadata | null }): boolean {
+  return row.metadata?.type === 'compact_summary';
 }
 
 const notSummarySql = sql`(${messages.metadata}->>'type' IS NULL OR ${messages.metadata}->>'type' != 'compact_summary')`;
@@ -61,15 +65,19 @@ const isSummarySql = sql`${messages.metadata}->>'type' = 'compact_summary'`;
 
 // ── Message operations ────────────────────────────────────────────────────────
 
+export interface NewMessage {
+  role: MessageRole;
+  content: string;
+  tokens?: WMTokenCount;
+  model?: string;
+  latencyMs?: number;
+  metadata?: WMMessageMetadata;
+}
+
 export async function addMessage(
   threadId: string,
   projectId: string,
-  role: 'user' | 'assistant' | 'system' | 'tool',
-  content: string,
-  tokens?: { input?: number; output?: number; total?: number },
-  model?: string,
-  latencyMs?: number,
-  metadata?: Record<string, unknown>,
+  input: NewMessage,
 ): Promise<{ message: Message; thread: Thread; compacted: boolean }> {
   let result!: { message: Message; thread: Thread };
   let uncompactedCount = 0;
@@ -95,13 +103,13 @@ export async function addMessage(
       .insert(messages)
       .values({
         threadId,
-        role,
-        content,
+        role: input.role,
+        content: input.content,
         sequenceNumber: nextSeq,
-        tokens: tokens ?? null,
-        model: model ?? null,
-        latencyMs: latencyMs ?? null,
-        metadata: metadata ?? null,
+        tokens: input.tokens ?? null,
+        model: input.model ?? null,
+        latencyMs: input.latencyMs ?? null,
+        metadata: input.metadata ?? null,
       })
       .returning();
 
@@ -146,11 +154,13 @@ export async function addMessage(
     if (compactResult) compacted = true;
   }
 
-  const rawSettings = thread.episodicSettings;
-  const resolvedSettings = rawSettings ?? await getProjectEpisodicSettings(projectId);
+  const episodic = await getEffectiveEpisodicSettings(
+    projectId,
+    thread.episodicSettings,
+  );
 
-  if (resolvedSettings.enabled && resolvedSettings.autoEpisodeIntervalMs !== null) {
-    const fireAt = new Date(Date.now() + resolvedSettings.autoEpisodeIntervalMs);
+  if (episodic.enabled && episodic.autoEpisodeIntervalMs !== null) {
+    const fireAt = new Date(Date.now() + episodic.autoEpisodeIntervalMs);
     await db
       .insert(scheduledEpisodes)
       .values({ threadId, projectId, fireAt })
@@ -366,11 +376,6 @@ export async function prepareThread(
 ): Promise<PrepareResult | null> {
   const { messageLimit } = opts;
 
-  console.log(
-    `[prepare] ── request ── thread=${threadId} project=${projectId}\n` +
-      JSON.stringify({ messageLimit }, null, 2),
-  );
-
   const [threadRow] = await db
     .select({
       id: threads.id,
@@ -425,7 +430,9 @@ export async function prepareThread(
       ? `messageLimit (${messageLimit}) is less than autoCompactThreshold (${threshold}). Messages between the compact summary and the retrieved tail may be missing. Set messageLimit >= autoCompactThreshold to ensure full context.`
       : undefined;
 
-  const result: PrepareResult = {
+  // Deliberately not logged: the response is the conversation itself, and this
+  // runs on every turn. Counts only, and only at debug.
+  return {
     threadId,
     dataset: threadRow.dataset,
     messages: [...summaryRows, ...realRows],
@@ -434,13 +441,6 @@ export async function prepareThread(
     compacted: summaryRows.length > 0,
     warning,
   };
-
-  console.log(
-    `[prepare] ── response ── thread=${threadId}\n` +
-      JSON.stringify(result, null, 2),
-  );
-
-  return result;
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
@@ -475,15 +475,10 @@ export async function getThreadStats(
     let totalInput = 0,
       totalOutput = 0,
       totalTokens = 0;
-    for (const msg of withTokens) {
-      const tc = msg.tokens as {
-        input?: number;
-        output?: number;
-        total?: number;
-      };
-      totalInput += tc.input ?? 0;
-      totalOutput += tc.output ?? 0;
-      totalTokens += tc.total ?? 0;
+    for (const { tokens } of withTokens) {
+      totalInput += tokens?.input ?? 0;
+      totalOutput += tokens?.output ?? 0;
+      totalTokens += tokens?.total ?? 0;
     }
     tokenUsage = {
       totalInput,

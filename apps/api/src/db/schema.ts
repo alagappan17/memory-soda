@@ -13,13 +13,23 @@ import {
 } from 'drizzle-orm/pg-core';
 import { customType } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
+import type {
+  EntityType,
+  ProjectEpisodicSettings,
+  ProjectSemanticSettings,
+  ProjectSettingsPatch,
+  WMMessageMetadata,
+  WMTokenCount,
+} from '@memory-soda/types';
 
 // pgvector custom column type
-const vector = customType<{ data: number[]; driverData: string }>({
+const vector = customType<{
+  data: number[];
+  driverData: string;
+  config: { dimensions: number };
+}>({
   dataType(config) {
-    const dimensions =
-      (config as { dimensions?: number } | undefined)?.dimensions ?? 768;
-    return `vector(${dimensions})`;
+    return `vector(${config?.dimensions ?? 768})`;
   },
   toDriver(value: number[]): string {
     return `[${value.join(',')}]`;
@@ -33,7 +43,7 @@ export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   description: text('description'),
-  settings: jsonb('settings'),
+  settings: jsonb('settings').$type<ProjectSettingsPatch>(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
@@ -137,7 +147,7 @@ export const threads = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
     tags: text('tags').array().notNull().default([]),
-    metadata: jsonb('metadata'),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -148,8 +158,12 @@ export const threads = pgTable(
       .notNull()
       .defaultNow(),
     autoCompactThreshold: integer('auto_compact_threshold'),
-    episodicSettings: jsonb('episodic_settings'),
-    semanticSettings: jsonb('semantic_settings'),
+    episodicSettings: jsonb('episodic_settings').$type<
+      Partial<ProjectEpisodicSettings>
+    >(),
+    semanticSettings: jsonb('semantic_settings').$type<
+      Partial<ProjectSemanticSettings>
+    >(),
     lastCompactedAt: timestamp('last_compacted_at', { withTimezone: true }),
     lastCompactedSequence: integer('last_compacted_sequence')
       .notNull()
@@ -174,10 +188,10 @@ export const messages = pgTable(
     role: messageRoleEnum('role').notNull(),
     content: text('content').notNull(),
     sequenceNumber: integer('sequence_number').notNull(),
-    tokens: jsonb('tokens'),
+    tokens: jsonb('tokens').$type<WMTokenCount>(),
     model: text('model'),
     latencyMs: integer('latency_ms'),
-    metadata: jsonb('metadata'),
+    metadata: jsonb('metadata').$type<WMMessageMetadata>(),
     compactedAt: timestamp('compacted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
@@ -238,7 +252,7 @@ export const episodes = pgTable(
       .notNull()
       .default('pending'),
     summary: text('summary'),
-    keyLearnings: jsonb('key_learnings'),
+    keyLearnings: jsonb('key_learnings').$type<string[]>(),
     embedding: vector('embedding', { dimensions: 768 }),
     messageCount: integer('message_count').notNull().default(0),
     tokenCount: integer('token_count'),
@@ -257,7 +271,7 @@ export const episodes = pgTable(
     // legacy episodes → extraction falls back to the whole uncompacted thread.
     startSequence: integer('start_sequence'),
     endSequence: integer('end_sequence'),
-    metadata: jsonb('metadata'),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -430,7 +444,7 @@ export const entities = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    type: text('type').notNull(),
+    type: text('type').$type<EntityType>().notNull(),
     embedding: vector('embedding', { dimensions: 768 }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()

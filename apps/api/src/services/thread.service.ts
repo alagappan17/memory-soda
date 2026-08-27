@@ -1,11 +1,10 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { generateUserId } from '../lib/generate-user-id.js';
 import { db } from '../db/postgres.js';
-import { threads, messages } from '../db/schema.js';
+import { threads } from '../db/schema.js';
 import {
-  getProjectEpisodicSettings,
-  createPendingEpisode,
-  processEpisode,
+  getEffectiveEpisodicSettings,
+  openAndProcessEpisode,
 } from './episodic-memory.service.js';
 import type { ProjectEpisodicSettings } from '@memory-soda/types';
 
@@ -21,7 +20,8 @@ export interface Thread {
   updatedAt: string;
   lastActivityAt: string;
   autoCompactThreshold: number | null;
-  episodicSettings: ProjectEpisodicSettings | null;
+  /** Per-thread patch over the project's episodic settings, not a full set. */
+  episodicSettings: Partial<ProjectEpisodicSettings> | null;
   lastCompactedAt: string | null;
   lastCompactedSequence: number;
 }
@@ -34,13 +34,12 @@ export function rowToThread(row: typeof threads.$inferSelect): Thread {
     dataset: row.dataset,
     projectId: row.projectId,
     tags: row.tags ?? [],
-    metadata: row.metadata as Record<string, unknown> | null,
+    metadata: row.metadata,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     lastActivityAt: row.lastActivityAt.toISOString(),
     autoCompactThreshold: row.autoCompactThreshold ?? null,
-    episodicSettings:
-      (row.episodicSettings as ProjectEpisodicSettings | null) ?? null,
+    episodicSettings: row.episodicSettings ?? null,
     lastCompactedAt: row.lastCompactedAt?.toISOString() ?? null,
     lastCompactedSequence: row.lastCompactedSequence,
   };
@@ -48,31 +47,31 @@ export function rowToThread(row: typeof threads.$inferSelect): Thread {
 
 // ── Thread operations ─────────────────────────────────────────────────────────
 
-export async function createThread(
-  projectId: string,
-  dataset: string | null | undefined,
-  tags?: string[],
-  metadata?: Record<string, unknown>,
-  autoCompactThreshold?: number,
-  episodicOverride?: Partial<ProjectEpisodicSettings>,
-): Promise<Thread> {
-  const projectSettings = await getProjectEpisodicSettings(projectId);
-  const resolvedEpisodic: ProjectEpisodicSettings = episodicOverride
-    ? { ...projectSettings, ...episodicOverride }
-    : projectSettings;
+export interface NewThread {
+  projectId: string;
+  /** Auto-generated when omitted, so a caller can start without one. */
+  dataset?: string;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+  autoCompactThreshold?: number;
+  /** A patch over the project's episodic settings, not a replacement. */
+  episodicOverride?: Partial<ProjectEpisodicSettings>;
+}
 
+export async function createThread(input: NewThread): Promise<Thread> {
   const [row] = await db
     .insert(threads)
     .values({
-      dataset: dataset || generateUserId(),
-      projectId,
-      tags: tags ?? [],
-      metadata: metadata ?? null,
-      autoCompactThreshold: autoCompactThreshold ?? null,
-      episodicSettings: resolvedEpisodic,
+      dataset: input.dataset || generateUserId(),
+      projectId: input.projectId,
+      tags: input.tags ?? [],
+      metadata: input.metadata ?? null,
+      autoCompactThreshold: input.autoCompactThreshold ?? null,
+      episodicSettings: input.episodicOverride ?? null,
     })
     .returning();
-  return rowToThread(row!);
+  if (!row) throw new Error('Failed to create thread');
+  return rowToThread(row);
 }
 
 export async function getThread(
@@ -120,30 +119,21 @@ export async function endThread(
   if (!row) return null;
 
   const thread = rowToThread(row);
-  const settings =
-    thread.episodicSettings ?? (await getProjectEpisodicSettings(projectId));
+  const settings = await getEffectiveEpisodicSettings(
+    projectId,
+    thread.episodicSettings,
+  );
   if (!settings.enabled) {
     return { thread, episodeQueued: false };
   }
 
-  const [{ count: messageCount }] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(messages)
-    .where(eq(messages.threadId, threadId));
-
-  const episode = await createPendingEpisode({
+  // False when the thread has no messages the last episode did not already
+  // cover — ending an unchanged thread is a no-op, not a new empty episode.
+  const episodeQueued = await openAndProcessEpisode({
     threadId,
     dataset: row.dataset,
     projectId,
-    messageCount,
-    tokenCount: null,
-    startedAt: row.createdAt,
-    endedAt: new Date(),
   });
 
-  processEpisode(episode.id).catch((err) => {
-    console.error('[episodic] processEpisode failed:', err);
-  });
-
-  return { thread, episodeQueued: true };
+  return { thread, episodeQueued };
 }

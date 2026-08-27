@@ -1,12 +1,12 @@
 import { db } from '../db/postgres.js';
 import { projects } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
+import { mergeWithDefaults } from '@memory-soda/types';
 import type {
   Project,
   ProjectSettings,
   ProjectSettingsPatch,
 } from '@memory-soda/types';
-import { mergeWithDefaults } from '../lib/project-settings.js';
 
 function rowToProject(row: typeof projects.$inferSelect): Project {
   return {
@@ -52,6 +52,16 @@ export async function getOrCreateDefaultProject(): Promise<Project> {
   return rowToProject(row!);
 }
 
+/** Whether a project id refers to a real project. */
+export async function projectExists(id: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(eq(projects.id, id))
+    .limit(1);
+  return row !== undefined;
+}
+
 export async function deleteProject(id: string): Promise<void> {
   await db.delete(projects).where(eq(projects.id, id));
 }
@@ -76,8 +86,7 @@ export async function getProjectSettings(id: string): Promise<ProjectSettings> {
     .from(projects)
     .where(eq(projects.id, id));
   if (!row) throw new Error('Project not found');
-  const raw = row.settings as ProjectSettingsPatch | null;
-  return mergeWithDefaults(raw);
+  return mergeWithDefaults(row.settings);
 }
 
 export async function updateProjectSettings(
@@ -102,5 +111,5 @@ export async function updateProjectSettings(
     .where(eq(projects.id, id))
     .returning();
   if (!updated) throw new Error('Project not found');
-  return mergeWithDefaults(updated.settings as ProjectSettingsPatch);
+  return mergeWithDefaults(updated.settings);
 }

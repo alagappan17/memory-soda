@@ -44,6 +44,13 @@ export async function listUsers(): Promise<User[]> {
   return rows.map(rowToUser);
 }
 
+export async function getUserById(
+  id: string,
+): Promise<typeof users.$inferSelect | null> {
+  const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return row ?? null;
+}
+
 export async function getUserByUsername(
   username: string,
 ): Promise<typeof users.$inferSelect | null> {

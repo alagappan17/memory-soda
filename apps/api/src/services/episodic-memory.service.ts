@@ -1,18 +1,37 @@
-import { eq, and, desc, lt, count, sql, isNull, inArray, isNotNull, ne } from 'drizzle-orm';
+import {
+  eq,
+  and,
+  asc,
+  desc,
+  lt,
+  lte,
+  gte,
+  count,
+  sql,
+  inArray,
+  isNotNull,
+  ne,
+} from 'drizzle-orm';
 import { db } from '../db/postgres.js';
-import { episodes, messages, projects, threads } from '../db/schema.js';
+import {
+  episodes,
+  messages,
+  projects,
+  scheduledEpisodes,
+  threads,
+} from '../db/schema.js';
 import type { EpisodeRow } from '../db/schema.js';
 import { extractEpisode, embedText } from '../lib/gemini.js';
+import { episodeMessageScope } from '../lib/episode-scope.js';
+import { mergeWithDefaults } from '@memory-soda/types';
 import type {
   Episode,
   EpisodeContext,
   EpisodeContextItem,
   EpisodeWithRelevance,
   ProjectEpisodicSettings,
-  ProjectSettings,
-  ProjectSettingsPatch,
 } from '@memory-soda/types';
-import { mergeWithDefaults } from '../lib/project-settings.js';
+
 import { processSemanticMemory } from './semantic-memory.service.js';
 
 // ── Project settings ──────────────────────────────────────────────────────────
@@ -25,8 +44,34 @@ export async function getProjectEpisodicSettings(
     .from(projects)
     .where(eq(projects.id, projectId));
 
-  const raw = row?.settings as ProjectSettings | null | undefined;
-  return mergeWithDefaults(raw).episodic;
+  return mergeWithDefaults(row?.settings).episodic;
+}
+
+/**
+ * Effective episodic settings for a thread: project defaults with the thread's
+ * override layered on top.
+ *
+ * A thread override is a patch, not a replacement — reading it directly would
+ * silently drop every project default the caller did not restate.
+ */
+export async function getEffectiveEpisodicSettings(
+  projectId: string,
+  threadOverride?: Partial<ProjectEpisodicSettings> | null,
+): Promise<ProjectEpisodicSettings> {
+  const base = await getProjectEpisodicSettings(projectId);
+  return applyEpisodicOverride(base, threadOverride);
+}
+
+/** Layer a partial override over resolved settings, ignoring absent keys. */
+export function applyEpisodicOverride(
+  base: ProjectEpisodicSettings,
+  override?: Partial<ProjectEpisodicSettings> | null,
+): ProjectEpisodicSettings {
+  if (!override) return base;
+  const defined = Object.fromEntries(
+    Object.entries(override).filter(([, v]) => v !== undefined),
+  );
+  return { ...base, ...defined };
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -59,9 +104,9 @@ function rowToEpisode(row: EpisodeRow): Episode {
     threadId: row.threadId,
     dataset: row.dataset,
     projectId: row.projectId,
-    status: row.status as Episode['status'],
+    status: row.status,
     summary: row.summary,
-    keyLearnings: row.keyLearnings as string[] | null,
+    keyLearnings: row.keyLearnings,
     messageCount: row.messageCount,
     tokenCount: row.tokenCount,
     startedAt: row.startedAt?.toISOString() ?? null,
@@ -70,25 +115,76 @@ function rowToEpisode(row: EpisodeRow): Episode {
     processingCompletedAt: row.processingCompletedAt?.toISOString() ?? null,
     error: row.error,
     retryCount: row.retryCount,
-    metadata: row.metadata as Record<string, unknown> | null,
+    metadata: row.metadata,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
+const toDate = (value: string | null | undefined): Date | null =>
+  value ? new Date(value) : null;
+
 // ── Create ────────────────────────────────────────────────────────────────────
 
+/**
+ * Open a pending episode over the messages added since the thread's last
+ * episode.
+ *
+ * The window is the unit of work everywhere downstream: summarisation and
+ * semantic extraction both read exactly these messages, so successive episodes
+ * on one thread never reprocess each other's turns. Continuity across windows
+ * comes from folding the previous episode's summary into the new one
+ * ({@link processEpisode}), not from re-reading the whole transcript.
+ *
+ * Returns null when no new messages have arrived — the auto-episode timer
+ * re-arms on every message, so firing on an unchanged thread is routine and
+ * must not archive the good episode to replace it with an empty one.
+ */
 export async function createPendingEpisode(payload: {
   threadId: string;
   dataset: string;
   projectId: string;
-  messageCount: number;
-  tokenCount: number | null;
-  startedAt: Date | null;
-  endedAt: Date | null;
-}): Promise<EpisodeRow> {
+}): Promise<EpisodeRow | null> {
   return db.transaction(async (tx) => {
-    // Archive any existing active episodes for this thread
+    const [prev] = await tx
+      .select({ maxEnd: sql<number | null>`max(${episodes.endSequence})` })
+      .from(episodes)
+      .where(eq(episodes.threadId, payload.threadId));
+    const [tail] = await tx
+      .select({ maxSeq: sql<number | null>`max(${messages.sequenceNumber})` })
+      .from(messages)
+      .where(eq(messages.threadId, payload.threadId));
+
+    const startSequence = (prev?.maxEnd ?? 0) + 1;
+    const endSequence = tail?.maxSeq ?? 0;
+    if (endSequence < startSequence) return null;
+
+    // Window stats, derived rather than passed in: callers cannot know the
+    // range, and a count of the whole thread would misreport every episode
+    // after the first.
+    // `sql<T>` is an unchecked assertion, so these say what the driver
+    // actually returns: node-postgres parses declared columns, but an
+    // aggregate expression comes back as a string.
+    const [stats] = await tx
+      .select({
+        messageCount: sql<number>`count(*)::int`,
+        tokenCount: sql<
+          number | null
+        >`sum((${messages.tokens}->>'total')::int)::int`,
+        startedAt: sql<string | null>`min(${messages.createdAt})`,
+        endedAt: sql<string | null>`max(${messages.createdAt})`,
+      })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.threadId, payload.threadId),
+          gte(messages.sequenceNumber, startSequence),
+          lte(messages.sequenceNumber, endSequence),
+        ),
+      );
+
+    // Only one episode per thread is retrievable — the newest. Older ones are
+    // archived but keep their facts and their window stamp.
     await tx
       .update(episodes)
       .set({ status: 'archived', updatedAt: new Date() })
@@ -99,43 +195,22 @@ export async function createPendingEpisode(payload: {
         ),
       );
 
-    // Stamp the message range this episode covers: from just after the last
-    // episode's end to the thread's current tail. Semantic extraction reads
-    // only this window, so successive episodes on one thread don't re-extract
-    // (and re-judge) each other's messages. Episodic summarisation still reads
-    // the whole thread — the archive-previous model above makes the latest
-    // episode the thread's rolling summary.
-    const [prev] = await tx
-      .select({
-        maxEnd: sql<number | null>`max(${episodes.endSequence})`,
-      })
-      .from(episodes)
-      .where(eq(episodes.threadId, payload.threadId));
-    const [tail] = await tx
-      .select({
-        maxSeq: sql<number | null>`max(${messages.sequenceNumber})`,
-      })
-      .from(messages)
-      .where(eq(messages.threadId, payload.threadId));
-    const startSequence = (prev?.maxEnd ?? 0) + 1;
-    const endSequence = tail?.maxSeq ?? 0;
-
     const [row] = await tx
       .insert(episodes)
       .values({
         threadId: payload.threadId,
         dataset: payload.dataset,
         projectId: payload.projectId,
-        messageCount: payload.messageCount,
-        tokenCount: payload.tokenCount,
-        startedAt: payload.startedAt,
-        endedAt: payload.endedAt,
+        messageCount: stats?.messageCount ?? 0,
+        tokenCount: stats?.tokenCount ?? null,
+        startedAt: toDate(stats?.startedAt),
+        endedAt: toDate(stats?.endedAt),
         startSequence,
         endSequence,
         status: 'pending',
       })
       .returning();
-    return row;
+    return row ?? null;
   });
 }
 
@@ -161,7 +236,10 @@ export async function processEpisode(episodeId: string): Promise<void> {
 
   if (!episode) return;
 
-  // Fetch messages for the thread
+  // Only this episode's window — the same messages semantic extraction will
+  // read. Continuity with earlier windows comes from `previousSummary` below,
+  // which keeps the cost of an episode proportional to the new turns rather
+  // than to the length of the thread.
   const msgRows = episode.threadId
     ? await db
         .select({ role: messages.role, content: messages.content })
@@ -169,10 +247,10 @@ export async function processEpisode(episodeId: string): Promise<void> {
         .where(
           and(
             eq(messages.threadId, episode.threadId),
-            isNull(messages.compactedAt),
+            episodeMessageScope(episode),
           ),
         )
-        .orderBy(sql`${messages.sequenceNumber} ASC`)
+        .orderBy(asc(messages.sequenceNumber))
     : [];
 
   if (msgRows.length === 0) {
@@ -193,11 +271,35 @@ export async function processEpisode(episodeId: string): Promise<void> {
 
   const settings = await getProjectEpisodicSettings(episode.projectId);
 
+  // The thread's story so far: the episode this one supersedes. Folding it in
+  // keeps the newest episode a summary of the whole thread without re-reading
+  // the whole thread.
+  const previousSummary = episode.threadId
+    ? ((
+        await db
+          .select({ summary: episodes.summary })
+          .from(episodes)
+          .where(
+            and(
+              eq(episodes.threadId, episode.threadId),
+              ne(episodes.id, episode.id),
+              isNotNull(episodes.summary),
+            ),
+          )
+          .orderBy(desc(episodes.endSequence))
+          .limit(1)
+      )[0]?.summary ?? null)
+    : null;
+
   // LLM extraction
   let summary: string;
   let keyLearnings: string[];
   try {
-    const result = await extractEpisode(msgRows, settings.maxMessages);
+    const result = await extractEpisode(
+      msgRows,
+      settings.maxMessages,
+      previousSummary,
+    );
     summary = result.summary;
     keyLearnings = result.keyLearnings;
   } catch (err) {
@@ -257,6 +359,74 @@ export async function processEpisode(episodeId: string): Promise<void> {
 
 // ── Retry job ─────────────────────────────────────────────────────────────────
 
+/**
+ * Spend one retry from the project's budget and move the episode back to
+ * pending.
+ *
+ * Every retry — automatic or operator-triggered — goes through here, so the
+ * count is incremented exactly once per attempt and the budget is enforced on
+ * both paths. The compare-and-set on `retryCount` is what makes it exactly
+ * once when several workers see the same failed row.
+ */
+async function claimRetry(
+  episodeId: string,
+  retryCount: number,
+  maxRetries: number,
+): Promise<boolean> {
+  if (retryCount >= maxRetries) return false;
+  const [claimed] = await db
+    .update(episodes)
+    .set({
+      status: 'pending',
+      error: null,
+      retryCount: retryCount + 1,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(episodes.id, episodeId),
+        eq(episodes.status, 'failed'),
+        eq(episodes.retryCount, retryCount),
+      ),
+    )
+    .returning({ id: episodes.id });
+  return claimed !== undefined;
+}
+
+export type RetryOutcome =
+  | 'queued'
+  | 'not_found'
+  | 'not_failed'
+  | 'retries_exhausted';
+
+/** Operator-triggered retry of one episode. */
+export async function retryEpisode(
+  episodeId: string,
+  projectId: string,
+): Promise<RetryOutcome> {
+  const [row] = await db
+    .select({
+      id: episodes.id,
+      status: episodes.status,
+      retryCount: episodes.retryCount,
+    })
+    .from(episodes)
+    .where(and(eq(episodes.id, episodeId), eq(episodes.projectId, projectId)));
+
+  if (!row) return 'not_found';
+  if (row.status !== 'failed') return 'not_failed';
+
+  const { maxRetries } = await getProjectEpisodicSettings(projectId);
+  if (!(await claimRetry(row.id, row.retryCount, maxRetries)))
+    return 'retries_exhausted';
+
+  void processEpisode(row.id).catch((err) =>
+    console.error('[episodic] retry processEpisode failed:', err),
+  );
+  return 'queued';
+}
+
+/** Background sweep of every failed episode still inside its retry budget. */
 export async function retryFailedEpisodes(): Promise<void> {
   const rows = await db
     .select({
@@ -267,47 +437,18 @@ export async function retryFailedEpisodes(): Promise<void> {
     .from(episodes)
     .where(eq(episodes.status, 'failed'))
     .limit(20);
+  if (rows.length === 0) return;
 
-  const uniqueProjectIds = [...new Set(rows.map((r) => r.projectId))];
-  const projectRows =
-    uniqueProjectIds.length > 0
-      ? await db
-          .select({ id: projects.id, settings: projects.settings })
-          .from(projects)
-          .where(inArray(projects.id, uniqueProjectIds))
-      : [];
-  const settingsMap = new Map(
-    projectRows.map((r) => [
-      r.id,
-      mergeWithDefaults(r.settings as ProjectSettingsPatch | null).episodic,
-    ]),
-  );
+  const settingsMap = await episodicSettingsFor(rows.map((r) => r.projectId));
 
   for (const row of rows) {
-    const settings = settingsMap.get(row.projectId) ?? mergeWithDefaults(null).episodic;
-    if (row.retryCount >= settings.maxRetries) continue;
+    const maxRetries = settingsMap.get(row.projectId)?.maxRetries;
+    if (maxRetries === undefined) continue;
+    if (!(await claimRetry(row.id, row.retryCount, maxRetries))) continue;
 
-    // Atomic: only bump retryCount if no other instance already did.
-    const [claimed] = await db
-      .update(episodes)
-      .set({
-        error: null,
-        retryCount: row.retryCount + 1,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(episodes.id, row.id),
-          eq(episodes.status, 'failed'),
-          eq(episodes.retryCount, row.retryCount),
-        ),
-      )
-      .returning({ id: episodes.id });
-    if (!claimed) continue;
-
-    processEpisode(row.id).catch((err) => {
-      console.error('[episodic] retry processEpisode failed:', err);
-    });
+    void processEpisode(row.id).catch((err) =>
+      console.error('[episodic] retry processEpisode failed:', err),
+    );
   }
 }
 
@@ -391,7 +532,7 @@ export async function getEpisodicContext(
     episodes: scored.map((r) => ({
       episodeId: r.id,
       summary: r.summary ?? '',
-      keyLearnings: (r.keyLearnings as string[] | null) ?? [],
+      keyLearnings: r.keyLearnings ?? [],
       startedAt: r.startedAt?.toISOString() ?? '',
       endedAt: r.endedAt?.toISOString() ?? '',
       relevanceScore: r.relevanceScore,
@@ -407,7 +548,7 @@ function rowToContextItem(
   return {
     episodeId: row.id,
     summary: row.summary ?? '',
-    keyLearnings: (row.keyLearnings as string[] | null) ?? [],
+    keyLearnings: row.keyLearnings ?? [],
     startedAt: row.startedAt?.toISOString() ?? '',
     endedAt: row.endedAt?.toISOString() ?? '',
     relevanceScore,
@@ -416,19 +557,23 @@ function rowToContextItem(
 
 // ── CRUD helpers (for REST API) ───────────────────────────────────────────────
 
+export interface EpisodeListOptions {
+  limit: number;
+  before?: string;
+  /** 'all' skips the status filter entirely. */
+  status: EpisodeRow['status'] | 'all';
+}
+
 export async function listUserEpisodes(
   dataset: string,
   projectId: string,
-  opts: { limit: number; before?: string; status: string },
+  opts: EpisodeListOptions,
 ): Promise<{ episodes: Episode[]; total: number; hasMore: boolean }> {
-  const whereBase =
-    opts.status === 'all'
-      ? and(eq(episodes.dataset, dataset), eq(episodes.projectId, projectId))
-      : and(
-          eq(episodes.dataset, dataset),
-          eq(episodes.projectId, projectId),
-          eq(episodes.status, opts.status as EpisodeRow['status']),
-        );
+  const whereBase = and(
+    eq(episodes.dataset, dataset),
+    eq(episodes.projectId, projectId),
+    opts.status === 'all' ? undefined : eq(episodes.status, opts.status),
+  );
 
   const whereWithCursor = opts.before
     ? and(whereBase, lt(episodes.endedAt, new Date(opts.before)))
@@ -471,29 +616,6 @@ export async function softDeleteEpisode(
     .update(episodes)
     .set({ status: 'archived', updatedAt: new Date() })
     .where(and(eq(episodes.id, episodeId), eq(episodes.projectId, projectId)))
-    .returning();
-  return row ? rowToEpisode(row) : null;
-}
-
-export async function resetEpisodeForRetry(
-  episodeId: string,
-  projectId: string,
-): Promise<Episode | null> {
-  const [row] = await db
-    .update(episodes)
-    .set({
-      status: 'pending',
-      error: null,
-      retryCount: sql`${episodes.retryCount} + 1`,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(episodes.id, episodeId),
-        eq(episodes.projectId, projectId),
-        eq(episodes.status, 'failed'),
-      ),
-    )
     .returning();
   return row ? rowToEpisode(row) : null;
 }
@@ -548,60 +670,84 @@ export async function searchEpisodes(
 }
 
 export async function processScheduledEpisodes(): Promise<void> {
-  const due = await db.execute(sql`
-    DELETE FROM scheduled_episodes
-    WHERE thread_id IN (
-      SELECT thread_id FROM scheduled_episodes WHERE fire_at < now() LIMIT 20
+  // Claim-by-delete: the row is gone before any work starts, so two instances
+  // racing for the same due thread cannot both act on it.
+  const dueRows = await db
+    .delete(scheduledEpisodes)
+    .where(
+      inArray(
+        scheduledEpisodes.threadId,
+        db
+          .select({ threadId: scheduledEpisodes.threadId })
+          .from(scheduledEpisodes)
+          .where(lt(scheduledEpisodes.fireAt, new Date()))
+          .limit(20),
+      ),
     )
-    RETURNING thread_id, project_id
-  `);
-
-  const dueRows = due.rows as { thread_id: string; project_id: string }[];
+    .returning({
+      threadId: scheduledEpisodes.threadId,
+      projectId: scheduledEpisodes.projectId,
+    });
   if (dueRows.length === 0) return;
 
-  const uniqueProjectIds = [...new Set(dueRows.map((r) => r.project_id))];
-  const projectRows = await db
-    .select({ id: projects.id, settings: projects.settings })
-    .from(projects)
-    .where(inArray(projects.id, uniqueProjectIds));
-  const settingsMap = new Map(
-    projectRows.map((r) => [
-      r.id,
-      mergeWithDefaults(r.settings as ProjectSettingsPatch | null).episodic,
-    ]),
+  const settingsMap = await episodicSettingsFor(
+    dueRows.map((r) => r.projectId),
   );
 
-  const uniqueThreadIds = [...new Set(dueRows.map((r) => r.thread_id))];
   const threadRows = await db
-    .select({ id: threads.id, dataset: threads.dataset, createdAt: threads.createdAt })
+    .select({ id: threads.id, dataset: threads.dataset })
     .from(threads)
-    .where(inArray(threads.id, uniqueThreadIds));
-  const threadMap = new Map(threadRows.map((r) => [r.id, r]));
-
-  const msgCountRows = await db
-    .select({ threadId: messages.threadId, count: sql<number>`count(*)::int` })
-    .from(messages)
-    .where(inArray(messages.threadId, uniqueThreadIds))
-    .groupBy(messages.threadId);
-  const msgCountMap = new Map(msgCountRows.map((r) => [r.threadId, r.count]));
+    .where(inArray(threads.id, [...new Set(dueRows.map((r) => r.threadId))]));
+  const datasetByThread = new Map(threadRows.map((r) => [r.id, r.dataset]));
 
   for (const row of dueRows) {
-    const settings = settingsMap.get(row.project_id) ?? mergeWithDefaults(null).episodic;
-    if (!settings.enabled || settings.autoEpisodeIntervalMs === null) continue;
+    const settings = settingsMap.get(row.projectId);
+    if (!settings?.enabled || settings.autoEpisodeIntervalMs === null) continue;
 
-    const threadRow = threadMap.get(row.thread_id);
-    if (!threadRow) continue;
+    const dataset = datasetByThread.get(row.threadId);
+    if (dataset === undefined) continue;
 
-    createPendingEpisode({
-      threadId: row.thread_id,
-      dataset: threadRow.dataset,
-      projectId: row.project_id,
-      messageCount: msgCountMap.get(row.thread_id) ?? 0,
-      tokenCount: null,
-      startedAt: threadRow.createdAt,
-      endedAt: new Date(),
-    })
-      .then((episode) => processEpisode(episode.id))
-      .catch((err) => console.error('[episodic] scheduled episode failed:', err));
+    void openAndProcessEpisode({
+      threadId: row.threadId,
+      dataset,
+      projectId: row.projectId,
+    }).catch((err) =>
+      console.error('[episodic] scheduled episode failed:', err),
+    );
   }
+}
+
+/**
+ * Open an episode over the thread's new messages and start processing it.
+ * Returns false when there was nothing new to capture.
+ *
+ * The pending row is committed before the LLM work starts so the trigger
+ * survives a crash: the sweep picks the episode up rather than losing it.
+ */
+export async function openAndProcessEpisode(payload: {
+  threadId: string;
+  dataset: string;
+  projectId: string;
+}): Promise<boolean> {
+  const episode = await createPendingEpisode(payload);
+  if (!episode) return false;
+  void processEpisode(episode.id).catch((err) =>
+    console.error('[episodic] processEpisode failed:', err),
+  );
+  return true;
+}
+
+/** Effective episodic settings for a set of projects, in one query. */
+async function episodicSettingsFor(
+  projectIds: string[],
+): Promise<Map<string, ProjectEpisodicSettings>> {
+  const unique = [...new Set(projectIds)];
+  if (unique.length === 0) return new Map();
+  const rows = await db
+    .select({ id: projects.id, settings: projects.settings })
+    .from(projects)
+    .where(inArray(projects.id, unique));
+  return new Map(
+    rows.map((r) => [r.id, mergeWithDefaults(r.settings).episodic]),
+  );
 }

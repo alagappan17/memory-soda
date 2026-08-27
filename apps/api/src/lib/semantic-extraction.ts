@@ -1,28 +1,16 @@
 import { z } from 'zod';
 import type { EntityType } from '@memory-soda/types';
 import { generateStructured } from './gemini.js';
-
-// Runtime allow-list mirroring the EntityType union (@memory-soda/types is
-// type-only at runtime for the API build, so we can't import the const value).
-const ENTITY_TYPES: readonly EntityType[] = [
-  'PERSON',
-  'ORG',
-  'PLACE',
-  'PRODUCT',
-  'SKILL',
-  'TOPIC',
-  'EVENT',
-  'FOOD',
-  'ROLE',
-  'CONCEPT',
-  'THING',
-  'DATE',
-];
-
-// Deterministic size caps applied post-LLM so a single runaway fact can't
-// bloat every rendered context block.
-const MAX_OBJECT_LEN = 500;
-const MAX_QUOTE_LEN = 200;
+import {
+  MAX_OBJECT_LEN,
+  MAX_QUOTE_LEN,
+  clampConfidence,
+  normalizeEntityType,
+  normalizeName,
+  normalizePredicate,
+  sanitizeDate,
+  sanitizeQuote,
+} from './extraction-normalize.js';
 
 // ── Output types ──────────────────────────────────────────────────────────────
 
@@ -64,35 +52,6 @@ export interface ExtractedGraph {
 }
 
 export type ContradictionVerdict = 'old' | 'new' | 'neither';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Validate a model-supplied date into a normalized ISO YYYY-MM-DD string, or null.
- * Guards against the model echoing the "YYYY-MM-DD or null" placeholder, empty
- * strings, and unparseable junk.
- */
-function sanitizeDate(v: string | null | undefined): string | null {
-  if (typeof v !== 'string') return null;
-  const s = v.trim();
-  if (s.length === 0 || /null|yyyy/i.test(s)) return null;
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
-}
-
-function sanitizeQuote(v: string | null | undefined): string | null {
-  if (typeof v !== 'string') return null;
-  const s = v.trim();
-  return s.length === 0 ? null : s.slice(0, MAX_QUOTE_LEN);
-}
-
-function normalizePredicate(predicate: string): string {
-  return predicate
-    .toLowerCase()
-    .trim()
-    .replace(/[^\p{L}\p{N}_\s]/gu, '')
-    .replace(/\s+/g, ' ');
-}
 
 // ── Graph extraction ──────────────────────────────────────────────────────────
 
@@ -231,13 +190,11 @@ ${transcript}
     rawGraphSchema,
   );
 
-  const validTypes = new Set<string>(ENTITY_TYPES);
-
   const entities: ExtractedEntity[] = (raw.entities ?? [])
     .filter((e) => e.name.trim().length > 0)
     .map((e) => ({
-      name: e.name.toLowerCase().trim(),
-      type: (validTypes.has(e.type) ? e.type : 'THING') as EntityType,
+      name: normalizeName(e.name),
+      type: normalizeEntityType(e.type),
     }));
 
   const entityNames = new Set(entities.map((e) => e.name));
@@ -257,12 +214,7 @@ ${transcript}
   // entity is encyclopedia content (e.g. "asus rog → features → rtx 4070") and is
   // dropped. This guard is deterministic so it holds even when the model ignores
   // the prompt's "facts about the user only" instruction.
-  const isAllowedSubject = (subject: string) =>
-    subject.toLowerCase().trim() === 'user';
-
-  // Confidence is stored, never used to drop — clamp to [0, 1] for sanity.
-  const clampConfidence = (c: number) =>
-    Number.isFinite(c) ? Math.min(1, Math.max(0, c)) : 1;
+  const isAllowedSubject = (subject: string) => normalizeName(subject) === 'user';
 
   // Split model relationships by whether the object is a listed entity. The
   // model routinely emits relationships whose object it forgot to co-list in
@@ -273,17 +225,17 @@ ${transcript}
   const relationships: ExtractedRelationship[] = [];
   const demoted: ExtractedLiteralFact[] = [];
   for (const r of raw.relationships ?? []) {
-    if (!isAllowedSubject(r.subject) || !entityNames.has(r.subject.toLowerCase().trim()))
+    if (!isAllowedSubject(r.subject) || !entityNames.has(normalizeName(r.subject)))
       continue;
     const common = {
-      subject: r.subject.toLowerCase().trim(),
+      subject: normalizeName(r.subject),
       predicate: normalizePredicate(r.predicate),
       confidence: clampConfidence(r.confidence),
       sourceQuote: sanitizeQuote(r.sourceQuote),
       validFrom: sanitizeDate(r.validFrom),
       validUntil: sanitizeDate(r.validUntil),
     };
-    const object = r.object.toLowerCase().trim().slice(0, MAX_OBJECT_LEN);
+    const object = normalizeName(r.object);
     if (entityNames.has(object)) relationships.push({ ...common, object });
     else if (object.length > 0) demoted.push({ ...common, value: object });
   }
@@ -292,11 +244,11 @@ ${transcript}
     ...(raw.literalFacts ?? [])
       .filter(
         (f) =>
-          entityNames.has(f.subject.toLowerCase().trim()) &&
+          entityNames.has(normalizeName(f.subject)) &&
           isAllowedSubject(f.subject),
       )
       .map((f) => ({
-        subject: f.subject.toLowerCase().trim(),
+        subject: normalizeName(f.subject),
         predicate: normalizePredicate(f.predicate),
         value: f.value.trim().slice(0, MAX_OBJECT_LEN),
         confidence: clampConfidence(f.confidence),
