@@ -34,6 +34,8 @@ export interface WMPatchThreadRequest {
 
 export interface WMCreateThreadResponse {
   threadId: string;
+  /** The project the API key belongs to — handy for dashboard-side lookups. */
+  projectId: string;
   dataset: string;
   createdAt: string;
   settings: WMThreadSettings;
@@ -58,15 +60,6 @@ export interface WMThreadStatsResponse {
   sessionDuration: { ms: number; seconds: number } | null;
   createdAt: string;
   lastActivityAt: string;
-}
-
-export interface WMCompactSummaryMetadata {
-  type: 'compact_summary';
-  compactedRange: {
-    fromSeq: number;
-    toSeq: number;
-    count: number;
-  };
 }
 
 export interface WMCompactResult {
