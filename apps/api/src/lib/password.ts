@@ -1,12 +1,31 @@
-import { randomBytes, scrypt, timingSafeEqual } from 'crypto';
-import { promisify } from 'util';
+import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 
-const scryptAsync = promisify(scrypt) as (
+interface ScryptParams {
+  N: number;
+  r: number;
+  p: number;
+  maxmem: number;
+}
+
+/**
+ * `promisify(scrypt)` cannot pick the right overload — the callback form has
+ * one signature with options and one without — so it resolves to a shape that
+ * has to be asserted back. Wrapping the callback directly keeps the types
+ * honest for the cost of five lines.
+ */
+function scryptAsync(
   password: string,
   salt: string,
   keylen: number,
-  options: { N: number; r: number; p: number; maxmem: number },
-) => Promise<Buffer>;
+  options: ScryptParams,
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scrypt(password, salt, keylen, options, (err, derivedKey) => {
+      if (err) reject(err);
+      else resolve(derivedKey);
+    });
+  });
+}
 
 const KEYLEN = 64;
 

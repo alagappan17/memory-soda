@@ -7,10 +7,9 @@ import {
   getSemanticContext,
   getEffectiveSemanticSettings,
   querySemanticFacts,
-  assembleContext,
-  renderContext,
   getEntitiesByName,
 } from './semantic-memory.service.js';
+import { assembleContext, renderContext } from '../lib/fact-context.js';
 import type {
   EpisodeContext,
   RecallRequest,
@@ -32,15 +31,6 @@ export async function recall(
   req: RecallRequest,
 ): Promise<RecallResponse> {
   const { dataset, query, include = [], limit, asOf, minConfidence } = req;
-
-  console.log(
-    `[recall] ── request ── project=${projectId}\n` +
-      JSON.stringify(
-        { dataset, query, include, limit, asOf, minConfidence },
-        null,
-        2,
-      ),
-  );
 
   const settings = await getEffectiveSemanticSettings(projectId);
   const factLimit = limit ?? settings.factsInContext;
@@ -130,7 +120,14 @@ export async function recall(
     }
   }
 
-  const result: RecallResponse = {
+  // Counts and lengths only — the context block is the user's own data.
+  console.log(
+    `[recall] dataset=${dataset} facts=${factList.length} ` +
+      `contextChars=${context.length} synthesis=${Boolean(synthesis)} ` +
+      `episodes=${episodes?.episodeCount ?? 0}`,
+  );
+
+  return {
     context,
     synthesis,
     facts: include.includes('raw') ? factList : null,
@@ -138,12 +135,4 @@ export async function recall(
     episodes,
     factCount: factList.length,
   };
-
-  console.log(
-    `[recall] ── response ── dataset=${dataset} factCount=${result.factCount} ` +
-      `contextLen=${result.context.length} hasSynthesis=${Boolean(result.synthesis)} ` +
-      `episodeCount=${result.episodes?.episodeCount ?? 0}`,
-  );
-
-  return result;
 }

@@ -24,8 +24,9 @@ import {
   isLiveFact,
   isLiveFactAsOf,
 } from '../db/schema.js';
-import type { NewFactRow } from '../db/schema.js';
-import { batchEmbedTexts, buildTranscript } from '../lib/gemini.js';
+import type { FactRow, NewFactRow } from '../db/schema.js';
+import { batchEmbedTexts } from '../lib/gemini.js';
+import { buildTranscript } from '../lib/transcript.js';
 import {
   extractGraph,
   resolveContradictions,
@@ -33,14 +34,19 @@ import {
   type ExtractedEntity,
   type ExtractedGraph,
 } from '../lib/semantic-extraction.js';
-import { mergeWithDefaults } from '../lib/project-settings.js';
+
+import {
+  anchorFor,
+  buildFactEmbedString,
+  cosine,
+  reciprocalRankFusion,
+} from '../lib/fact-context.js';
+import { mergeWithDefaults } from '@memory-soda/types';
 import type {
   ProjectSemanticSettings,
-  ProjectSettingsPatch,
   SemanticContext,
   SemanticEntity,
   SemanticFact,
-  RankedContextGroup,
 } from '@memory-soda/types';
 
 // Give up on an episode's semantic extraction after this many failures.
@@ -50,15 +56,21 @@ const MAX_SEMANTIC_RETRIES = 3;
 // mid-extraction — crash, restart, deploy) and may be reclaimed.
 const STALE_PROCESSING_MS = 10 * 60 * 1000;
 
-
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 /** Drop null/undefined values so a partial JSONB override can't erase project defaults. */
-function stripNullish<T extends object>(raw: Partial<T> | null | undefined): Partial<T> {
-  if (!raw) return {};
-  return Object.fromEntries(
-    Object.entries(raw).filter(([, v]) => v !== null && v !== undefined),
-  ) as Partial<T>;
+function stripNullish<T extends object>(
+  raw: Partial<T> | null | undefined,
+): Partial<T> {
+  const out: Partial<T> = {};
+  if (!raw) return out;
+  // Object.keys is typed string[] regardless of the object — the one place
+  // this function needs to state what it already knows.
+  for (const key of Object.keys(raw) as (keyof T)[]) {
+    const value = raw[key];
+    if (value !== null && value !== undefined) out[key] = value;
+  }
+  return out;
 }
 
 /** Effective semantic settings: project defaults overlaid with any per-thread override. */
@@ -70,55 +82,51 @@ export async function getEffectiveSemanticSettings(
     .select({ settings: projects.settings })
     .from(projects)
     .where(eq(projects.id, projectId));
-  const base = mergeWithDefaults(
-    projRow?.settings as ProjectSettingsPatch | null,
-  ).semantic;
+  const base = mergeWithDefaults(projRow?.settings).semantic;
   return { ...base, ...stripNullish(threadOverride) };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/**
- * The entity a fact is anchored to (derived, never stored): the object when it
- * is an entity (user → interested in → asus rog anchors on "asus rog"), else
- * the subject ("user") for literal attributes with no entity to anchor to.
- */
-export function anchorFor(f: {
-  subject: string;
-  object: string;
-  objectIsEntity: boolean;
-}): string {
-  return f.objectIsEntity ? f.object : f.subject;
-}
+const factKey = (s: string, p: string, o: string) => `${s}|${p}|${o}`;
 
 /**
- * Enriched embedding string for a fact. Appending the anchor entity makes it
- * more prominent in vector space, improving entity-centric retrieval.
+ * Whether two facts are similar enough to be worth judging for contradiction
+ * but not so similar they are the same fact.
+ *
+ * The band exists to catch predicate rewordings — "works at" versus "is
+ * employed by" — that an exact predicate match misses and deduplication would
+ * wrongly swallow.
  */
-export function buildFactEmbedString(f: {
+function inContradictionBand(
+  similarity: number,
+  settings: ProjectSemanticSettings,
+): boolean {
+  return (
+    similarity >= settings.contradictionBandMin &&
+    similarity < settings.factDedupThreshold
+  );
+}
+
+const toVectorLiteral = (emb: number[]) => `[${emb.join(',')}]`;
+
+/**
+ * How many nearest live facts to pull per candidate when judging duplicates and
+ * contradictions. Anything past the closest handful is, by definition, not
+ * similar enough to be either.
+ */
+const NEIGHBOUR_SCAN = 10;
+
+/** A live fact in a candidate's neighbourhood; `similarity` only when vector-matched. */
+interface LiveNeighbour {
+  id: string;
   subject: string;
   predicate: string;
   object: string;
-  objectIsEntity: boolean;
-}): string {
-  return `${f.subject} ${f.predicate} ${f.object}. About: ${anchorFor(f)}.`;
+  sourceQuote: string | null;
+  validAt: Date;
+  similarity?: number;
 }
-
-function cosine(a: number[], b: number[]): number {
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    na += a[i] * a[i];
-    nb += b[i] * b[i];
-  }
-  return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
-}
-
-const factKey = (s: string, p: string, o: string) => `${s}|${p}|${o}`;
-
-const toVectorLiteral = (emb: number[]) => `[${emb.join(',')}]`;
 
 // ── Pipeline entry point ────────────────────────────────────────────────────────
 //
@@ -162,14 +170,10 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
             .where(eq(threads.id, episode.threadId))
         : Promise.resolve([]),
     ]);
-    const projectSettings = mergeWithDefaults(
-      projRow?.settings as ProjectSettingsPatch | null,
-    );
+    const projectSettings = mergeWithDefaults(projRow?.settings);
     const settings: ProjectSemanticSettings = {
       ...projectSettings.semantic,
-      ...stripNullish(
-        tRow?.semanticSettings as Partial<ProjectSemanticSettings> | null,
-      ),
+      ...stripNullish(tRow?.semanticSettings),
     };
     if (!settings.enabled) {
       await db
@@ -262,7 +266,7 @@ async function resolveEntities(
   extracted: ExtractedEntity[],
   settings: ProjectSemanticSettings,
 ): Promise<Map<string, string>> {
-  // raw extracted name → canonical stored name, so fact writes can converge aliases.
+  // raw extracted name → canonical stored name, so fact writes converge aliases.
   const canonical = new Map<string, string>();
   if (extracted.length === 0) return canonical;
 
@@ -270,66 +274,102 @@ async function resolveEntities(
     eq(entities.dataset, dataset),
     eq(entities.projectId, projectId),
   );
-  const newEmbeds = await batchEmbedTexts(extracted.map((e) => e.name));
 
-  for (let i = 0; i < extracted.length; i++) {
-    const ent = extracted[i];
-    const emb = newEmbeds[i];
+  // One embedding call, then pair each entity with its vector — indexing two
+  // arrays in step is how they silently drift apart.
+  const embeddings = await batchEmbedTexts(extracted.map((e) => e.name));
+  const candidates = extracted.flatMap((ent, i) => {
+    const embedding = embeddings[i];
+    return embedding ? [{ ent, embedding }] : [];
+  });
 
-    // Exact name match → this is the canonical entity.
-    const [exact] = await db
-      .select({ id: entities.id, name: entities.name })
-      .from(entities)
-      .where(and(tenant, eq(entities.name, ent.name)));
+  // Exact matches for the whole batch in one query rather than one per entity.
+  const names = [...new Set(candidates.map((c) => c.ent.name))];
+  const exactRows = await db
+    .select({ id: entities.id, name: entities.name })
+    .from(entities)
+    .where(and(tenant, inArray(entities.name, names)));
+  const exactByName = new Map(exactRows.map((r) => [r.name, r]));
+
+  const touched = new Set<string>();
+  const unresolved: typeof candidates = [];
+  for (const candidate of candidates) {
+    const exact = exactByName.get(candidate.ent.name);
     if (exact) {
-      await db
-        .update(entities)
-        .set({ updatedAt: new Date() })
-        .where(eq(entities.id, exact.id));
-      canonical.set(ent.name, exact.name);
-      continue;
-    }
-
-    // Nearest existing entity of the SAME TYPE via pgvector — type-aware so
-    // "apple" (ORG) never merges into "apple" (FOOD). `<=>` is cosine distance;
-    // similarity = 1 - distance.
-    const vec = toVectorLiteral(emb);
-    const [nearest] = await db
-      .select({
-        id: entities.id,
-        name: entities.name,
-        distance: sql<number>`${entities.embedding} <=> ${vec}::vector`,
-      })
-      .from(entities)
-      .where(and(tenant, eq(entities.type, ent.type), isNotNull(entities.embedding)))
-      .orderBy(sql`${entities.embedding} <=> ${vec}::vector`)
-      .limit(1);
-
-    if (nearest && 1 - nearest.distance >= settings.entityResolutionThreshold) {
-      await db
-        .update(entities)
-        .set({ updatedAt: new Date() })
-        .where(eq(entities.id, nearest.id));
-      canonical.set(ent.name, nearest.name);
+      canonical.set(candidate.ent.name, exact.name);
+      touched.add(exact.id);
     } else {
-      // Upsert — concurrent semantic workers may insert the same
-      // (dataset, projectId, name); the unique index would otherwise fail the job.
-      const [row] = await db
-        .insert(entities)
-        .values({
+      unresolved.push(candidate);
+    }
+  }
+
+  // Nearest existing entity of the SAME TYPE via pgvector — type-aware so
+  // "apple" (ORG) never merges into "apple" (FOOD). `<=>` is cosine distance,
+  // so similarity is 1 - distance. Each needs its own vector, so these run
+  // concurrently rather than in sequence.
+  const nearestMatches = await Promise.all(
+    unresolved.map(async ({ ent, embedding }) => {
+      const vec = toVectorLiteral(embedding);
+      const [nearest] = await db
+        .select({
+          id: entities.id,
+          name: entities.name,
+          distance: sql<number>`${entities.embedding} <=> ${vec}::vector`,
+        })
+        .from(entities)
+        .where(
+          and(tenant, eq(entities.type, ent.type), isNotNull(entities.embedding)),
+        )
+        .orderBy(sql`${entities.embedding} <=> ${vec}::vector`)
+        .limit(1);
+
+      const merged =
+        nearest && 1 - nearest.distance >= settings.entityResolutionThreshold
+          ? nearest
+          : null;
+      return { ent, embedding, merged };
+    }),
+  );
+
+  const toInsert = new Map<string, ExtractedEntity & { embedding: number[] }>();
+  for (const { ent, embedding, merged } of nearestMatches) {
+    if (merged) {
+      canonical.set(ent.name, merged.name);
+      touched.add(merged.id);
+    } else {
+      // Deduplicated by name: Postgres rejects an INSERT whose ON CONFLICT
+      // target is hit twice by the same statement.
+      toInsert.set(ent.name, { ...ent, embedding });
+    }
+  }
+
+  if (touched.size > 0) {
+    await db
+      .update(entities)
+      .set({ updatedAt: new Date() })
+      .where(inArray(entities.id, [...touched]));
+  }
+
+  if (toInsert.size > 0) {
+    // Upsert: a concurrent worker may have inserted the same
+    // (dataset, projectId, name) since the reads above.
+    const inserted = await db
+      .insert(entities)
+      .values(
+        [...toInsert.values()].map((e) => ({
           dataset,
           projectId,
-          name: ent.name,
-          type: ent.type,
-          embedding: emb,
-        })
-        .onConflictDoUpdate({
-          target: [entities.dataset, entities.projectId, entities.name],
-          set: { updatedAt: new Date() },
-        })
-        .returning({ id: entities.id, name: entities.name });
-      canonical.set(ent.name, row.name);
-    }
+          name: e.name,
+          type: e.type,
+          embedding: e.embedding,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [entities.dataset, entities.projectId, entities.name],
+        set: { updatedAt: new Date() },
+      })
+      .returning({ name: entities.name });
+    for (const row of inserted) canonical.set(row.name, row.name);
   }
 
   return canonical;
@@ -389,39 +429,54 @@ async function writeFacts(
 
   const tenant = and(eq(facts.dataset, dataset), eq(facts.projectId, projectId));
 
-  // Existing live facts for this tenant (the dedup/contradiction baseline).
-  // `snapshotAt` marks the read so the write transaction can detect facts a
-  // concurrent job committed while we were off calling the LLM.
+  // `snapshotAt` marks the start of the read set so the write transaction can
+  // detect facts a concurrent job committed while we were off calling the LLM.
   const snapshotAt = new Date();
-  const live = await db
-    .select({
-      id: facts.id,
-      subject: facts.subject,
-      predicate: facts.predicate,
-      object: facts.object,
-      objectIsEntity: facts.objectIsEntity,
-      sourceQuote: facts.sourceQuote,
-      validAt: facts.validAt,
-      embedding: facts.embedding,
-    })
-    .from(facts)
-    .where(and(tenant, isLiveFact));
 
-  // Step 3 — drop exact duplicates (vs live + within this batch).
-  const liveExact = new Set(live.map((f) => factKey(f.subject, f.predicate, f.object)));
+  // Step 3 — drop exact duplicates, against what is already live and within
+  // this batch. One indexed lookup on the exact triples, rather than loading
+  // the dataset to compare in memory.
   const seen = new Set<string>();
-  const deduped = candidates.filter((c) => {
+  const unique = candidates.filter((c) => {
     const k = factKey(c.subject, c.predicate, c.object);
-    if (liveExact.has(k) || seen.has(k)) return false;
+    if (seen.has(k)) return false;
     seen.add(k);
     return true;
   });
+
+  const existingExact = await db
+    .select({
+      subject: facts.subject,
+      predicate: facts.predicate,
+      object: facts.object,
+    })
+    .from(facts)
+    .where(
+      and(
+        tenant,
+        isLiveFact,
+        or(
+          ...unique.map((c) =>
+            and(
+              eq(facts.subject, c.subject),
+              eq(facts.predicate, c.predicate),
+              eq(facts.object, c.object),
+            ),
+          ),
+        ),
+      ),
+    );
+  const liveExact = new Set(
+    existingExact.map((f) => factKey(f.subject, f.predicate, f.object)),
+  );
+  const deduped = unique.filter(
+    (c) => !liveExact.has(factKey(c.subject, c.predicate, c.object)),
+  );
   if (deduped.length === 0) return;
 
-  // Valid-time bounds. Extraction already normalized these to ISO date strings or
-  // null, so parsing is safe.
-  const toDate = (iso: string | null): Date | null =>
-    iso ? new Date(iso) : null;
+  // Valid-time bounds. Extraction already normalized these to ISO date strings
+  // or null, so parsing is safe.
+  const toDate = (iso: string | null): Date | null => (iso ? new Date(iso) : null);
 
   // Effective valid-from instant. validFrom is date-only, so "today" resolves to
   // midnight — hours BEFORE facts recorded earlier the same day, which would make
@@ -437,22 +492,86 @@ async function writeFacts(
   // Embed candidates (enriched with the derived anchor).
   const embeds = await batchEmbedTexts(deduped.map(buildFactEmbedString));
 
-  // Step 3b — drop near-duplicates by embedding similarity (no LLM), against
-  // live facts AND earlier candidates in this batch (paraphrase pairs like
-  // "wants large screen" / "prefers big display" arrive together).
+  // Step 3b — the neighbourhood of each candidate, from Postgres.
+  //
+  // This used to load every live fact for the dataset into Node, with its
+  // 768-float embedding, and compare in JavaScript — O(candidates × facts) work
+  // and a working set that grew without bound. pgvector already has an ivfflat
+  // index on this column; asking it for the nearest few rows per candidate is
+  // both exact enough and bounded by the number of candidates.
+  const neighbourhoods = await Promise.all(
+    deduped.map(async (candidate, i) => {
+      const emb = embeds[i];
+      if (!emb) return { candidate, emb: null, neighbours: [] };
+      const vec = toVectorLiteral(emb);
+      const neighbours = await db
+        .select({
+          id: facts.id,
+          subject: facts.subject,
+          predicate: facts.predicate,
+          object: facts.object,
+          sourceQuote: facts.sourceQuote,
+          validAt: facts.validAt,
+          similarity: sql<number>`1 - (${facts.embedding} <=> ${vec}::vector)`,
+        })
+        .from(facts)
+        .where(and(tenant, isLiveFact, isNotNull(facts.embedding)))
+        .orderBy(sql`${facts.embedding} <=> ${vec}::vector`)
+        .limit(NEIGHBOUR_SCAN);
+      return { candidate, emb, neighbours };
+    }),
+  );
+
+  // Same-predicate conflicts are a lexical match, not a vector one, so they get
+  // their own indexed lookup — a fact stating a different object for the same
+  // predicate must be judged even when its embedding is far away.
+  const samePredicateLive = await db
+    .select({
+      id: facts.id,
+      subject: facts.subject,
+      predicate: facts.predicate,
+      object: facts.object,
+      sourceQuote: facts.sourceQuote,
+      validAt: facts.validAt,
+    })
+    .from(facts)
+    .where(
+      and(
+        tenant,
+        isLiveFact,
+        or(
+          ...deduped.map((c) =>
+            and(eq(facts.subject, c.subject), eq(facts.predicate, c.predicate)),
+          ),
+        ),
+      ),
+    );
+
+  // Drop near-duplicates by embedding similarity, against live facts and
+  // against earlier candidates in this batch (paraphrase pairs like "wants
+  // large screen" / "prefers big display" arrive together).
   const survivors: { c: FactCandidate; emb: number[] }[] = [];
-  deduped.forEach((c, i) => {
-    const emb = embeds[i];
-    const nearLive = live.some(
-      (f) =>
-        f.embedding &&
-        cosine(emb, f.embedding as number[]) >= settings.factDedupThreshold,
+  const survivorNeighbours: LiveNeighbour[][] = [];
+  for (const { candidate, emb, neighbours } of neighbourhoods) {
+    if (!emb) continue;
+    const nearLive = neighbours.some(
+      (n) => n.similarity >= settings.factDedupThreshold,
     );
     const nearBatch = survivors.some(
-      (s) => cosine(emb, s.emb) >= settings.factDedupThreshold,
+      (existing) => cosine(emb, existing.emb) >= settings.factDedupThreshold,
     );
-    if (!nearLive && !nearBatch) survivors.push({ c, emb });
-  });
+    if (nearLive || nearBatch) continue;
+
+    survivors.push({ c: candidate, emb });
+    survivorNeighbours.push([
+      ...neighbours,
+      ...samePredicateLive.filter(
+        (f) =>
+          f.subject === candidate.subject && f.predicate === candidate.predicate,
+      ),
+    ]);
+  }
+  if (survivors.length === 0) return;
 
   // Step 4 — collect (survivor ↔ conflicting live fact) pairs, then resolve all
   // contradictions in ONE batched LLM call. A live fact conflicts when it states
@@ -463,24 +582,25 @@ async function writeFacts(
   // supersede anything — they are inserted as history without judging.
   const conflictRefs: { survivorIndex: number; oldId: string }[] = [];
   const pairs: ContradictionPair[] = [];
-  survivors.forEach(({ c, emb }, si) => {
+  survivors.forEach(({ c }, si) => {
     const historical = c.validUntil !== null && new Date(c.validUntil) <= now;
     if (historical) return;
     // Low-confidence facts are stored but never trusted to invalidate an
     // existing fact — they skip contradiction judging entirely.
     if (c.confidence < settings.retrievalMinConfidence) return;
     const newValidAt = effectiveValidAt(c.validFrom).toISOString();
-    for (const f of live) {
+
+    const judgedIds = new Set<string>();
+    for (const f of survivorNeighbours[si] ?? []) {
+      if (judgedIds.has(f.id)) continue;
       const samePredicateConflict =
         f.predicate === c.predicate && f.object !== c.object;
       const bandConflict =
         !samePredicateConflict &&
-        f.embedding !== null &&
-        (() => {
-          const sim = cosine(emb, f.embedding as number[]);
-          return sim >= settings.contradictionBandMin && sim < settings.factDedupThreshold;
-        })();
+        f.similarity !== undefined &&
+        inContradictionBand(f.similarity, settings);
       if (!samePredicateConflict && !bandConflict) continue;
+      judgedIds.add(f.id);
       conflictRefs.push({ survivorIndex: si, oldId: f.id });
       pairs.push({
         subject: c.subject,
@@ -496,25 +616,28 @@ async function writeFacts(
     }
   });
 
+  // Attach each verdict to the conflict it judged, so the two lists cannot be
+  // read out of step.
   const verdicts = await resolveContradictions(pairs);
+  const judged = conflictRefs.map((ref, k) => ({
+    ...ref,
+    verdict: verdicts[k] ?? 'neither',
+  }));
 
-  // Reconcile verdicts per survivor: a survivor superseded by ANY existing fact
-  // ('new' verdict) is discarded entirely — including its 'old' verdicts.
-  // Otherwise a survivor could invalidate an old fact and then never be
-  // inserted, vaporizing the knowledge.
-  const supersededSurvivors = new Set<number>();
-  verdicts.forEach((verdict, k) => {
-    if (verdict === 'new') supersededSurvivors.add(conflictRefs[k].survivorIndex);
-  });
+  // A survivor superseded by ANY existing fact ('new') is discarded entirely,
+  // including its own 'old' verdicts. Otherwise it could invalidate an old fact
+  // and then never be inserted, vaporizing the knowledge.
+  const supersededSurvivors = new Set(
+    judged.filter((j) => j.verdict === 'new').map((j) => j.survivorIndex),
+  );
+
   const invalidationsBySurvivor = new Map<number, string[]>();
-  verdicts.forEach((verdict, k) => {
-    const ref = conflictRefs[k];
-    if (verdict === 'old' && !supersededSurvivors.has(ref.survivorIndex)) {
-      const list = invalidationsBySurvivor.get(ref.survivorIndex) ?? [];
-      list.push(ref.oldId);
-      invalidationsBySurvivor.set(ref.survivorIndex, list);
-    }
-  });
+  for (const { verdict, survivorIndex, oldId } of judged) {
+    if (verdict !== 'old' || supersededSurvivors.has(survivorIndex)) continue;
+    const list = invalidationsBySurvivor.get(survivorIndex) ?? [];
+    list.push(oldId);
+    invalidationsBySurvivor.set(survivorIndex, list);
+  }
 
   const staged = survivors
     .map((s, si) => ({ ...s, si }))
@@ -530,27 +653,36 @@ async function writeFacts(
       sql`SELECT pg_advisory_xact_lock(hashtext(${`${dataset}:${projectId}`}))`,
     );
 
-    // Race re-check: facts committed by a concurrent job after our snapshot
-    // never went through this batch's dedup/contradiction pass. Drop staged
-    // survivors that now collide exactly or state the same anchor+predicate.
+    // Race re-check: facts a concurrent job committed after our snapshot never
+    // went through this batch's dedup and contradiction pass, so a staged
+    // survivor that now collides with one is dropped rather than inserted
+    // unjudged.
+    //
+    // Matching is on subject + predicate + anchor, not subject + predicate.
+    // Extraction forces every subject to the literal "user", so a
+    // subject+predicate key is really just the predicate — and two genuinely
+    // different facts that share one ("user likes thai food", "user likes
+    // rust") would have silently discarded each other.
     const appeared = await tx
       .select({
         subject: facts.subject,
         predicate: facts.predicate,
         object: facts.object,
+        objectIsEntity: facts.objectIsEntity,
       })
       .from(facts)
       .where(and(tenant, isLiveFact, gt(facts.createdAt, snapshotAt)));
+
     const appearedExact = new Set(
       appeared.map((f) => factKey(f.subject, f.predicate, f.object)),
     );
-    const appearedSubjPred = new Set(
-      appeared.map((f) => `${f.subject}|${f.predicate}`),
+    const appearedAnchored = new Set(
+      appeared.map((f) => `${f.subject}|${f.predicate}|${anchorFor(f)}`),
     );
     const finalStaged = staged.filter(
       ({ c }) =>
         !appearedExact.has(factKey(c.subject, c.predicate, c.object)) &&
-        !appearedSubjPred.has(`${c.subject}|${c.predicate}`),
+        !appearedAnchored.has(`${c.subject}|${c.predicate}|${anchorFor(c)}`),
     );
     if (finalStaged.length === 0) return;
 
@@ -664,19 +796,8 @@ const FACT_COLUMNS = {
   episodeId: facts.episodeId,
 } as const;
 
-type FactSelect = {
-  id: string;
-  subject: string;
-  predicate: string;
-  object: string;
-  objectIsEntity: boolean;
-  confidence: number;
-  sourceQuote: string | null;
-  validAt: Date;
-  validUntil: Date | null;
-  invalidAt: Date | null;
-  episodeId: string | null;
-};
+/** Exactly the row shape {@link FACT_COLUMNS} selects — derived, not restated. */
+type FactSelect = Pick<FactRow, keyof typeof FACT_COLUMNS>;
 
 function rowToSemanticFact(r: FactSelect, relevanceScore?: number): SemanticFact {
   return {
@@ -693,17 +814,6 @@ function rowToSemanticFact(r: FactSelect, relevanceScore?: number): SemanticFact
     episodeId: r.episodeId,
     ...(relevanceScore !== undefined ? { relevanceScore } : {}),
   };
-}
-
-/** Reciprocal Rank Fusion across ranked id lists. Higher score = more relevant. */
-function reciprocalRankFusion(lists: string[][], k = 60): Map<string, number> {
-  const scores = new Map<string, number>();
-  for (const list of lists) {
-    list.forEach((id, idx) => {
-      scores.set(id, (scores.get(id) ?? 0) + 1 / (k + idx + 1));
-    });
-  }
-  return scores;
 }
 
 // Keyword search expression — MUST stay identical to the facts_tsv_idx GIN
@@ -750,7 +860,7 @@ export async function getSemanticContext(
       .from(facts)
       .where(tenant)
       .orderBy(desc(facts.validAt))
-      .limit(limit)) as FactSelect[];
+      .limit(limit));
     return {
       facts: rows.map((r) => rowToSemanticFact(r, 1)),
       factCount: rows.length,
@@ -766,7 +876,7 @@ export async function getSemanticContext(
       .from(facts)
       .where(and(tenant, isNotNull(facts.embedding)))
       .orderBy(sql`${facts.embedding} <=> ${vectorLiteral}::vector`)
-      .limit(scan)) as FactSelect[];
+      .limit(scan));
   };
 
   // Signal 2 — entity-anchored: resolve entities the query mentions (word-boundary
@@ -816,7 +926,7 @@ export async function getSemanticContext(
           or(inArray(facts.subject, anchors), inArray(facts.object, anchors)),
         ),
       )
-      .limit(scan)) as FactSelect[];
+      .limit(scan));
   };
 
   // Signal 3 — keyword / full-text.
@@ -827,7 +937,7 @@ export async function getSemanticContext(
       .from(facts)
       .where(and(tenant, sql`${factsTsv} @@ ${tsquery}`))
       .orderBy(sql`ts_rank(${factsTsv}, ${tsquery}) DESC`)
-      .limit(scan)) as FactSelect[];
+      .limit(scan));
   };
 
   // The three signals are independent — run them in one round-trip.
@@ -860,77 +970,6 @@ export async function getSemanticContext(
 
 // ── Context assembly + render ────────────────────────────────────────────────
 
-/** Group facts by their derived anchor entity, sorted by relevance. */
-export function assembleContext(factList: SemanticFact[]): RankedContextGroup[] {
-  const groupMap = new Map<string, RankedContextGroup>();
-  for (const fact of factList) {
-    const key = anchorFor(fact);
-    let group = groupMap.get(key);
-    if (!group) {
-      group = { entityName: key, facts: [], groupRelevance: 0 };
-      groupMap.set(key, group);
-    }
-    const score = fact.relevanceScore ?? 1;
-    group.facts.push({
-      subject: fact.subject,
-      predicate: fact.predicate,
-      object: fact.object,
-      sourceQuote: fact.sourceQuote,
-      validAt: fact.validAt,
-      validUntil: fact.validUntil,
-      relevanceScore: score,
-    });
-    if (score > group.groupRelevance) group.groupRelevance = score;
-  }
-  const groups = [...groupMap.values()];
-  for (const g of groups) g.facts.sort((a, b) => b.relevanceScore - a.relevanceScore);
-  groups.sort((a, b) => b.groupRelevance - a.groupRelevance);
-  return groups;
-}
-
-function formatDate(iso: string): string {
-  return iso.slice(0, 10);
-}
-
-/** Collapse control characters so fact text can't break out of the rendered block. */
-function oneLine(value: unknown): string {
-  return String(value).replace(/[\r\n\t]+/g, ' ').trim();
-}
-
-/**
- * Render grouped facts into a prompt-ready text block (the primary prepare()
- * output). Deterministic, no LLM. Mirrors Zep's basic context-block shape.
- */
-export function renderContext(
-  groups: RankedContextGroup[],
-  entityList: SemanticEntity[] = [],
-): string {
-  if (groups.length === 0) return '';
-
-  const lines: string[] = [
-    'Known facts about the user, most relevant first.',
-    '',
-    '# FACTS  (format: fact (valid: from – to))',
-  ];
-  for (const g of groups) {
-    for (const f of g.facts) {
-      const until = f.validUntil ? formatDate(f.validUntil) : 'present';
-      lines.push(
-        `- ${oneLine(f.subject)} ${oneLine(f.predicate)} ${oneLine(f.object)}  (valid: ${formatDate(f.validAt)} – ${until})`,
-      );
-    }
-  }
-
-  if (entityList.length > 0) {
-    lines.push('', '# ENTITIES');
-    for (const e of entityList) {
-      lines.push(`- ${oneLine(e.name)} (${oneLine(e.type)})`);
-    }
-  }
-
-  return lines.join('\n');
-}
-
 /** Fetch entity records for a set of names (for the ENTITIES render section). */
 export async function getEntitiesByName(
   dataset: string,
@@ -952,7 +991,7 @@ export async function getEntitiesByName(
   return rows.map((r) => ({
     entityId: r.id,
     name: r.name,
-    type: r.type as SemanticEntity['type'],
+    type: r.type,
   }));
 }
 
@@ -990,7 +1029,7 @@ export async function querySemanticFacts(
       .from(facts)
       .where(where)
       .orderBy(desc(facts.validAt))
-      .limit(limit) as Promise<FactSelect[]>,
+      .limit(limit),
     db.select({ count: count() }).from(facts).where(where),
   ]);
   return {
@@ -1011,7 +1050,7 @@ export async function listEntities(
   return rows.map((r) => ({
     entityId: r.id,
     name: r.name,
-    type: r.type as SemanticEntity['type'],
+    type: r.type,
   }));
 }
 
@@ -1031,7 +1070,7 @@ export async function listEntityFacts(
         or(eq(facts.subject, name), eq(facts.object, name)),
       ),
     )
-    .orderBy(desc(facts.validAt))) as FactSelect[];
+    .orderBy(desc(facts.validAt)));
   return rows.map((r) => rowToSemanticFact(r));
 }
 

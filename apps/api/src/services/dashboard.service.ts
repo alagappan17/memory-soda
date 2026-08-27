@@ -103,7 +103,7 @@ export async function listThreads(opts: {
   };
 }
 
-export interface DashboardUser {
+export interface DatasetSummary {
   dataset: string;
   threadCount: number;
   factCount: number;
@@ -111,15 +111,15 @@ export interface DashboardUser {
 }
 
 /**
- * Distinct users (subjects) for a project, derived from threads, with thread and
- * live-fact counts. Powers the user-first admin hub.
+ * Every dataset in a project, derived from threads, with thread and live-fact
+ * counts. Powers the dataset browser.
  */
-export async function listUsers(opts: {
+export async function listDatasets(opts: {
   projectId: string;
   q?: string;
   limit: number;
   offset: number;
-}): Promise<{ users: DashboardUser[]; total: number }> {
+}): Promise<{ datasets: DatasetSummary[]; total: number }> {
   const conditions = [eq(threads.projectId, opts.projectId)];
   if (opts.q && opts.q.trim()) {
     conditions.push(sql`${threads.dataset} ILIKE ${`%${opts.q.trim()}%`}`);
@@ -164,7 +164,7 @@ export async function listUsers(opts: {
   }
 
   return {
-    users: rows.map((r) => ({
+    datasets: rows.map((r) => ({
       dataset: r.dataset,
       threadCount: r.threadCount,
       factCount: factCounts.get(r.dataset) ?? 0,

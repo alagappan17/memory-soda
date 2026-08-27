@@ -27,11 +27,15 @@ export const db = drizzle(pool, {
  * directly silently never matches, turning a 409 into a 500.
  */
 export function isUniqueViolation(err: unknown): boolean {
-  for (let e: unknown = err, depth = 0; e && depth < 5; depth++) {
-    if ((e as { code?: unknown }).code === '23505') return true;
-    e = (e as { cause?: unknown }).cause;
+  for (let e: unknown = err, depth = 0; isRecord(e) && depth < 5; depth++) {
+    if (e['code'] === '23505') return true;
+    e = e['cause'];
   }
   return false;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 export async function checkPostgres(): Promise<void> {
