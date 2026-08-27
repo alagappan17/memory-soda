@@ -1,7 +1,10 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  // Two entry points: the client, and the AI SDK integration. The integration
+  // is a subpath so importing the client never pulls in code that only makes
+  // sense alongside `ai`.
+  entry: ['src/index.ts', 'src/ai/index.ts'],
   format: ['esm', 'cjs'],
   dts: {
     // Inline @memory-soda/types into the emitted .d.ts. It is a private

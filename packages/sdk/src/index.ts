@@ -1,52 +1,53 @@
-export { MemorySodaClient } from './client.js';
-export type { MemorySodaConfig } from './client.js';
-export { ThreadClient } from './thread.js';
-export { WorkingMemoryClient } from './working-memory.js';
-export { SemanticMemoryClient } from './semantic-memory.js';
-export {
-  ApiError,
-  AuthError,
-  MemorySodaError,
-  NetworkError,
-} from './errors.js';
+export { MemorySoda } from './client.js';
+export type {
+  MemorySodaConfig,
+  ListFactsOptions,
+  ListEpisodesOptions,
+  WMNothingToCompact,
+} from './client.js';
+
+export { ApiError, AuthError, MemorySodaError, NetworkError } from './errors.js';
+export type { OnRequest, OnResponse } from './http.js';
+
 export type {
   HealthResponse,
-  // Thread
+  // Threads
   WMThread,
   WMThreadSettings,
   WMCreateThreadRequest,
-  WMPatchThreadRequest,
   WMCreateThreadResponse,
+  WMPatchThreadRequest,
   WMEndThreadResponse,
   WMTokenUsage,
-  WMThreadStatsResponse,
   WMCompactResult,
-  WMCompactSummaryMetadata,
-  // Working Memory
+  // Working memory
   MessageRole,
   WMMessage,
   WMMessageMetadata,
   WMTokenCount,
   WMAddMessageRequest,
-  WMListMessagesQuery,
-  WMPrepareRequest,
   WMAddMessageResponse,
+  WMListMessagesQuery,
   WMListMessagesResponse,
+  WMPrepareRequest,
   WMPrepareResponse,
   // Recall
   RecallRequest,
   RecallResponse,
-  // Prepare context block
   RankedContextGroup,
-  // Episodic context (surfaced in prepare response)
-  EpisodeContextItem,
-  EpisodeContext,
   // Semantic memory
   EntityType,
   SemanticFact,
   SemanticEntity,
-  SemanticContext,
   SemanticFactsResponse,
-  SemanticEntitiesResponse,
-  SemanticEntityFactsResponse,
+  // Episodic memory
+  Episode,
+  EpisodeStatus,
+  EpisodeWithRelevance,
+  EpisodesListResponse,
+  EpisodeContext,
+  EpisodeContextItem,
+  // Datasets
+  DatasetExport,
+  DatasetDeletion,
 } from '@memory-soda/types';
