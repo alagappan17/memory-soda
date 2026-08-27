@@ -381,5 +381,5 @@ class NetworkError extends MemorySodaError {
 
 ## Next
 
-- [`MemorySodaClient`](/sdk/client/)
+- [`MemorySoda`](/sdk/client/)
 - [Errors](/sdk/errors/)

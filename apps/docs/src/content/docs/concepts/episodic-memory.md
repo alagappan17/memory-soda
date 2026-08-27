@@ -64,7 +64,7 @@ msg  msg  msg              (10s idle)
 ### 2. Explicit
 
 ```ts
-await memory.threads.end(threadId);   // → { threadId, episodeQueued: true }
+await memory.endThread(threadId);   // → { threadId, episodeQueued: true }
 ```
 
 Queues extraction immediately. The thread stays writable — this is a checkpoint,

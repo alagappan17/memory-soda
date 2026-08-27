@@ -28,7 +28,7 @@ deployment.
 
 ```ts
 // Nothing to configure — the key decides.
-const memory = new MemorySodaClient({ baseUrl, apiKey: STAGING_KEY });
+const memory = new MemorySoda({ baseUrl, apiKey: STAGING_KEY });
 ```
 
 ---
@@ -46,13 +46,13 @@ That last point is the important one:
 
 ```ts
 // Monday
-const a = await memory.threads.create({ dataset: 'user_42' });
-await memory.workingMemory.addMessage(a.threadId, {
+const a = await memory.createThread({ dataset: 'user_42' });
+await memory.addMessage(a.threadId, {
   role: 'user', content: 'I only drink decaf after 2pm.',
 });
 
 // Friday — a completely different thread
-const b = await memory.threads.create({ dataset: 'user_42' });
+const b = await memory.createThread({ dataset: 'user_42' });
 const { context } = await memory.recall({ dataset: 'user_42', query: 'coffee' });
 // → "- user only drinks decaf after 2pm  (valid: … – present)"
 ```
@@ -84,7 +84,7 @@ for demos and the playground; a bug in production, because you can never recall
 that memory again without having stored the generated value.
 
 ```ts
-const { threadId, dataset } = await memory.threads.create({});
+const { threadId, dataset } = await memory.createThread({});
 // dataset === 'usr_9f3ka2be' — keep it or lose it
 ```
 
@@ -115,7 +115,7 @@ integration key cannot enumerate your users. The dashboard can, behind a login
 session:
 
 ```
-GET /dashboard/datasets?projectId=<uuid>&q=&limit=50&offset=0
+GET /dashboard/browse/datasets?projectId=<uuid>&q=&limit=50&offset=0
 ```
 
 ```json

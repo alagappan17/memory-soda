@@ -192,7 +192,7 @@ Takes the **key id**, not the key value.
 
 ## Threads
 
-### `GET /dashboard/threads`
+### `GET /dashboard/browse/threads`
 
 | Param | Required | Default |
 |---|---|---|
@@ -214,7 +214,7 @@ Takes the **key id**, not the key value.
 
 `messageCount` is derived live with a correlated subquery, not stored.
 
-### `GET /dashboard/threads/:threadId/messages`
+### `GET /dashboard/browse/threads/:threadId/messages`
 
 Requires `?projectId=`.
 
@@ -224,7 +224,7 @@ Requires `?projectId=`.
 
 Every message in sequence order, including compacted ones.
 
-### `GET /dashboard/threads/:threadId/episodes`
+### `GET /dashboard/browse/threads/:threadId/episodes`
 
 Requires `?projectId=`. Every episode for the thread, newest first, regardless of
 status.
@@ -233,10 +233,7 @@ status.
 
 ## Datasets
 
-These duplicate the `/v1/memory/*` equivalents behind session auth rather than an
-API key.
-
-### `GET /dashboard/datasets`
+### `GET /dashboard/browse/datasets`
 
 | Param | Required | Default |
 |---|---|---|
@@ -247,7 +244,7 @@ API key.
 
 ```json
 {
-  "users": [
+  "datasets": [
     { "dataset": "user_42", "threadCount": 3, "factCount": 17,
       "lastActivityAt": "2026-08-16T09:14:02.114Z" }
   ],
@@ -255,27 +252,40 @@ API key.
 }
 ```
 
-> The key is `users`, not `datasets`. The list is derived from `threads`, so a
-> dataset with facts but no threads will not appear.
+> The list is derived from `threads`, so a dataset with facts but no threads
+> will not appear.
 
-### `GET /dashboard/datasets/:dataset/facts`
+---
 
-`?projectId=` required. Also `q`, `includeInvalidated`, `limit` (max 200).
+## The memory routes, under session auth
 
-Same shape as [`GET /v1/…/facts`](/api/semantic-memory/).
+Everything under `/v1` is mounted a second time at **`/dashboard/v1`**. Same
+router, same handlers, same response shapes — the only difference is the
+credential and where the project comes from.
 
-### `GET /dashboard/datasets/:dataset/entities`
+| | `/v1/…` | `/dashboard/v1/…` |
+|---|---|---|
+| Credential | API key | session token |
+| Project | the key's project | `?projectId=` on every request |
 
-`?projectId=` required. → `{ "entities": [...] }`
+```bash
+# Identical results, different callers.
+curl "$API/v1/memory/semantic/datasets/user_42/facts" \
+  -H "Authorization: Bearer ms_…"
 
-### `GET /dashboard/datasets/:dataset/episodes`
+curl "$API/dashboard/v1/memory/semantic/datasets/user_42/facts?projectId=$PROJECT" \
+  -H "Authorization: Bearer ms_sess_…"
+```
 
-`?projectId=` required. Also `status` (accepts `all` and `archived` here, unlike
-the `/v1` route), `limit` (max 100), `before`.
+This replaces the parallel set of `/dashboard/datasets/*` endpoints that used to
+exist. They called the same service functions as their `/v1` counterparts and
+had already drifted from them — the dashboard copy never grew `asOf` or
+`episodeId`. Mounting one router twice makes that class of drift impossible.
 
-### `DELETE /dashboard/datasets/:dataset/facts/:factId`
-
-`?projectId=` required. → `{ "factId": "…", "deleted": true }`
+See [Semantic memory](/api/semantic-memory/), [Episodic
+memory](/api/episodic-memory/), [Recall](/api/recall/), [Threads](/api/threads/)
+and [Working memory](/api/working-memory/) for the routes themselves; prefix any
+of them with `/dashboard` and add `?projectId=`.
 
 ---
 

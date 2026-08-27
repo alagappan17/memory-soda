@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="318 149 388 727" width="388" height="727" role="img" aria-label="Memory Soda">
+  <!--
+    The Memory Soda mark, redrawn as true vector geometry.
+
+    The brand files in apps/dashboard/public are ~150 KB each and are really a
+    base64 PNG in an SVG wrapper, so they cannot be recoloured and are far too
+    heavy for a nav bar. This traces the same artwork — measured off that
+    original's alpha mask — as one stroked path plus fifteen bubbles, in under
+    1.5 KB, in a single colour the page can set.
+  -->
+  <g fill="#171717">
+    <path
+      d="M381.5 166.5 H642 Q651.5 166.5 651.5 176 C651.5 189 641.5 195 641.5 207
+         C641.5 232 688.5 245 688.5 294 V771.5
+         A176.5 86.5 0 0 1 335.5 771.5 V294
+         C335.5 245 382.5 232 382.5 207 C382.5 195 372.5 189 372.5 176
+         Q372.5 166.5 381.5 166.5 Z"
+      fill="none" stroke="#171717" stroke-width="27" stroke-linejoin="round" />
+    <circle cx="512" cy="388.5" r="24.5" />
+    <circle cx="513.5" cy="505" r="14.7" />
+    <circle cx="476" cy="559.5" r="14.7" />
+    <circle cx="550" cy="572" r="15" />
+    <circle cx="513" cy="614" r="15" />
+    <circle cx="452.5" cy="626.5" r="18.5" />
+    <circle cx="576" cy="644" r="18" />
+    <circle cx="512.5" cy="676" r="19.8" />
+    <circle cx="397.5" cy="676" r="14.8" />
+    <circle cx="626.5" cy="695.5" r="14.5" />
+    <circle cx="457" cy="703.5" r="21" />
+    <circle cx="560" cy="713.5" r="21" />
+    <circle cx="418" cy="767.5" r="24.2" />
+    <circle cx="513" cy="767.5" r="24.2" />
+    <circle cx="608" cy="767.5" r="24.2" />
+  </g>
+</svg>

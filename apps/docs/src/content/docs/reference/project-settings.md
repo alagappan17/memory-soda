@@ -173,7 +173,7 @@ Out-of-range values return `400` with the zod issues.
 **Episodic only**, at creation:
 
 ```ts
-await memory.threads.create({
+await memory.createThread({
   dataset: 'user_42',
   settings: { episodic: { autoEpisodeIntervalMs: 1000, contextEpisodes: 5 } },
 });

@@ -14,27 +14,27 @@ npm install @alagappan17/memory-soda
 ```
 
 ```ts
-import { MemorySodaClient } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@alagappan17/memory-soda';
 
-const memory = new MemorySodaClient({
+const memory = new MemorySoda({
   baseUrl: 'http://localhost:3004',
   apiKey: process.env.MEMORY_SODA_API_KEY!,
 });
 
 // 1. A thread groups the messages of one conversation.
 //    `dataset` is the stable identity of the person you're remembering.
-const { threadId } = await memory.threads.create({ dataset: 'user_42' });
+const { threadId } = await memory.createThread({ dataset: 'user_42' });
 
 // 2. Append a conversation. This is all extraction ever sees.
-await memory.workingMemory.addMessage(threadId, {
+await memory.addMessage(threadId, {
   role: 'user',
   content: "I'm looking for a travel camera under $1000. It has to be small — mirrorless is too bulky for me.",
 });
-await memory.workingMemory.addMessage(threadId, {
+await memory.addMessage(threadId, {
   role: 'assistant',
   content: 'The DJI Osmo Pocket 3 is a great fit — 1-inch sensor, built-in gimbal, pocketable.',
 });
-await memory.workingMemory.addMessage(threadId, {
+await memory.addMessage(threadId, {
   role: 'user',
   content: 'Yeah the pocket 3 looks great. I mostly shoot travel vlogs.',
 });
@@ -122,12 +122,12 @@ curl -s -X POST $API/v1/memory/recall \
 Extraction normally waits for a lull in conversation. To force it immediately:
 
 ```ts
-await memory.threads.end(threadId);
+await memory.endThread(threadId);
 ```
 
 Despite the name, this does not close the thread — it remains writable. It just
 queues extraction now instead of on the timer. See
-[`threads.end()`](/sdk/threads/#end).
+[`threads.end()`](/sdk/threads/#endthread).
 
 ---
 

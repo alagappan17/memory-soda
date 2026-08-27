@@ -1,5 +1,5 @@
 ---
-title: "`client.semantic`"
+title: "Facts and entities"
 description: "Reading and curating the durable fact store."
 ---
 Reading and curating the durable fact store.
@@ -9,7 +9,7 @@ methods are for inspection, admin UIs and correction: unranked, chronological,
 structured.
 
 ```ts
-const { facts } = await memory.semantic.listFacts('user_42');
+const { facts } = await memory.listFacts('user_42');
 ```
 
 ---
@@ -33,7 +33,7 @@ listFacts(dataset: string, opts?: {
 | `asOf` | — | Point-in-time. **Overrides `includeInvalidated`.** |
 
 ```ts
-const { facts, total } = await memory.semantic.listFacts('user_42', {
+const { facts, total } = await memory.listFacts('user_42', {
   q: 'camera',
   limit: 20,
 });
@@ -66,7 +66,7 @@ Ordered by `validAt` descending. No `relevanceScore` — these are not ranked.
 ### Showing history
 
 ```ts
-const { facts } = await memory.semantic.listFacts('user_42', {
+const { facts } = await memory.listFacts('user_42', {
   includeInvalidated: true,
 });
 
@@ -83,25 +83,6 @@ states mean.
 
 ---
 
-## `searchFacts()`
-
-```ts
-searchFacts(dataset: string, q: string, opts?: { limit?: number }): Promise<SemanticFactsResponse>
-```
-
-A one-line alias:
-
-```ts
-memory.semantic.searchFacts('user_42', 'camera', { limit: 10 });
-// identical to
-memory.semantic.listFacts('user_42', { q: 'camera', limit: 10 });
-```
-
-Keyword only — no vector search, no ranking. For semantic search use
-[`recall()`](/sdk/client/#recall).
-
----
-
 ## `deleteFact()`
 
 ```ts
@@ -109,7 +90,7 @@ deleteFact(dataset: string, factId: string): Promise<{ factId: string; deleted: 
 ```
 
 ```ts
-await memory.semantic.deleteFact('user_42', '3a91…');
+await memory.deleteFact('user_42', '3a91…');
 // { factId: '3a91…', deleted: true }
 ```
 
@@ -132,7 +113,7 @@ listEntities(dataset: string): Promise<SemanticEntity[]>
 ```
 
 ```ts
-const entities = await memory.semantic.listEntities('user_42');
+const entities = await memory.listEntities('user_42');
 // [{ entityId: 'c1f2…', name: 'dji osmo pocket 3', type: 'PRODUCT' }, …]
 ```
 
@@ -146,33 +127,31 @@ Types: `PERSON` `ORG` `PLACE` `PRODUCT` `SKILL` `TOPIC` `EVENT` `FOOD` `ROLE`
 
 ---
 
-## `listEntityFacts()`
+## Facts for one entity
 
-Every live fact touching a named entity, as subject **or** object.
-
-```ts
-listEntityFacts(dataset: string, name: string): Promise<SemanticFact[]>
-```
+Pass `entity` to [`listFacts()`](#listfacts) for every live fact touching a named entity,
+as subject **or** object:
 
 ```ts
-const facts = await memory.semantic.listEntityFacts('user_42', 'berlin');
+const { facts } = await memory.listFacts('user_42', { entity: 'berlin' });
 ```
 
-The name is lower-cased server-side, so `'Berlin'` and `'berlin'` both work.
+The name is lower-cased on the way out, so `'Berlin'` and `'berlin'` both work.
 Names must otherwise match exactly — this is a lookup, not a search. Get valid
 names from `listEntities()`.
 
-Returns `[]` for an unknown entity rather than throwing.
+Returns `[]` for an unknown entity rather than throwing. `entity` takes
+precedence over the other filters.
 
 ### Grouping a profile by entity
 
 ```ts
-const entities = await memory.semantic.listEntities('user_42');
+const entities = await memory.listEntities('user_42');
 
 const profile = await Promise.all(
   entities.map(async (e) => ({
     entity: e,
-    facts: await memory.semantic.listEntityFacts('user_42', e.name),
+    facts: (await memory.listFacts('user_42', { entity: e.name })).facts,
   })),
 );
 ```
@@ -186,8 +165,8 @@ One request per entity — fine for a dashboard, not for a request path.
 ```ts
 async function memoryProfile(dataset: string) {
   const [{ facts, total }, entities] = await Promise.all([
-    memory.semantic.listFacts(dataset, { limit: 100, includeInvalidated: true }),
-    memory.semantic.listEntities(dataset),
+    memory.listFacts(dataset, { limit: 100, includeInvalidated: true }),
+    memory.listEntities(dataset),
   ]);
 
   const now = Date.now();
@@ -212,6 +191,7 @@ async function memoryProfile(dataset: string) {
 | Pin a fact | No immutability flag — anything can be superseded. |
 | Bulk delete a dataset | No endpoint. See [Privacy and data deletion](/operations/privacy-and-deletion/). |
 | Paginate entities | `listEntities` returns everything. |
+| Keyword + entity together | `entity` wins; the other filters are ignored. |
 
 ---
 

@@ -1,12 +1,13 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from '@astrojs/starlight/components';
+import mark from '../assets/memory-soda-mark.svg';
 
 const REPO = 'https://github.com/alagappan17/memory-soda';
 
-const integration = `import { MemorySodaClient } from '@alagappan17/memory-soda';
+const integration = `import { MemorySoda } from '@alagappan17/memory-soda';
 
-const memory = MemorySodaClient.fromEnv();
+const memory = new MemorySoda();   // reads the environment
 
 // Before the model call.
 const { context } = await memory.recall({
@@ -20,7 +21,7 @@ const reply = await yourModel({
 });
 
 // After the turn. Extraction runs in the background.
-await memory.workingMemory.addMessage(threadId, {
+await memory.addMessage(threadId, {
   role: 'assistant',
   content: reply,
 });`;
@@ -95,20 +96,21 @@ const features = [
 
 <StarlightPage
   frontmatter={{
-    title: 'memory-soda',
+    title: 'Memory Soda',
     template: 'splash',
     head: [
-      { tag: 'title', content: 'memory-soda — a memory layer for AI agents' },
+      { tag: 'title', content: 'Memory Soda — a memory layer for AI agents' },
     ],
   }}
   hasSidebar={false}
 >
   <div class="landing not-content">
     <section class="hero-block">
+      <img class="hero-mark" src={mark.src} alt="" width="40" height="75" />
       <p class="eyebrow">Open source · Self-hosted · MIT</p>
       <h1>Memory for agents that<br />actually holds up over time.</h1>
       <p class="lede">
-        Send memory-soda your conversations. It works out which statements are
+        Send Memory Soda your conversations. It works out which statements are
         worth keeping, resolves them against what it already believes, and hands
         back a prompt-ready block of text before your next model call.
       </p>
@@ -195,7 +197,7 @@ const features = [
       <div class="honest">
         <p class="eyebrow">Before you adopt it</p>
         <p>
-          memory-soda is pre-1.0. Facts can only be derived from conversation —
+          Memory Soda is pre-1.0. Facts can only be derived from conversation —
           there is no write API yet — every fact must be about the user, and a
           statement takes tens of seconds to become retrievable. Those limits are
           written down rather than glossed over.
@@ -257,6 +259,15 @@ const features = [
 
   .hero-block {
     padding-block: 4.5rem 4rem;
+  }
+
+  /* The dark-theme flip lives in custom.css, next to the nav mark's — one rule
+     covers both marks. */
+  .hero-mark {
+    height: 2.75rem;
+    width: auto;
+    margin-bottom: 1.5rem;
+    display: block;
   }
 
   .hero-block h1 {

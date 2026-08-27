@@ -85,7 +85,7 @@ They are entirely separate and never mix.
 
 ## Data model
 
-Nine tables. Full DDL in [Database schema](/reference/database-schema/).
+Ten tables. Full DDL in [Database schema](/reference/database-schema/).
 
 ```
 projects ──┬── api_keys

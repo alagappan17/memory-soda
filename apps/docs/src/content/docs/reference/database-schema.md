@@ -1,8 +1,8 @@
 ---
 title: "Database schema"
-description: "Nine tables in PostgreSQL with pgvector. Defined in apps/api/src/db/schema.ts, applied by migrations."
+description: "Ten tables in PostgreSQL with pgvector. Defined in apps/api/src/db/schema.ts, applied by migrations."
 ---
-Nine tables in PostgreSQL with `pgvector`. Defined in
+Ten tables in PostgreSQL with `pgvector`. Defined in
 `apps/api/src/db/schema.ts`, applied by [migrations](/operations/migrations/).
 
 ```

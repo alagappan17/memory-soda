@@ -1,13 +1,13 @@
 ---
-title: "`MemorySodaClient`"
+title: "`MemorySoda`"
 description: "The root client. Owns configuration and the two top-level reads."
 ---
 The root client. Owns configuration and the two top-level reads.
 
 ```ts
-import { MemorySodaClient } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@alagappan17/memory-soda';
 
-const memory = new MemorySodaClient({
+const memory = new MemorySoda({
   baseUrl: 'http://localhost:3004',
   apiKey: process.env.MEMORY_SODA_API_KEY!,
 });
@@ -18,7 +18,7 @@ const memory = new MemorySodaClient({
 ## Constructor
 
 ```ts
-new MemorySodaClient(config: MemorySodaConfig)
+new MemorySoda(config: MemorySodaConfig)
 ```
 
 | Option | Type | Default | Notes |
@@ -27,22 +27,27 @@ new MemorySodaClient(config: MemorySodaConfig)
 | `apiKey` | `string` | — | Required. `ms_…`, sent as `Authorization: Bearer`. |
 | `timeout` | `number` | `60000` | Per-request timeout in ms. |
 
-### `MemorySodaClient.fromEnv()`
+### `new MemorySoda()`
 
 ```ts
-const memory = MemorySodaClient.fromEnv();
+const memory = new MemorySoda();
 ```
 
 Reads `MEMORY_SODA_BASE_URL` and `MEMORY_SODA_API_KEY`. Throws a plain `Error`
 if either is missing — this is a startup misconfiguration, not a runtime failure.
 
-### Sub-clients
+### Where the rest of the surface lives
 
-| Property | Type | Docs |
+Every method is on the client itself — there are no sub-clients to reach
+through. The pages below group them by what you are doing.
+
+| Doing | Methods | Page |
 |---|---|---|
-| `.threads` | `ThreadClient` | [threads](/sdk/threads/) |
-| `.workingMemory` | `WorkingMemoryClient` | [working memory](/sdk/working-memory/) |
-| `.semantic` | `SemanticMemoryClient` | [semantic memory](/sdk/semantic-memory/) |
+| Running a conversation | `createThread`, `getThread`, `updateThread`, `endThread` | [threads](/sdk/threads/) |
+| Writing and reading it back | `addMessage`, `addMessages`, `listMessages`, `prepare`, `compact` | [messages](/sdk/working-memory/) |
+| Durable facts | `listFacts`, `deleteFact`, `listEntities` | [facts and entities](/sdk/semantic-memory/) |
+| What was learned, and when | `listEpisodes`, `searchEpisodes`, `getEpisode` | [episodes](/sdk/episodes/) |
+| Export and erasure | `exportDataset`, `forgetDataset` | [datasets](/sdk/datasets/) |
 
 ---
 
@@ -145,7 +150,7 @@ Equivalent to:
 
 ```ts
 const [prepared, recalled] = await Promise.all([
-  memory.workingMemory.prepare(threadId, { messageLimit }),
+  memory.prepare(threadId, { messageLimit }),
   memory.recall({ dataset, query }),
 ]);
 ```
@@ -180,32 +185,13 @@ try {
 
 ---
 
-## `ping()`
-
-```ts
-ping(): Promise<{ ok: boolean; services: Record<string, string> }>
-```
-
-```ts
-const { ok, services } = await memory.ping();
-// { ok: true, services: { postgres: 'ok' } }
-```
-
-A thin wrapper over `health()` that flattens the status into a boolean. It still
-throws on a `503`, so it is not a non-throwing variant — wrap it if you want one:
-
-```ts
-const reachable = await memory.ping().then((r) => r.ok).catch(() => false);
-```
-
----
 
 ## Full turn
 
 ```ts
-import { MemorySodaClient } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@alagappan17/memory-soda';
 
-const memory = MemorySodaClient.fromEnv();
+const memory = new MemorySoda();
 
 async function turn(userId: string, threadId: string, message: string) {
   const { prepared, recalled } = await memory.prepareAndRecall(threadId, {
@@ -221,8 +207,8 @@ async function turn(userId: string, threadId: string, message: string) {
     messages: [...prepared.messages, { role: 'user', content: message }],
   });
 
-  await memory.workingMemory.addMessage(threadId, { role: 'user', content: message });
-  await memory.workingMemory.addMessage(threadId, { role: 'assistant', content: reply });
+  await memory.addMessage(threadId, { role: 'user', content: message });
+  await memory.addMessage(threadId, { role: 'assistant', content: reply });
 
   return reply;
 }
@@ -232,6 +218,6 @@ async function turn(userId: string, threadId: string, message: string) {
 
 ## Next
 
-- [`client.threads`](/sdk/threads/)
-- [`client.workingMemory`](/sdk/working-memory/)
+- [`memory.threads`](/sdk/threads/)
+- [`memory.working`](/sdk/working-memory/)
 - [Error handling](/sdk/errors/)

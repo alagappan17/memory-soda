@@ -37,8 +37,8 @@ change.
 | `GET …/episodes` (`/v1`) | 10 | 50 |
 | `GET …/episodes` (dashboard) | 50 | 100 |
 | `GET …/episodes/search` | 5 | 20 |
-| `GET /dashboard/threads` | 20 | 100 |
-| `GET /dashboard/datasets` | 50 | 100 |
+| `GET /dashboard/browse/threads` | 20 | 100 |
+| `GET /dashboard/browse/datasets` | 50 | 100 |
 | `GET …/entities` | **unpaginated** | — |
 
 `listEntities` returns every entity for a dataset. Keep it off hot paths.

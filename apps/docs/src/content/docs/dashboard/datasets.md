@@ -144,13 +144,13 @@ Everything here is available programmatically:
 
 | View | Endpoint |
 |---|---|
-| Dataset list | `GET /dashboard/datasets?projectId=` |
-| Conversations | `GET /dashboard/threads?projectId=&dataset=` |
-| Messages | `GET /dashboard/threads/:id/messages?projectId=` |
-| Episodes | `GET /dashboard/datasets/:dataset/episodes?projectId=` |
-| Facts | `GET /dashboard/datasets/:dataset/facts?projectId=` |
-| Entities | `GET /dashboard/datasets/:dataset/entities?projectId=` |
-| Delete a fact | `DELETE /dashboard/datasets/:dataset/facts/:factId?projectId=` |
+| Dataset list | `GET /dashboard/browse/datasets?projectId=` |
+| Conversations | `GET /dashboard/browse/threads?projectId=&dataset=` |
+| Messages | `GET /dashboard/browse/threads/:id/messages?projectId=` |
+| Episodes | `GET /dashboard/browse/datasets/:dataset/episodes?projectId=` |
+| Facts | `GET /dashboard/browse/datasets/:dataset/facts?projectId=` |
+| Entities | `GET /dashboard/browse/datasets/:dataset/entities?projectId=` |
+| Delete a fact | `DELETE /dashboard/v1/memory/semantic/datasets/:dataset/facts/:factId?projectId=` |
 
 The `/v1` equivalents do the same with an API key —
 [Semantic memory API](/api/semantic-memory/).

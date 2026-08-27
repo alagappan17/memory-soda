@@ -1,8 +1,8 @@
 ---
 title: "Privacy and data deletion"
-description: "memory-soda stores personal data by design. If you run it against real users, you are the data controller and these obligations are yours."
+description: "Memory Soda stores personal data by design. If you run it against real users, you are the data controller and these obligations are yours."
 ---
-memory-soda stores personal data by design. If you run it against real users, you
+Memory Soda stores personal data by design. If you run it against real users, you
 are the data controller and these obligations are yours.
 
 ---
@@ -50,7 +50,7 @@ calls, or filter at the collector.
 Conversation content is sent to Google. Under a paid Gemini API tier, data is not
 used to train models — verify the current terms for your account and region.
 
-If your users must not have their data leave your infrastructure, memory-soda is
+If your users must not have their data leave your infrastructure, Memory Soda is
 not currently usable: the provider is hard-wired and there is no local-model
 option.
 
@@ -59,7 +59,7 @@ option.
 ## Deleting one fact
 
 ```ts
-await memory.semantic.deleteFact('user_42', factId);
+await memory.deleteFact('user_42', factId);
 ```
 
 A **soft delete** — it stamps `invalidAt`. The fact leaves retrieval but the row,
@@ -72,28 +72,40 @@ its `sourceQuote` and its embedding remain in the database.
 
 ## Deleting a whole user
 
-There is **no API for this.** No `DELETE /v1/datasets/:dataset`, no UI button.
-You must do it in SQL.
-
-```sql
-BEGIN;
-
--- messages go with their threads via ON DELETE CASCADE
-DELETE FROM messages WHERE thread_id IN (
-  SELECT id FROM threads WHERE dataset = 'user_42' AND project_id = '<project>'
-);
-DELETE FROM scheduled_episodes WHERE thread_id IN (
-  SELECT id FROM threads WHERE dataset = 'user_42' AND project_id = '<project>'
-);
-DELETE FROM facts    WHERE dataset = 'user_42' AND project_id = '<project>';
-DELETE FROM entities WHERE dataset = 'user_42' AND project_id = '<project>';
-DELETE FROM episodes WHERE dataset = 'user_42' AND project_id = '<project>';
-DELETE FROM threads  WHERE dataset = 'user_42' AND project_id = '<project>';
-
-COMMIT;
+```
+DELETE /v1/memory/recall/datasets/:dataset
 ```
 
-Verify:
+```bash
+curl -X DELETE "$API/v1/memory/recall/datasets/user_42" -H "Authorization: Bearer ms_…"
+```
+
+```json
+{
+  "dataset": "user_42",
+  "deleted": { "threads": 3, "episodes": 5, "facts": 27, "entities": 12 }
+}
+```
+
+Or through the SDK:
+
+```ts
+await memory.forgetDataset('user_42');
+```
+
+A hard delete of every thread, message, episode, fact and entity for that
+dataset, in one transaction, scoped to the API key's project. The counts come
+back so you can log what was removed against the request that asked for it.
+
+This is not the soft `invalidAt` stamp used for
+[correcting a fact](#deleting-one-fact) — nothing survives, and
+[point-in-time recall](/guides/point-in-time-recall/) will not report the erased
+facts as having ever been true. A deletion request is not satisfied by a flag.
+
+> Take an [export](#exporting-a-users-data) first if you need to evidence what
+> you held. There is no undo.
+
+### Verifying
 
 ```sql
 SELECT
@@ -104,13 +116,6 @@ SELECT
 ```
 
 All zero.
-
-> Order matters — `facts.episode_id` references `episodes` with
-> `ON DELETE SET NULL`, so deleting episodes first orphans facts rather than
-> removing them. Delete facts first.
-
-Wrap it in a script and keep it with your other data-subject tooling, because you
-will need it under time pressure.
 
 ---
 
@@ -128,34 +133,55 @@ tenant.
 
 ## Exporting a user's data
 
-For a subject access request:
-
-```sql
-COPY (
-  SELECT m.created_at, m.role, m.content
-  FROM messages m
-  JOIN threads t ON t.id = m.thread_id
-  WHERE t.dataset = 'user_42' AND t.project_id = '<project>'
-  ORDER BY t.created_at, m.sequence_number
-) TO STDOUT WITH CSV HEADER;
-
-COPY (
-  SELECT subject, predicate, object, source_quote, confidence,
-         valid_at, valid_until, invalid_at, created_at
-  FROM facts
-  WHERE dataset = 'user_42' AND project_id = '<project>'
-  ORDER BY created_at
-) TO STDOUT WITH CSV HEADER;
 ```
-
-Or via the API:
+GET /v1/memory/recall/datasets/:dataset/export
+```
 
 ```ts
-const facts = await memory.semantic.listFacts(dataset, { includeInvalidated: true, limit: 100 });
-const entities = await memory.semantic.listEntities(dataset);
+const dump = await memory.exportDataset('user_42');
 ```
 
-Note `listFacts` caps at 100 — for a full export use SQL.
+Returns everything held for that dataset in one document: threads with their
+full message history, episodes with summaries and key learnings, facts (live
+*and* superseded, so the record shows what was believed and when it stopped
+being believed), and resolved entities.
+
+```json
+{
+  "dataset": "user_42",
+  "exportedAt": "2026-08-22T09:14:02.114Z",
+  "threads": [
+    {
+      "threadId": "…",
+      "tags": [],
+      "createdAt": "2026-08-01T10:00:00.000Z",
+      "messages": [{ "role": "user", "content": "…", "createdAt": "…" }]
+    }
+  ],
+  "episodes": [{ "episodeId": "…", "summary": "…", "keyLearnings": ["…"] }],
+  "facts": [
+    {
+      "factId": "…",
+      "subject": "user",
+      "predicate": "works at",
+      "object": "anthropic",
+      "confidence": 0.9,
+      "sourceQuote": "I just joined Anthropic",
+      "validAt": "2026-07-05T00:00:00.000Z",
+      "validUntil": null,
+      "invalidAt": null
+    }
+  ],
+  "entities": [{ "name": "anthropic", "type": "ORG" }]
+}
+```
+
+Superseded facts carry `invalidAt`, and `sourceQuote` carries the user's own
+words that produced each fact — between them a subject access request can be
+answered with provenance rather than a list of assertions.
+
+It is a single full read with no pagination. For a dataset with a long history
+that is a large response; it is an export endpoint, not a listing endpoint.
 
 ---
 
@@ -191,7 +217,7 @@ Two useful levers:
 durable:
 
 ```ts
-await memory.threads.create({
+await memory.createThread({
   dataset: userId,
   settings: { episodic: { enabled: false } },
 });
@@ -199,7 +225,7 @@ await memory.threads.create({
 
 Messages are still stored; nothing becomes a fact.
 
-**Keep sensitive content out entirely.** memory-soda has no field-level
+**Keep sensitive content out entirely.** Memory Soda has no field-level
 redaction, no PII detection and no content filtering. If certain categories must
 never be stored, filter before calling `addMessage`.
 
@@ -260,14 +286,16 @@ See [Curating memory](/guides/curating-memory/).
 
 | Gap | Impact |
 |---|---|
-| No bulk-delete endpoint | Erasure requires database access |
-| Soft delete only via the API | `sourceQuote` and embeddings survive |
-| Full payloads logged | Personal data in stdout by default |
-| No retention or forgetting | Data grows without limit |
+| No scheduled retention | Nothing expires on its own; erasure is a call you have to make |
 | Provider hard-wired | Cannot run without sending data to Google |
 | No field-level encryption | Content is plaintext in Postgres |
 | No audit log | No record of who read or deleted what |
 | Dashboard has no per-project permissions | Every operator sees everything |
+
+Three gaps that used to be on this list are now closed: erasure and export are
+first-class endpoints rather than SQL you write under time pressure, and the
+API no longer logs message content — `prepare` and `recall` emit counts and
+IDs only.
 
 ---
 

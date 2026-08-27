@@ -135,7 +135,7 @@ Thread-level overrides are accepted for **episodic settings only**, at thread
 creation:
 
 ```ts
-await memory.threads.create({
+await memory.createThread({
   dataset: 'user_42',
   settings: { episodic: { autoEpisodeIntervalMs: 1000 } },
 });

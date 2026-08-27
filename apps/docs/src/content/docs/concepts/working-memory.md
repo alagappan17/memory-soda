@@ -14,7 +14,7 @@ embeddings, no model calls. It is what you send to the model as chat history.
 A thread is one conversation.
 
 ```ts
-const thread = await memory.threads.create({
+const thread = await memory.createThread({
   dataset: 'user_42',
   tags: ['support', 'billing'],
   metadata: { channel: 'web', ticketId: 'T-1094' },
@@ -40,7 +40,7 @@ extraction and the thread stays writable. There is no closed or archived state.
 ## Messages
 
 ```ts
-await memory.workingMemory.addMessage(threadId, {
+await memory.addMessage(threadId, {
   role: 'user',            // 'user' | 'assistant' | 'system' | 'tool'
   content: 'I moved to Berlin.',
   tokens: { input: 12, output: 0, total: 12 },  // optional telemetry
@@ -85,7 +85,7 @@ That run happens **inline**, so this particular call may take up to 30 seconds
 ## `prepare()` — the read
 
 ```ts
-const result = await memory.workingMemory.prepare(threadId, { messageLimit: 20 });
+const result = await memory.prepare(threadId, { messageLimit: 20 });
 ```
 
 ```json
@@ -148,7 +148,7 @@ Key properties:
 ### Manual compaction
 
 ```ts
-const result = await memory.workingMemory.compact(threadId);
+const result = await memory.compact(threadId);
 // { threadId, summaryMessageId, compactedCount, fromSequence, toSequence }
 // or { ok: true, compacted: false, message: 'Nothing to compact' }
 ```
@@ -178,7 +178,7 @@ threshold 30, messageLimit 10
 including compacted ones.
 
 ```ts
-const { messages, total, hasMore } = await memory.workingMemory.listMessages(threadId, {
+const { messages, total, hasMore } = await memory.listMessages(threadId, {
   limit: 50,          // 1–100, default 20
   before: 120,        // cursor: sequenceNumber less than this
   order: 'asc',       // or 'desc'
@@ -189,8 +189,12 @@ const { messages, total, hasMore } = await memory.workingMemory.listMessages(thr
 
 ## Thread stats
 
-```ts
-const stats = await memory.workingMemory.getThreadStats(threadId);
+Counts and token totals for a thread live on the HTTP API rather than the SDK —
+they are arithmetic over the `tokens` you supplied, so the client would only be
+handing your own numbers back to you.
+
+```http
+GET /v1/memory/working/threads/:threadId/stats
 ```
 
 ```json
@@ -205,7 +209,7 @@ const stats = await memory.workingMemory.getThreadStats(threadId);
 }
 ```
 
-`tokenUsage` is `null` unless you supplied `tokens` on messages — memory-soda
+`tokenUsage` is `null` unless you supplied `tokens` on messages — Memory Soda
 does not count tokens for you.
 
 ---
@@ -227,5 +231,5 @@ extraction reads raw message rows within that range.
 ## Next
 
 - [Episodic memory](/concepts/episodic-memory/) — what happens to a finished chunk of conversation
-- [`client.workingMemory`](/sdk/working-memory/) — full method reference
+- [`memory.working`](/sdk/working-memory/) — full method reference
 - [Handling long conversations](/guides/long-conversations/)

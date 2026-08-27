@@ -1,8 +1,8 @@
 ---
 title: "Installation"
-description: "memory-soda is self-hosted. You run Postgres, you bring a Gemini API key."
+description: "Memory Soda is self-hosted. You run Postgres, you bring a Gemini API key."
 ---
-memory-soda is self-hosted. You run Postgres, you bring a Gemini API key.
+Memory Soda is self-hosted. You run Postgres, you bring a Gemini API key.
 
 ---
 
@@ -202,9 +202,9 @@ npm install @alagappan17/memory-soda
 ```
 
 ```ts
-import { MemorySodaClient } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@alagappan17/memory-soda';
 
-const memory = new MemorySodaClient({
+const memory = new MemorySoda({
   baseUrl: 'http://localhost:3004',
   apiKey: 'ms_…',
 });

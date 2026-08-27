@@ -7,7 +7,7 @@ description: "POST /v1/memory/recall · Auth: API key"
 The main read. Thread-free — it needs only a `dataset`, so you can personalise a
 chat turn, a search page, or an agent tool call.
 
-SDK equivalent: [`client.recall()`](/sdk/client/#recall)
+SDK equivalent: [`memory.recall()`](/sdk/client/#recall)
 
 ---
 
@@ -246,6 +246,56 @@ const systemPrompt = context
 
 There is no way to supply a pre-computed query embedding; every call with a
 `query` embeds again.
+
+---
+
+## `GET /v1/memory/recall/datasets/:dataset/export`
+
+Everything stored for a dataset — threads with their messages, episodes, facts
+(live and superseded) and entities — in one response.
+
+```bash
+curl "$API/v1/memory/recall/datasets/user_42/export" -H "Authorization: Bearer ms_…"
+```
+
+```json
+{
+  "dataset": "user_42",
+  "exportedAt": "2026-08-22T09:14:02.114Z",
+  "threads": [{ "threadId": "…", "tags": [], "createdAt": "…", "messages": [...] }],
+  "episodes": [...],
+  "facts": [...],
+  "entities": [{ "name": "thailand", "type": "PLACE" }]
+}
+```
+
+Scoped to the API key's project. This is a full read, not a paginated one —
+treat it as an export endpoint, not a listing endpoint.
+
+---
+
+## `DELETE /v1/memory/recall/datasets/:dataset`
+
+Erase a dataset: every thread, message, episode, fact and entity.
+
+```bash
+curl -X DELETE "$API/v1/memory/recall/datasets/user_42" -H "Authorization: Bearer ms_…"
+```
+
+```json
+{
+  "dataset": "user_42",
+  "deleted": { "threads": 3, "episodes": 5, "facts": 27, "entities": 12 }
+}
+```
+
+**A hard delete**, not the soft `invalidAt` stamp that
+[`DELETE …/facts/:factId`](/api/semantic-memory/) applies. Nothing survives, and
+[point-in-time recall](/guides/point-in-time-recall/) will not report the erased
+facts as having ever been true. A deletion request is not satisfied by a flag.
+
+It runs in one transaction, so a partial erase is not a state the system can
+reach. Messages cascade with their threads. There is no undo.
 
 ---
 

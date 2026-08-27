@@ -24,8 +24,14 @@ export default defineConfig({
   site: 'https://memory-soda.dev',
   integrations: [
     starlight({
-      title: 'memory-soda',
+      title: 'Memory Soda',
       description: 'A self-hostable memory layer for AI agents.',
+      // One file, not a light/dark pair: the mark is a single ink colour and
+      // custom.css flips it for the dark theme.
+      logo: {
+        src: './src/assets/memory-soda-mark.svg',
+        alt: 'Memory Soda',
+      },
       social: [
         {
           icon: 'github',

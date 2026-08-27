@@ -1,8 +1,8 @@
 ---
 title: "Overview"
-description: "memory-soda gives an LLM application durable memory about its users."
+description: "Memory Soda gives an LLM application durable memory about its users."
 ---
-memory-soda gives an LLM application durable memory about its users.
+Memory Soda gives an LLM application durable memory about its users.
 
 You send it conversations. It works out which statements are worth keeping,
 resolves them against what it already believes, and gives you back a
@@ -10,7 +10,7 @@ prompt-ready block of text before your next model call.
 
 ```
 ┌──────────────┐   messages    ┌──────────────┐   facts    ┌──────────────┐
-│  Your app    │ ────────────► │ memory-soda  │ ─────────► │  Postgres    │
+│  Your app    │ ────────────► │ Memory Soda  │ ─────────► │  Postgres    │
 │              │ ◄──────────── │              │ ◄───────── │  + pgvector  │
 └──────────────┘   context     └──────────────┘  retrieval └──────────────┘
 ```
@@ -27,7 +27,7 @@ An LLM has no memory between calls. The usual fixes both break down:
   not *knowledge*. "I moved to Berlin" and "I moved to Lisbon last month" both
   come back with similar scores, and the model has to guess which is current.
 
-memory-soda stores **claims, not transcripts**. Each claim carries the window of
+Memory Soda stores **claims, not transcripts**. Each claim carries the window of
 time it is true for, so a contradiction supersedes rather than accumulates.
 
 ---
@@ -100,7 +100,7 @@ Be clear about this before adopting it.
 
 ## The three layers
 
-memory-soda derives three kinds of memory from the same message stream. You
+Memory Soda derives three kinds of memory from the same message stream. You
 mostly interact with the first and third.
 
 | Layer | Holds | Read with | Cost |

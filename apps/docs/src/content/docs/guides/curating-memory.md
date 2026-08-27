@@ -60,7 +60,7 @@ delete it.
 ## 2. Deleting a fact
 
 ```ts
-await memory.semantic.deleteFact('user_42', factId);
+await memory.deleteFact('user_42', factId);
 // { factId: '3a91…', deleted: true }
 ```
 
@@ -78,7 +78,7 @@ invalidated.
 ### Finding the id
 
 ```ts
-const { facts } = await memory.semantic.listFacts('user_42', { q: 'berlin' });
+const { facts } = await memory.listFacts('user_42', { q: 'berlin' });
 for (const f of facts) {
   console.log(f.factId, f.subject, f.predicate, f.object);
 }
@@ -90,9 +90,9 @@ on each row.
 ### Deleting a group
 
 ```ts
-const { facts } = await memory.semantic.listFacts('user_42', { q: 'camera' });
+const { facts } = await memory.listFacts('user_42', { q: 'camera' });
 for (const f of facts) {
-  await memory.semantic.deleteFact('user_42', f.factId);
+  await memory.deleteFact('user_42', f.factId);
 }
 ```
 
@@ -107,18 +107,18 @@ statement through a thread:
 
 ```ts
 // 1. remove the wrong fact
-await memory.semantic.deleteFact('user_42', wrongFactId);
+await memory.deleteFact('user_42', wrongFactId);
 
 // 2. state the truth as the user would
-const { threadId } = await memory.threads.create({
+const { threadId } = await memory.createThread({
   dataset: 'user_42',
   metadata: { source: 'correction' },
 });
-await memory.workingMemory.addMessage(threadId, {
+await memory.addMessage(threadId, {
   role: 'user',
   content: 'To be clear: I am vegetarian, not vegan. I do eat dairy and eggs.',
 });
-await memory.threads.end(threadId);   // extract now rather than on the timer
+await memory.endThread(threadId);   // extract now rather than on the timer
 
 // 3. wait ~30s, then verify
 ```
@@ -136,11 +136,11 @@ is the only way to *add* knowledge.
 
 ```ts
 export async function forget(dataset: string, query: string) {
-  const { facts } = await memory.semantic.listFacts(dataset, { q: query, limit: 100 });
+  const { facts } = await memory.listFacts(dataset, { q: query, limit: 100 });
 
   const deleted = [];
   for (const f of facts) {
-    await memory.semantic.deleteFact(dataset, f.factId);
+    await memory.deleteFact(dataset, f.factId);
     deleted.push(`${f.subject} ${f.predicate} ${f.object}`);
   }
   return deleted;
@@ -171,7 +171,7 @@ Nothing is physically removed, so you can always reconstruct history.
 
 ```ts
 // everything, including superseded and expired
-const { facts } = await memory.semantic.listFacts('user_42', {
+const { facts } = await memory.listFacts('user_42', {
   includeInvalidated: true,
 });
 
@@ -207,7 +207,7 @@ Every fact records where it came from:
 | `episodeId` | The episode that produced it |
 
 ```ts
-const { facts } = await memory.semantic.listFacts('user_42');
+const { facts } = await memory.listFacts('user_42');
 facts.forEach((f) => console.log(`"${f.sourceQuote}" → ${f.predicate} ${f.object}`));
 ```
 
