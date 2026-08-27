@@ -2,14 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   Episode,
   EpisodeStatus,
-  EpisodeWithRelevance,
 } from '@memory-soda/types';
 import { EPISODE_STATUS_STYLES } from '../../lib/episode-status';
-import { trackedFetch, describeError } from './api';
+import { call, adminCall, describeError } from './api';
 import { CopyButton } from '../../components/copy-button';
 import type { AddOp } from './types';
-
-const EPISODIC_BASE = '/v1/memory/episodic';
 
 const STATUS_FILTERS: EpisodeStatus[] = [
   'completed',
@@ -208,6 +205,7 @@ function EpisodeCard({
  */
 export function EpisodesTab({
   apiKey,
+  projectId,
   dataset,
   active,
   addOp,
@@ -215,6 +213,8 @@ export function EpisodesTab({
   onWatchEpisode,
 }: {
   apiKey: string;
+  /** Needed for the operator actions, which do not go through the SDK. */
+  projectId: string | null;
   dataset: string;
   active: boolean;
   addOp: AddOp;
@@ -231,7 +231,7 @@ export function EpisodesTab({
   const loadedOnce = useRef(false);
 
   const ready = !!apiKey.trim() && !!dataset.trim();
-  const base = `${EPISODIC_BASE}/datasets/${encodeURIComponent(dataset.trim())}`;
+  const scope = dataset.trim();
 
   const load = useCallback(
     async (opts: { silent?: boolean; statusOverride?: EpisodeStatus } = {}) => {
@@ -240,9 +240,8 @@ export function EpisodesTab({
       setError(null);
       const st = opts.statusOverride ?? status;
       try {
-        const { data, trace } = await trackedFetch<{ episodes: Episode[] }>(
-          apiKey,
-          `${base}/episodes?status=${st}&limit=20`,
+        const { data, trace } = await call(apiKey, (memory) =>
+          memory.listEpisodes(scope, { status: st, limit: 20 }),
         );
         setEpisodes(data.episodes ?? []);
         setSearchMode(false);
@@ -263,7 +262,7 @@ export function EpisodesTab({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [apiKey, base, status, ready],
+    [apiKey, scope, status, ready],
   );
 
   // Reset when the memory scope changes.
@@ -294,17 +293,14 @@ export function EpisodesTab({
     setLoading(true);
     setError(null);
     try {
-      const { data, trace } = await trackedFetch<{
-        episodes: EpisodeWithRelevance[];
-      }>(
-        apiKey,
-        `${base}/episodes/search?q=${encodeURIComponent(searchQ.trim())}&limit=10`,
+      const { data, trace } = await call(apiKey, (memory) =>
+        memory.searchEpisodes(scope, searchQ.trim(), { limit: 10 }),
       );
-      setEpisodes(data.episodes);
+      setEpisodes(data);
       setSearchMode(true);
       addOp(
         'episode_search',
-        { q: searchQ.trim(), count: data.episodes.length },
+        { q: searchQ.trim(), count: data.length },
         trace,
       );
     } catch (err) {
@@ -317,13 +313,16 @@ export function EpisodesTab({
   }
 
   async function retry(episodeId: string) {
+    if (!projectId) return;
     try {
-      const { trace } = await trackedFetch<{
-        episodeId: string;
-        status: string;
-      }>(apiKey, `${EPISODIC_BASE}/episodes/${episodeId}/retry`, {
-        method: 'POST',
-      });
+      // Re-running a failed background job is an operator action, so it is not
+      // on the SDK — it goes over the dashboard's own session-authenticated
+      // mount of the same route.
+      const { trace } = await adminCall(
+        projectId,
+        'post',
+        `/memory/episodic/episodes/${episodeId}/retry`,
+      );
       addOp('episode_retried', { episodeId }, trace);
       setEpisodes((prev) =>
         prev.map((e) =>
@@ -341,13 +340,13 @@ export function EpisodesTab({
   }
 
   async function remove(episodeId: string) {
+    if (!projectId) return;
     try {
-      const { trace } = await trackedFetch<{
-        episodeId: string;
-        deleted: boolean;
-      }>(apiKey, `${EPISODIC_BASE}/episodes/${episodeId}`, {
-        method: 'DELETE',
-      });
+      const { trace } = await adminCall(
+        projectId,
+        'delete',
+        `/memory/episodic/episodes/${episodeId}`,
+      );
       addOp('episode_deleted', { episodeId }, trace);
       setEpisodes((prev) => prev.filter((e) => e.episodeId !== episodeId));
     } catch (err) {

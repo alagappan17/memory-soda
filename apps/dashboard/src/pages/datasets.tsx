@@ -11,6 +11,7 @@ import {
 import { EntityChip } from '../components/entity-chip';
 import api, { getProjectSettings } from '../lib/api';
 import type {
+  DatasetSummary,
   SemanticFact,
   SemanticEntity,
   Episode,
@@ -29,13 +30,6 @@ import {
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-interface DashboardUser {
-  dataset: string;
-  threadCount: number;
-  factCount: number;
-  lastActivityAt: string | null;
-}
 
 interface Thread {
   threadId: string;
@@ -77,7 +71,7 @@ export default function DatasetsPage() {
   const { selectedProject } = useProject();
   const projectId = selectedProject?.id ?? null;
 
-  const [datasets, setDatasets] = useState<DashboardUser[]>([]);
+  const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
   const [loadingDatasets, setLoadingDatasets] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
@@ -93,10 +87,10 @@ export default function DatasetsPage() {
     setLoadingDatasets(true);
     setError(null);
     try {
-      const res = await api.get<{ users: DashboardUser[] }>('/dashboard/datasets', {
+      const res = await api.get<{ datasets: DatasetSummary[] }>('/dashboard/browse/datasets', {
         params: { projectId, q: query.trim() || undefined, limit: 100 },
       });
-      setDatasets(res.data.users);
+      setDatasets(res.data.datasets);
     } catch {
       setError('Failed to load datasets');
     } finally {
@@ -253,8 +247,8 @@ function DossierTab({ projectId, dataset }: { projectId: string; dataset: string
     setError(null);
     try {
       const [f, e] = await Promise.all([
-        api.get<{ facts: SemanticFact[] }>(`/dashboard/datasets/${encodeURIComponent(dataset)}/facts`, { params: { projectId, includeInvalidated: showInvalidated, limit: 200 } }),
-        api.get<{ entities: SemanticEntity[] }>(`/dashboard/datasets/${encodeURIComponent(dataset)}/entities`, { params: { projectId } }),
+        api.get<{ facts: SemanticFact[] }>(`/dashboard/v1/memory/semantic/datasets/${encodeURIComponent(dataset)}/facts`, { params: { projectId, includeInvalidated: showInvalidated, limit: 200 } }),
+        api.get<{ entities: SemanticEntity[] }>(`/dashboard/v1/memory/semantic/datasets/${encodeURIComponent(dataset)}/entities`, { params: { projectId } }),
       ]);
       setFacts(f.data.facts);
       setEntities(e.data.entities);
@@ -269,7 +263,7 @@ function DossierTab({ projectId, dataset }: { projectId: string; dataset: string
 
   async function remove(factId: string) {
     try {
-      await api.delete(`/dashboard/datasets/${encodeURIComponent(dataset)}/facts/${factId}`, { params: { projectId } });
+      await api.delete(`/dashboard/v1/memory/semantic/datasets/${encodeURIComponent(dataset)}/facts/${factId}`, { params: { projectId } });
       setFacts((prev) => applyFactDeletion(prev, factId, showInvalidated));
     } catch {
       setError('Failed to delete fact');
@@ -402,7 +396,7 @@ function ConversationsTab({
     (async () => {
       setLoading(true);
       try {
-        const res = await api.get<{ threads: Thread[] }>('/dashboard/threads', { params: { projectId, dataset, limit: 100 } });
+        const res = await api.get<{ threads: Thread[] }>('/dashboard/browse/threads', { params: { projectId, dataset, limit: 100 } });
         setThreads(res.data.threads);
       } finally {
         setLoading(false);
@@ -416,7 +410,7 @@ function ConversationsTab({
       return;
     }
     (async () => {
-      const m = await api.get<{ messages: Message[] }>(`/dashboard/threads/${selectedThreadId}/messages`, { params: { projectId } });
+      const m = await api.get<{ messages: Message[] }>(`/dashboard/browse/threads/${selectedThreadId}/messages`, { params: { projectId } });
       setMessages(m.data.messages);
     })();
   }, [selectedThreadId, projectId]);
@@ -492,7 +486,7 @@ function EpisodesTab({
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<{ episodes: Episode[] }>(`/dashboard/datasets/${encodeURIComponent(dataset)}/episodes`, { params: { projectId, status, limit: 100 } });
+      const res = await api.get<{ episodes: Episode[] }>(`/dashboard/v1/memory/episodic/datasets/${encodeURIComponent(dataset)}/episodes`, { params: { projectId, status, limit: 100 } });
       setEpisodes(res.data.episodes);
     } catch {
       setError('Failed to load episodes');

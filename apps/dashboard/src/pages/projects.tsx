@@ -18,10 +18,9 @@ import {
 } from '@/components/ui/dialog';
 import { Plus, Check, Pencil, AlertCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import type { Project } from '@memory-soda/types';
 
 export default function ProjectsPage() {
-  const navigate = useNavigate();
   const { projects, selectedProject, createProject, updateProject, loading } =
     useProject();
   const [showNewProject, setShowNewProject] = useState(false);
@@ -30,7 +29,7 @@ export default function ProjectsPage() {
   const [creating, setCreating] = useState(false);
 
   const [showEditProject, setShowEditProject] = useState(false);
-  const [editingProject, setEditingProject] = useState<any>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -91,7 +90,7 @@ export default function ProjectsPage() {
     }
   }
 
-  function handleStartEdit(p: any) {
+  function handleStartEdit(p: Project) {
     setEditingProject(p);
     setEditName(p.name);
     setEditDescription(p.description || descriptions[p.id] || '');

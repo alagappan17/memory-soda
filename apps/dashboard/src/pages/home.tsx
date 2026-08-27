@@ -119,7 +119,7 @@ export default function HomePage() {
           Welcome back{user ? `, ${user.username}` : ''}
         </h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          memory-soda is a semantic memory layer for AI agents.
+          Memory Soda is a semantic memory layer for AI agents.
           {selectedProject ? (
             <>
               {' '}

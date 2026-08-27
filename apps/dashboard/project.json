@@ -22,6 +22,17 @@
         "command": "vite preview",
         "cwd": "{projectRoot}"
       }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "command": "tsc --noEmit -p tsconfig.json",
+        "cwd": "{projectRoot}"
+      },
+      "dependsOn": [
+        "^build"
+      ]
     }
   }
 }

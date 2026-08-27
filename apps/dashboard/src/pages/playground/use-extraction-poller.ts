@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
-import type { Episode, SemanticFact } from '@memory-soda/types';
-import { quietFetch, trackedFetch } from './api';
+import type { Episode } from '@memory-soda/types';
+import { call, quiet } from './api';
 import type { AddOp } from './types';
 
 const POLL_INTERVAL_MS = 2500;
@@ -72,15 +72,13 @@ export function useExtractionPoller({
   useEffect(() => () => stopTimers(), [stopTimers]);
 
   const fetchEpisodes = useCallback(async (): Promise<Episode[]> => {
-    const base = `/v1/memory/episodic/datasets/${encodeURIComponent(dsRef.current.trim())}`;
+    const scope = dsRef.current.trim();
     const [completed, failed] = await Promise.all([
-      quietFetch<{ episodes: Episode[] }>(
-        keyRef.current,
-        `${base}/episodes?status=completed&limit=20`,
+      quiet(keyRef.current, (memory) =>
+        memory.listEpisodes(scope, { status: 'completed', limit: 20 }),
       ),
-      quietFetch<{ episodes: Episode[] }>(
-        keyRef.current,
-        `${base}/episodes?status=failed&limit=10`,
+      quiet(keyRef.current, (memory) =>
+        memory.listEpisodes(scope, { status: 'failed', limit: 10 }),
       ),
     ]);
     return [...(completed.episodes ?? []), ...(failed.episodes ?? [])];
@@ -103,9 +101,12 @@ export function useExtractionPoller({
 
   const reportFacts = useCallback(async (episode: Episode, gen: number) => {
     try {
-      const { data, trace } = await trackedFetch<{ facts: SemanticFact[] }>(
-        keyRef.current,
-        `/v1/memory/semantic/datasets/${encodeURIComponent(dsRef.current.trim())}/facts?episodeId=${episode.episodeId}&includeInvalidated=true&limit=100`,
+      const { data, trace } = await call(keyRef.current, (memory) =>
+        memory.listFacts(dsRef.current.trim(), {
+          episodeId: episode.episodeId,
+          includeInvalidated: true,
+          limit: 100,
+        }),
       );
       if (gen !== genRef.current) return;
       addOpRef.current(
@@ -166,9 +167,9 @@ export function useExtractionPoller({
       tickingRef.current = true;
       try {
         if (watchIdRef.current) {
-          const { episode } = await quietFetch<{ episode: Episode }>(
-            keyRef.current,
-            `/v1/memory/episodic/episodes/${watchIdRef.current}`,
+          const watchId = watchIdRef.current;
+          const episode = await quiet(keyRef.current, (memory) =>
+            memory.getEpisode(watchId),
           );
           if (gen !== genRef.current) return;
           if (await settle(episode, gen)) {
