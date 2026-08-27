@@ -4,9 +4,6 @@
   "files": [],
   "references": [
     {
-      "path": "./apps/dashboard-e2e"
-    },
-    {
       "path": "./apps/dashboard"
     },
     {
@@ -17,9 +14,6 @@
     },
     {
       "path": "./packages/sdk"
-    },
-    {
-      "path": "./apps/docs"
     }
   ]
 }
