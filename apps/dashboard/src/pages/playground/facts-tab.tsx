@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SemanticEntity, SemanticFact } from '@memory-soda/types';
-import { trackedFetch, quietFetch, describeError } from './api';
+import { call, quiet, describeError } from './api';
 import type { AddOp } from './types';
 import { applyFactDeletion } from '../../lib/fact-status';
 import { EntityChip } from '../../components/entity-chip';
 import { FactRow } from './fact-row';
-
-const SEMANTIC_BASE = '/v1/memory/semantic/datasets';
 
 /**
  * Live view of the semantic layer for the current dataset: facts with
@@ -39,21 +37,21 @@ export function FactsTab({
   const loadedOnce = useRef(false);
 
   const ready = !!apiKey.trim() && !!dataset.trim();
-  const base = `${SEMANTIC_BASE}/${encodeURIComponent(dataset.trim())}`;
+  const scope = dataset.trim();
 
   const loadFacts = useCallback(async () => {
     if (!ready) return;
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ limit: '100' });
-      if (q.trim()) params.set('q', q.trim());
-      if (includeInvalidated) params.set('includeInvalidated', 'true');
-      if (asOf) params.set('asOf', new Date(asOf).toISOString());
-      const factsRes = await quietFetch<{
-        facts: SemanticFact[];
-        total: number;
-      }>(apiKey, `${base}/facts?${params.toString()}`);
+      const factsRes = await quiet(apiKey, (memory) =>
+        memory.listFacts(scope, {
+          limit: 100,
+          ...(q.trim() ? { q: q.trim() } : {}),
+          ...(includeInvalidated ? { includeInvalidated: true } : {}),
+          ...(asOf ? { asOf: new Date(asOf) } : {}),
+        }),
+      );
       setFacts(factsRes.facts);
       loadedOnce.current = true;
     } catch (err) {
@@ -62,23 +60,21 @@ export function FactsTab({
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, base, q, includeInvalidated, asOf, ready]);
+  }, [apiKey, scope, q, includeInvalidated, asOf, ready]);
 
   // Entities don't depend on the fact filters — fetch once per scope
   // (and on explicit refresh), not on every debounced keystroke.
   const loadEntities = useCallback(async () => {
     if (!ready) return;
     try {
-      const res = await quietFetch<{ entities: SemanticEntity[] }>(
-        apiKey,
-        `${base}/entities`,
+      setEntities(
+        await quiet(apiKey, (memory) => memory.listEntities(scope)),
       );
-      setEntities(res.entities);
     } catch (err) {
       setError(describeError(err, 'Failed to load entities').message);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, base, ready]);
+  }, [apiKey, scope, ready]);
 
   const load = useCallback(async () => {
     await Promise.all([loadFacts(), loadEntities()]);
@@ -109,10 +105,8 @@ export function FactsTab({
 
   async function removeFact(factId: string) {
     try {
-      const { trace } = await trackedFetch<{ factId: string; deleted: boolean }>(
-        apiKey,
-        `${base}/facts/${factId}`,
-        { method: 'DELETE' },
+      const { trace } = await call(apiKey, (memory) =>
+        memory.deleteFact(scope, factId),
       );
       addOp('fact_deleted', { factId }, trace);
       setFacts((prev) => applyFactDeletion(prev, factId, includeInvalidated));
@@ -128,12 +122,10 @@ export function FactsTab({
 
   async function openEntity(name: string) {
     try {
-      // Route lowercases the entity name for lookup.
-      const res = await quietFetch<{ facts: SemanticFact[] }>(
-        apiKey,
-        `${base}/entities/${encodeURIComponent(name.toLowerCase())}/facts`,
+      const { facts } = await quiet(apiKey, (memory) =>
+        memory.listFacts(scope, { entity: name }),
       );
-      setEntityView({ name, facts: res.facts });
+      setEntityView({ name, facts });
     } catch (err) {
       setError(describeError(err, 'Failed to load entity facts').message);
     }

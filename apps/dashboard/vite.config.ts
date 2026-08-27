@@ -12,11 +12,10 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
-    define: {
-      'import.meta.env.VITE_API_URL': JSON.stringify(
-        env.NEXT_PUBLIC_API_URL ?? env.API_URL ?? 'http://localhost:3004'
-      ),
-    },
+    // VITE_API_URL is exposed by Vite itself from the root .env (loadEnv above
+    // reads it), so there is no `define` here. Overriding it would discard the
+    // value a production build passes on the command line.
+    envDir: '../../',
     server: {
       // Kept in step with CORS_ORIGIN on the API: both are written from the
       // same answer by create-memory-soda, and a mismatch shows up as browser

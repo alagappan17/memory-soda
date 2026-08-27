@@ -1,24 +1,200 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getProjectSettings, updateProjectSettings } from '@/lib/api';
 import type { ProjectSettings } from '@memory-soda/types';
 import { useProject } from '@/providers/project-provider';
-import { Check, AlertCircle } from 'lucide-react';
+import { Check, AlertCircle, ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
-function settingsEqual(a: ProjectSettings, b: ProjectSettings): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+/**
+ * Project settings.
+ *
+ * Fifteen numbers govern this project, but only a handful are decisions an
+ * operator makes; the rest are similarity thresholds you tune by measuring
+ * retrieval quality, not by guessing in a form. The everyday ones are on the
+ * page, the tuning ones are behind a disclosure that says as much.
+ */
+
+type Layer = 'episodic' | 'semantic';
+
+interface FieldCommon {
+  label: string;
+  help: string;
+  min: number;
+  max: number;
+  step: number;
+  integer?: boolean;
 }
+
+/**
+ * A field names its layer and a key that exists on that layer, so a typo or a
+ * renamed setting is a compile error rather than an input wired to nothing.
+ */
+type NumberField =
+  | (FieldCommon & {
+      layer: 'episodic';
+      key: 'maxMessages' | 'maxRetries' | 'contextEpisodes' | 'similarityWeight';
+    })
+  | (FieldCommon & {
+      layer: 'semantic';
+      key:
+        | 'retrievalMinConfidence'
+        | 'factsInContext'
+        | 'entityResolutionThreshold'
+        | 'factDedupThreshold'
+        | 'contradictionBandMin'
+        | 'anchorVectorMin'
+        | 'anchorVectorTopK';
+    });
+
+function readField(settings: ProjectSettings, f: NumberField): number {
+  return f.layer === 'episodic'
+    ? settings.episodic[f.key]
+    : settings.semantic[f.key];
+}
+
+/**
+ * Episode ranking splits one budget between relevance and recency, so setting
+ * either weight sets both — two independent inputs that must sum to one is a
+ * trap, not a control.
+ */
+function writeField(
+  settings: ProjectSettings,
+  f: NumberField,
+  value: number,
+): ProjectSettings {
+  if (f.layer === 'episodic') {
+    const episodic = { ...settings.episodic, [f.key]: value };
+    if (f.key === 'similarityWeight') {
+      episodic.recencyWeight = Number((1 - value).toFixed(2));
+    }
+    return { ...settings, episodic };
+  }
+  return { ...settings, semantic: { ...settings.semantic, [f.key]: value } };
+}
+
+/** The settings worth putting in front of someone. */
+const PRIMARY: NumberField[] = [
+  {
+    layer: 'semantic',
+    key: 'factsInContext',
+    label: 'Facts per recall',
+    help: 'How many facts a recall() call puts in the context block. More context costs more tokens on every turn.',
+    min: 1,
+    max: 100,
+    step: 1,
+    integer: true,
+  },
+  {
+    layer: 'semantic',
+    key: 'retrievalMinConfidence',
+    label: 'Confidence floor',
+    help: 'Facts the model rated below this are stored but never recalled. Raise it if the assistant repeats things the user never quite said.',
+    min: 0,
+    max: 1,
+    step: 0.05,
+  },
+  {
+    layer: 'episodic',
+    key: 'contextEpisodes',
+    label: 'Episodes per recall',
+    help: 'Past conversation summaries included when a call opts into episodes.',
+    min: 1,
+    max: 20,
+    step: 1,
+    integer: true,
+  },
+  {
+    layer: 'episodic',
+    key: 'maxRetries',
+    label: 'Extraction retries',
+    help: 'How many times a failed extraction is retried before it is left alone.',
+    min: 0,
+    max: 10,
+    step: 1,
+    integer: true,
+  },
+];
+
+/** Tuning knobs. Correct values come from measuring, not from intuition. */
+const ADVANCED: NumberField[] = [
+  {
+    layer: 'semantic',
+    key: 'entityResolutionThreshold',
+    label: 'Entity merge similarity',
+    help: 'Above this, two names of the same type become one entity. Too low and distinct things merge; too high and aliases split.',
+    min: 0,
+    max: 1,
+    step: 0.01,
+  },
+  {
+    layer: 'semantic',
+    key: 'factDedupThreshold',
+    label: 'Fact duplicate similarity',
+    help: 'Above this, a new fact is treated as a restatement and dropped.',
+    min: 0,
+    max: 1,
+    step: 0.01,
+  },
+  {
+    layer: 'semantic',
+    key: 'contradictionBandMin',
+    label: 'Contradiction band floor',
+    help: 'Facts between this and the duplicate threshold are sent to the consistency judge. This is what catches "works at" versus "is employed by".',
+    min: 0,
+    max: 1,
+    step: 0.01,
+  },
+  {
+    layer: 'semantic',
+    key: 'anchorVectorMin',
+    label: 'Entity anchor similarity',
+    help: 'How close a query must be to an entity for that entity to pull its facts into retrieval.',
+    min: 0,
+    max: 1,
+    step: 0.01,
+  },
+  {
+    layer: 'semantic',
+    key: 'anchorVectorTopK',
+    label: 'Entity anchors per query',
+    help: 'How many vector-matched entities may anchor one retrieval.',
+    min: 1,
+    max: 10,
+    step: 1,
+    integer: true,
+  },
+  {
+    layer: 'episodic',
+    key: 'maxMessages',
+    label: 'Transcript cap',
+    help: 'Messages an extraction prompt may contain before the middle is truncated.',
+    min: 10,
+    max: 1000,
+    step: 10,
+    integer: true,
+  },
+  {
+    layer: 'episodic',
+    key: 'similarityWeight',
+    label: 'Episode similarity weight',
+    help: 'How much episode ranking favours relevance over recency. The recency weight is the remainder.',
+    min: 0,
+    max: 1,
+    step: 0.1,
+  },
+];
 
 export default function ProjectSettingsPage() {
   const { id } = useParams<{ id: string }>();
   const { projects } = useProject();
   const project = projects.find((p) => p.id === id);
 
-  const [savedSettings, setSavedSettings] = useState<ProjectSettings | null>(null);
+  const [saved, setSaved] = useState<ProjectSettings | null>(null);
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [toast, setToast] = useState<{
     visible: boolean;
     message: string;
@@ -35,27 +211,31 @@ export default function ProjectSettingsPage() {
     setLoading(true);
     getProjectSettings(id)
       .then((res) => {
-        setSavedSettings(res.settings);
+        setSaved(res.settings);
         setSettings(res.settings);
       })
       .catch(() => showToast('Failed to load settings', 'error'))
       .finally(() => setLoading(false));
   }, [id]);
 
-  const isDirty = settings && savedSettings ? !settingsEqual(settings, savedSettings) : false;
+  const isDirty =
+    settings && saved ? JSON.stringify(settings) !== JSON.stringify(saved) : false;
+
+  function setEnabled(layer: Layer, value: boolean) {
+    setSettings((prev) =>
+      prev ? { ...prev, [layer]: { ...prev[layer], enabled: value } } : prev,
+    );
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!id || !settings) return;
     setSaving(true);
     try {
-      const res = await updateProjectSettings(id, {
-        episodic: settings.episodic,
-        semantic: settings.semantic,
-      });
-      setSavedSettings(res.settings);
+      const res = await updateProjectSettings(id, settings);
+      setSaved(res.settings);
       setSettings(res.settings);
-      showToast('Settings saved successfully', 'success');
+      showToast('Settings saved', 'success');
     } catch {
       showToast('Failed to save settings', 'error');
     } finally {
@@ -63,422 +243,160 @@ export default function ProjectSettingsPage() {
     }
   }
 
-  const handleChange = useCallback(
-    (field: keyof ProjectSettings['episodic'], value: unknown) => {
-      setSettings((prev) =>
-        prev
-          ? { ...prev, episodic: { ...prev.episodic, [field]: value } }
-          : prev,
-      );
-    },
-    [],
-  );
-
-  const handleSemanticChange = useCallback(
-    (field: keyof ProjectSettings['semantic'], value: unknown) => {
-      setSettings((prev) =>
-        prev
-          ? { ...prev, semantic: { ...prev.semantic, [field]: value } }
-          : prev,
-      );
-    },
-    [],
-  );
-
-  const episodicEnabled = settings?.episodic.enabled ?? false;
-  const fieldClass = (base: string) =>
-    `${base}${!episodicEnabled ? ' opacity-40 pointer-events-none' : ''}`;
-  const semanticEnabled = settings?.semantic.enabled ?? false;
-  const semanticFieldClass = (base: string) =>
-    `${base}${!semanticEnabled ? ' opacity-40 pointer-events-none' : ''}`;
-
   if (!project) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-10">
-        <div className="text-center py-10 text-muted-foreground">
-          Project not found
-        </div>
+      <div className="max-w-3xl mx-auto px-6 py-10 text-center text-muted-foreground">
+        Project not found
       </div>
     );
   }
 
+  if (loading || !settings) {
+    return (
+      <div className="max-w-3xl mx-auto px-6 py-10 text-sm text-muted-foreground">
+        Loading settings…
+      </div>
+    );
+  }
+
+  const enabled = (f: NumberField) => settings[f.layer].enabled;
+
+  const field = (f: NumberField) => (
+    <div
+      key={`${f.layer}.${f.key}`}
+      className={`grid grid-cols-[1fr_7rem] gap-4 items-start py-4 border-b border-border last:border-0 ${
+        enabled(f) ? '' : 'opacity-40 pointer-events-none'
+      }`}
+    >
+      <div className="min-w-0">
+        <label
+          htmlFor={`${f.layer}-${f.key}`}
+          className="text-sm font-medium block"
+        >
+          {f.label}
+        </label>
+        <p className="text-xs text-muted-foreground mt-0.5">{f.help}</p>
+      </div>
+      <input
+        id={`${f.layer}-${f.key}`}
+        type="number"
+        min={f.min}
+        max={f.max}
+        step={f.step}
+        value={readField(settings, f)}
+        onChange={(e) => {
+          const parsed = f.integer
+            ? parseInt(e.target.value, 10)
+            : parseFloat(e.target.value);
+          if (!Number.isNaN(parsed)) {
+            setSettings((prev) => (prev ? writeField(prev, f, parsed) : prev));
+          }
+        }}
+        className="h-9 rounded-lg border border-input bg-background px-3 text-sm tabular-nums"
+      />
+    </div>
+  );
+
+  const layerToggle = (layer: Layer, label: string, help: string) => (
+    <label className="flex items-start gap-3 py-4 border-b border-border cursor-pointer">
+      <input
+        type="checkbox"
+        checked={settings[layer].enabled}
+        onChange={(e) => setEnabled(layer, e.target.checked)}
+        className="mt-0.5 size-4"
+      />
+      <span className="min-w-0">
+        <span className="text-sm font-medium block">{label}</span>
+        <span className="text-xs text-muted-foreground">{help}</span>
+      </span>
+    </label>
+  );
+
   return (
-    <div className="max-w-4xl mx-auto px-6 py-10 w-full">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold">Project Settings</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Default settings for <strong>{project.name}</strong>. These are applied
-          to all new threads automatically. You can edit them here at any time —
-          changes apply to threads created after saving. To override per thread,
-          pass{' '}
+    <form onSubmit={handleSave} className="max-w-3xl mx-auto px-6 py-10 w-full">
+      <header className="mb-8">
+        <h1 className="text-2xl font-semibold">Project settings</h1>
+        <p className="text-sm text-muted-foreground mt-1 max-w-prose">
+          Defaults for <strong>{project.name}</strong>, applied to threads
+          created after you save. A single thread can override the episodic ones
+          by passing{' '}
           <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
-            config.episodic
+            settings.episodic
           </code>{' '}
-          when calling{' '}
+          to{' '}
           <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
             threads.create()
-          </code>{' '}
-          in the SDK.
+          </code>
+          .
         </p>
+      </header>
+
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold mb-1">Memory layers</h2>
+        {layerToggle(
+          'episodic',
+          'Episodic memory',
+          'Summarise each stretch of conversation. Turning this off also stops semantic extraction, which reads from episodes.',
+        )}
+        {layerToggle(
+          'semantic',
+          'Semantic memory',
+          'Extract durable facts from episodes and serve them through recall().',
+        )}
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold mb-1">Retrieval</h2>
+        {PRIMARY.map(field)}
+      </section>
+
+      <section className="mb-8">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="flex items-center gap-1.5 text-sm font-semibold"
+          aria-expanded={showAdvanced}
+        >
+          <ChevronDown
+            className={`size-4 transition-transform ${showAdvanced ? '' : '-rotate-90'}`}
+          />
+          Tuning
+        </button>
+        <p className="text-xs text-muted-foreground mt-1 max-w-prose">
+          Similarity thresholds. The defaults were chosen by measuring retrieval
+          quality — change them the same way, not by intuition, and check the
+          Playground&apos;s recall inspector afterwards.
+        </p>
+        {showAdvanced && <div className="mt-2">{ADVANCED.map(field)}</div>}
+      </section>
+
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={!isDirty || saving}
+          className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40"
+        >
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+        {isDirty && (
+          <span className="text-xs text-muted-foreground">
+            Unsaved changes
+          </span>
+        )}
       </div>
-
-      {loading ? (
-        <div className="py-10 text-center text-muted-foreground text-sm">
-          Loading settings...
-        </div>
-      ) : settings ? (
-        <form onSubmit={handleSave} className="space-y-8">
-          <div>
-            <h2 className="text-lg font-medium mb-1">Episodic Memory</h2>
-            <p className="text-xs text-muted-foreground mb-6">
-              Controls how memories are extracted and retrieved for threads in
-              this project.
-            </p>
-
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-sm font-medium">
-                    Enable Episodic Memory
-                  </label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Extract and embed memories when{' '}
-                    <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
-                      end()
-                    </code>{' '}
-                    is called on a thread.
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={episodicEnabled}
-                    onChange={(e) => handleChange('enabled', e.target.checked)}
-                  />
-                  <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-
-              <div className={fieldClass('grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border transition-opacity duration-200')}>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Max Messages</label>
-                  <p className="text-xs text-muted-foreground">
-                    Limit the number of messages analyzed per episode.
-                  </p>
-                  <input
-                    type="number"
-                    min={10}
-                    max={1000}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={settings.episodic.maxMessages}
-                    onChange={(e) =>
-                      handleChange('maxMessages', parseInt(e.target.value) || 100)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Context Episodes</label>
-                  <p className="text-xs text-muted-foreground">
-                    Number of relevant episodes to retrieve during{' '}
-                    <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
-                      prepare()
-                    </code>
-                    .
-                  </p>
-                  <input
-                    type="number"
-                    min={1}
-                    max={20}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={settings.episodic.contextEpisodes}
-                    onChange={(e) =>
-                      handleChange('contextEpisodes', parseInt(e.target.value) || 3)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Max Retries</label>
-                  <p className="text-xs text-muted-foreground">
-                    Number of times to retry failed episode extraction.
-                  </p>
-                  <input
-                    type="number"
-                    min={0}
-                    max={10}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={settings.episodic.maxRetries}
-                    onChange={(e) =>
-                      handleChange('maxRetries', (v => isNaN(v) ? 3 : v)(parseInt(e.target.value)))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Auto-Episode Interval (min)</label>
-                  <p className="text-xs text-muted-foreground">
-                    Minutes of inactivity before an episode is auto-generated. Leave empty to disable.
-                  </p>
-                  <input
-                    type="number"
-                    min={1}
-                    placeholder="off"
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={
-                      settings.episodic.autoEpisodeIntervalMs !== null
-                        ? Math.round((settings.episodic.autoEpisodeIntervalMs ?? 1_800_000) / 60_000)
-                        : ''
-                    }
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      handleChange(
-                        'autoEpisodeIntervalMs',
-                        val === '' ? null : Math.max(1, parseInt(val) || 1) * 60_000,
-                      );
-                    }}
-                  />
-                </div>
-
-<div className="space-y-2">
-                  <label className="text-sm font-medium">Similarity Weight</label>
-                  <p className="text-xs text-muted-foreground">
-                    Relevance weighting for semantic similarity (0.0 – 1.0).
-                  </p>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min={0}
-                    max={1}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={settings.episodic.similarityWeight}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
-                      handleChange('similarityWeight', val);
-                      handleChange('recencyWeight', Number((1 - val).toFixed(1)));
-                    }}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Recency Weight</label>
-                  <p className="text-xs text-muted-foreground">
-                    Relevance weighting for recency (0.0 – 1.0). Auto-computed.
-                  </p>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min={0}
-                    max={1}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none opacity-40"
-                    value={settings.episodic.recencyWeight}
-                    disabled
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h2 className="text-lg font-medium mb-1">Semantic Memory</h2>
-            <p className="text-xs text-muted-foreground mb-6">
-              Controls fact extraction, storage, and retrieval for datasets in
-              this project. Every extracted fact is stored with a confidence
-              score; retrieval filters by the threshold below.
-            </p>
-
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-sm font-medium">
-                    Enable Semantic Memory
-                  </label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Extract durable facts from episodes and serve them via{' '}
-                    <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
-                      recall()
-                    </code>
-                    .
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={semanticEnabled}
-                    onChange={(e) => handleSemanticChange('enabled', e.target.checked)}
-                  />
-                  <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-
-              <div className={semanticFieldClass('grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border transition-opacity duration-200')}>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Retrieval Min Confidence</label>
-                  <p className="text-xs text-muted-foreground">
-                    Facts below this confidence are stored but excluded from{' '}
-                    <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
-                      recall()
-                    </code>{' '}
-                    context (0.0 – 1.0). Override per call.
-                  </p>
-                  <input
-                    type="number"
-                    step="0.05"
-                    min={0}
-                    max={1}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={settings.semantic.retrievalMinConfidence}
-                    onChange={(e) =>
-                      handleSemanticChange('retrievalMinConfidence', (v => isNaN(v) ? 0.5 : v)(parseFloat(e.target.value)))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Facts in Context</label>
-                  <p className="text-xs text-muted-foreground">
-                    Max facts rendered into the recall context block.
-                  </p>
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={settings.semantic.factsInContext}
-                    onChange={(e) =>
-                      handleSemanticChange('factsInContext', parseInt(e.target.value) || 8)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Entity Merge Threshold</label>
-                  <p className="text-xs text-muted-foreground">
-                    Embedding similarity above which a new entity merges into an
-                    existing same-type entity (0.0 – 1.0).
-                  </p>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    max={1}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={settings.semantic.entityResolutionThreshold}
-                    onChange={(e) =>
-                      handleSemanticChange('entityResolutionThreshold', (v => isNaN(v) ? 0.88 : v)(parseFloat(e.target.value)))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Fact Dedup Threshold</label>
-                  <p className="text-xs text-muted-foreground">
-                    Embedding similarity above which a new fact is dropped as a
-                    rephrasing of an existing one (0.0 – 1.0).
-                  </p>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    max={1}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={settings.semantic.factDedupThreshold}
-                    onChange={(e) =>
-                      handleSemanticChange('factDedupThreshold', (v => isNaN(v) ? 0.95 : v)(parseFloat(e.target.value)))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Contradiction Band Min</label>
-                  <p className="text-xs text-muted-foreground">
-                    Lower similarity bound for judging differently-worded facts as
-                    potential contradictions (0.0 – 1.0).
-                  </p>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    max={1}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={settings.semantic.contradictionBandMin}
-                    onChange={(e) =>
-                      handleSemanticChange('contradictionBandMin', (v => isNaN(v) ? 0.8 : v)(parseFloat(e.target.value)))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Anchor Vector Min</label>
-                  <p className="text-xs text-muted-foreground">
-                    Min query↔entity similarity for an entity to anchor fact
-                    retrieval (0.0 – 1.0).
-                  </p>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    max={1}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={settings.semantic.anchorVectorMin}
-                    onChange={(e) =>
-                      handleSemanticChange('anchorVectorMin', (v => isNaN(v) ? 0.75 : v)(parseFloat(e.target.value)))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Anchor Vector Top-K</label>
-                  <p className="text-xs text-muted-foreground">
-                    How many vector-matched anchor entities to admit per query.
-                  </p>
-                  <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                    value={settings.semantic.anchorVectorTopK}
-                    onChange={(e) =>
-                      handleSemanticChange('anchorVectorTopK', parseInt(e.target.value) || 3)
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-4 border-t border-border">
-            <button
-              type="submit"
-              disabled={saving || !isDirty}
-              className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-            >
-              {saving ? 'Saving...' : 'Save Settings'}
-            </button>
-          </div>
-        </form>
-      ) : null}
 
       {toast.visible &&
         createPortal(
-          <div className="fixed top-6 right-6 z-[9999] flex items-center gap-3.5 px-4 py-3 rounded-xl border border-border bg-card text-card-foreground shadow-lg animate-in fade-in-0 slide-in-from-top-5 duration-300 min-w-[300px] select-none font-sans">
+          <div className="fixed bottom-6 right-6 flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm shadow-lg">
             {toast.type === 'success' ? (
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                <Check className="h-3.5 w-3.5 stroke-[3]" />
-              </div>
+              <Check className="size-4 text-emerald-500" />
             ) : (
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                <AlertCircle className="h-3.5 w-3.5 stroke-[2.5]" />
-              </div>
+              <AlertCircle className="size-4 text-destructive" />
             )}
-            <span className="text-sm font-medium text-foreground">
-              {toast.message}
-            </span>
+            {toast.message}
           </div>,
           document.body,
         )}
-    </div>
+    </form>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { RecallRequest, RecallResponse } from '@memory-soda/types';
-import { trackedFetch, describeError } from './api';
+import { call, describeError } from './api';
 import type { AddOp, RecallControls } from './types';
 import { day } from '../../lib/fact-status';
 import { FactRow } from './fact-row';
@@ -80,10 +80,8 @@ export function RecallTab({
           : {}),
       };
 
-      const { data, trace } = await trackedFetch<RecallResponse>(
-        apiKey,
-        '/v1/memory/recall',
-        { method: 'POST', body },
+      const { data, trace } = await call(apiKey, (memory) =>
+        memory.recall(body),
       );
       setResult(data);
       addOp(

@@ -1,9 +1,8 @@
-import * as React from "react"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "@/lib/utils"
 import { IconCheck, IconChevronDown } from "@tabler/icons-react"
 
-function Select({ ...props }: SelectPrimitive.Root.Props) {
+function Select<Value>({ ...props }: SelectPrimitive.Root.Props<Value>) {
   return <SelectPrimitive.Root data-slot="select" {...props} />
 }
 

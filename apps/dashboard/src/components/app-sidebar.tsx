@@ -105,7 +105,6 @@ export default function AppSidebar() {
     selectedProject,
     setSelectedProject,
     createProject,
-    deleteProject,
     loading,
   } = useProject();
   const { user, logout } = useAuth();
@@ -151,17 +150,6 @@ export default function AppSidebar() {
   function handleSwitchProject(p: (typeof projects)[number]) {
     setSelectedProject(p);
     showToast(`Switched to ${p.name}`, 'success');
-  }
-
-  async function handleDelete(id: string, e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!confirm('Delete this project? This cannot be undone.')) return;
-    try {
-      await deleteProject(id);
-      showToast('Project deleted successfully!', 'success');
-    } catch {
-      showToast('Failed to delete project.', 'error');
-    }
   }
 
   return (
@@ -265,7 +253,7 @@ export default function AppSidebar() {
 
             <Select
               value={selectedProject?.id}
-              onValueChange={(val: string) => {
+              onValueChange={(val) => {
                 const proj = projects.find((p) => p.id === val);
                 if (proj) handleSwitchProject(proj);
               }}

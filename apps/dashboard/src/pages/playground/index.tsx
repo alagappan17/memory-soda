@@ -3,15 +3,11 @@ import type {
   ProjectEpisodicSettings,
   ProjectSemanticSettings,
   WMAddMessageRequest,
-  WMAddMessageResponse,
   WMChatRequest,
-  WMChatResponse,
-  WMCompactResult,
   WMMessage,
-  WMPrepareResponse,
   WMThreadStatsResponse,
 } from '@memory-soda/types';
-import { trackedFetch, quietFetch, describeError } from './api';
+import { call, quiet, chatTurn, adminCall, describeError } from './api';
 import { CopyButton } from '../../components/copy-button';
 import type { WMSettings } from './types';
 import { useOps } from './use-ops';
@@ -28,8 +24,6 @@ import { RecallTab } from './recall-tab';
 import { FactsTab } from './facts-tab';
 import { EpisodesTab } from './episodes-tab';
 
-const WM_BASE = '/v1/memory/working';
-const THREADS_BASE = '/v1/threads';
 
 const DEFAULT_EPISODIC: ProjectEpisodicSettings = {
   enabled: true,
@@ -99,19 +93,23 @@ export default function PlaygroundPage() {
   );
 
   async function refreshMessages(key: string, tid: string) {
-    const result = await quietFetch<{ messages: WMMessage[] }>(
-      key,
-      `${WM_BASE}/threads/${tid}/messages?limit=100&order=asc`,
+    const result = await quiet(key, (memory) =>
+      memory.listMessages(tid, { limit: 100, order: 'asc' }),
     );
     setMessages(result.messages);
   }
 
-  async function refreshStats(key: string, tid: string) {
+  async function refreshStats(tid: string) {
+    const project = projectIdRef.current;
+    if (!project) return;
     setStatsLoading(true);
     try {
-      const res = await quietFetch<WMThreadStatsResponse>(
-        key,
-        `${WM_BASE}/threads/${tid}/stats`,
+      // Thread stats are arithmetic over token counts the caller supplied, so
+      // they are a dashboard readout rather than part of the SDK.
+      const { data: res } = await adminCall<WMThreadStatsResponse>(
+        project,
+        'get',
+        `/memory/working/threads/${tid}/stats`,
       );
       // Ignore a stale response after the thread changed.
       setStats((prev) => (threadIdRef.current === tid ? res : prev));
@@ -123,27 +121,30 @@ export default function PlaygroundPage() {
   }
   const threadIdRef = useRef<string | null>(null);
   threadIdRef.current = threadId;
+  const projectIdRef = useRef<string | null>(null);
+  projectIdRef.current = projectId;
 
   /** Create the thread on first use; settings freeze at creation. */
-  async function ensureThread(): Promise<string> {
-    if (threadId) return threadId;
-    const { data, trace } = await trackedFetch<{
-      threadId: string;
-      projectId: string;
-      dataset: string;
-    }>(apiKey, THREADS_BASE, {
-      method: 'POST',
-      body: {
-        dataset: dataset.trim() || undefined,
-        autoCompactThreshold: settings.autoCompactEnabled
-          ? settings.autoCompactThreshold
-          : undefined,
+  async function ensureThread(): Promise<{
+    threadId: string;
+    projectId: string;
+  }> {
+    if (threadId && projectIdRef.current) {
+      return { threadId, projectId: projectIdRef.current };
+    }
+    const { data, trace } = await call(apiKey, (memory) =>
+      memory.createThread({
+        ...(dataset.trim() ? { dataset: dataset.trim() } : {}),
+        ...(settings.autoCompactEnabled
+          ? { autoCompactThreshold: settings.autoCompactThreshold }
+          : {}),
         settings: { episodic: episodicSettings },
-      },
-    });
+      }),
+    );
     setThreadId(data.threadId);
     threadIdRef.current = data.threadId;
     setProjectId(data.projectId);
+    projectIdRef.current = data.projectId;
     setThreadStartedAt((prev) => prev ?? Date.now());
     addOp(
       'thread_created',
@@ -155,7 +156,7 @@ export default function PlaygroundPage() {
       },
       trace,
     );
-    return data.threadId;
+    return { threadId: data.threadId, projectId: data.projectId };
   }
 
   function noteEpisodeScheduling() {
@@ -178,7 +179,7 @@ export default function PlaygroundPage() {
     let optimisticId: string | null = null;
 
     try {
-      const tid = await ensureThread();
+      const { threadId: tid, projectId: project } = await ensureThread();
 
       // Optimistically show the user's message immediately
       const optimisticSeq =
@@ -208,11 +209,10 @@ export default function PlaygroundPage() {
         // Playground always inspects the injected recall payload.
         verbose: true,
       };
-      const { data: chatRes, trace } = await trackedFetch<WMChatResponse>(
-        apiKey,
-        `${WM_BASE}/threads/${tid}/chat`,
-        { method: 'POST', body },
-      );
+      // Chat runs the model server-side, so it goes over the dashboard's own
+      // session route rather than the SDK — the project comes from the thread
+      // the playground just created.
+      const { data: chatRes, trace } = await chatTurn(project, tid, body);
 
       // One HTTP call, four logical memory ops — each gets the response
       // slice it's about; the recall op carries the full injected payload.
@@ -289,7 +289,7 @@ export default function PlaygroundPage() {
             { ...blank, ...chatRes.assistantMessage },
           ]);
         }
-        void refreshStats(apiKey, tid);
+        void refreshStats(tid);
       }
     } catch (err: unknown) {
       if (requestId === currentRequestId.current) {
@@ -311,11 +311,9 @@ export default function PlaygroundPage() {
     if (!apiKey.trim()) return false;
     setError(null);
     try {
-      const tid = await ensureThread();
-      const { data, trace } = await trackedFetch<WMAddMessageResponse>(
-        apiKey,
-        `${WM_BASE}/threads/${tid}/messages`,
-        { method: 'POST', body: req },
+      const { threadId: tid } = await ensureThread();
+      const { data, trace } = await call(apiKey, (memory) =>
+        memory.addMessage(tid, req),
       );
       addOp(
         'manual_message_added',
@@ -330,7 +328,7 @@ export default function PlaygroundPage() {
       }
       noteEpisodeScheduling();
       await refreshMessages(apiKey, tid);
-      void refreshStats(apiKey, tid);
+      void refreshStats(tid);
       return true;
     } catch (err) {
       const { message, trace } = describeError(err, 'Failed to add message');
@@ -349,20 +347,25 @@ export default function PlaygroundPage() {
     currentRequestId.current = requestId;
 
     try {
-      const { data: result, trace: compactTrace } =
-        await trackedFetch<WMCompactResult>(
-          apiKey,
-          `${WM_BASE}/threads/${threadId}/compact`,
-          { method: 'POST' },
-        );
+      const { data: result, trace: compactTrace } = await call(
+        apiKey,
+        (memory) => memory.compact(threadId),
+      );
 
-      // Fetch summary text from prepare
-      const { data: prepRes, trace: prepTrace } =
-        await trackedFetch<WMPrepareResponse>(
-          apiKey,
-          `${WM_BASE}/threads/${threadId}/prepare`,
-          { method: 'POST', body: { messageLimit: settings.messageLimit } },
-        );
+      // Compacting a thread with nothing to fold answers a different shape.
+      if (!('summaryMessageId' in result)) {
+        addOp('compacted', { compacted: false, summary: result.message }, compactTrace);
+        return;
+      }
+
+      // The summary text itself comes back through prepare.
+      const { data: prepRes, trace: prepTrace } = await call(
+        apiKey,
+        (memory) =>
+          memory.prepare(threadId, {
+            messageLimit: settings.messageLimit,
+          }),
+      );
 
       const summary = prepRes.messages.find((m) => m.role === 'system');
 
@@ -389,7 +392,7 @@ export default function PlaygroundPage() {
 
       if (requestId === currentRequestId.current) {
         await refreshMessages(apiKey, threadId);
-        void refreshStats(apiKey, threadId);
+        void refreshStats(threadId);
       }
     } catch (err: unknown) {
       if (requestId === currentRequestId.current) {
@@ -413,10 +416,9 @@ export default function PlaygroundPage() {
     currentRequestId.current = requestId;
 
     try {
-      const { data: ended, trace } = await trackedFetch<{
-        threadId: string;
-        episodeQueued: boolean;
-      }>(apiKey, `${THREADS_BASE}/${threadId}/end`, { method: 'POST' });
+      const { data: ended, trace } = await call(apiKey, (memory) =>
+        memory.endThread(threadId),
+      );
       addOp('thread_ended', { episodeQueued: ended.episodeQueued }, trace);
       if (ended.episodeQueued) {
         poller.startNow();
@@ -569,7 +571,7 @@ export default function PlaygroundPage() {
           <ThreadStats
             stats={stats}
             onRefresh={() => {
-              if (threadId) void refreshStats(apiKey, threadId);
+              if (threadId) void refreshStats(threadId);
             }}
             loading={statsLoading}
           />
@@ -607,6 +609,7 @@ export default function PlaygroundPage() {
           </div>
           <EpisodesTab
             apiKey={apiKey}
+            projectId={projectId}
             dataset={dataset}
             active={rightTab === 'episodes'}
             addOp={addOp}
