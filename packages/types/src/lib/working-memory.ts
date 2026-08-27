@@ -2,7 +2,19 @@ import type { RecallResponse } from './prepare.js';
 
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool';
 
+/**
+ * Everything stored in a message's `metadata` column.
+ *
+ * Rolling compaction summaries are ordinary message rows distinguished only by
+ * `type`, so one interface with an optional discriminant covers both a real
+ * turn and a summary — and `metadata?.type === 'compact_summary'` narrows
+ * without a cast.
+ */
 export interface WMMessageMetadata {
+  /** Present only on the system rows compaction writes. */
+  type?: 'compact_summary';
+  /** The sequence range a compaction summary replaced. */
+  compactedRange?: { fromSeq: number; toSeq: number; count: number };
   stopReason?: string;
   agentName?: string;
 }

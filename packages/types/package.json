@@ -17,5 +17,14 @@
   },
   "dependencies": {
     "tslib": "^2.3.0"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{projectRoot}/dist"
+        ]
+      }
+    }
   }
 }

@@ -39,18 +39,8 @@ export interface EpisodeContext {
   episodeCount: number;
 }
 
-export interface EpisodesListQuery {
-  limit?: number;
-  before?: string;
-  status?: EpisodeStatus;
-}
-
 export interface EpisodesListResponse {
   episodes: Episode[];
   total: number;
   hasMore: boolean;
-}
-
-export interface EpisodesSearchResponse {
-  episodes: EpisodeWithRelevance[];
 }
