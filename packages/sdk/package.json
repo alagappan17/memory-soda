@@ -1,13 +1,16 @@
 {
   "name": "@alagappan17/memory-soda",
-  "version": "0.1.1",
-  "description": "Memory layer SDK for AI agents",
+  "version": "0.2.0",
+  "description": "Memory for AI agents. Threads in, recalled context out.",
   "keywords": [
     "ai",
     "memory",
     "agent",
     "llm",
-    "sdk"
+    "sdk",
+    "ai-sdk",
+    "vercel-ai",
+    "rag"
   ],
   "license": "MIT",
   "type": "module",
@@ -22,6 +25,13 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs",
       "default": "./dist/index.js"
+    },
+    "./ai": {
+      "@memory-soda/source": "./src/ai/index.ts",
+      "types": "./dist/ai/index.d.ts",
+      "import": "./dist/ai/index.js",
+      "require": "./dist/ai/index.cjs",
+      "default": "./dist/ai/index.js"
     }
   },
   "files": [
@@ -50,6 +60,12 @@
         "dependsOn": [
           "^build"
         ]
+      },
+      "test": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "node --test \"packages/sdk/src/**/*.test.ts\""
+        }
       }
     }
   },
