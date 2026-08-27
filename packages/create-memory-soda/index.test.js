@@ -38,7 +38,7 @@ test('custom ports propagate to CORS_ORIGIN and the browser-facing API URL', () 
   assert.match(env, /^PORT=4004$/m);
   assert.match(env, /^DASHBOARD_PORT=4000$/m);
   assert.match(env, /^CORS_ORIGIN=http:\/\/localhost:4000$/m);
-  assert.match(env, /^NEXT_PUBLIC_API_URL=http:\/\/localhost:4004$/m);
+  assert.match(env, /^VITE_API_URL=http:\/\/localhost:4004$/m);
 });
 
 test('parsePostgresUrl extracts host and port, defaulting where absent', () => {

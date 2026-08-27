@@ -64,11 +64,11 @@ export function renderEnv({
     `GOOGLE_GENERATIVE_AI_API_KEY=${geminiKey}`,
     '',
     '# Ports. CORS_ORIGIN must match where the dashboard is served from, and',
-    '# NEXT_PUBLIC_API_URL is the browser\'s view of the API — not the server\'s.',
+    '# VITE_API_URL is the browser\'s view of the API — not the server\'s.',
     `PORT=${apiPort}`,
     `DASHBOARD_PORT=${dashboardPort}`,
     `CORS_ORIGIN=http://localhost:${dashboardPort}`,
-    `NEXT_PUBLIC_API_URL=http://localhost:${apiPort}`,
+    `VITE_API_URL=http://localhost:${apiPort}`,
     '',
     '# Dashboard login, created once on first boot.',
     `ADMIN_USERNAME=${adminUser}`,
@@ -174,7 +174,7 @@ async function main() {
   if (!tryRun('git', ['--version'])) die('git is required but was not found.');
 
   console.log(
-    `\n${chalk.bold('memory-soda')} ${chalk.dim('— self-hosted memory for AI agents')}\n`,
+    `\n${chalk.bold('Memory Soda')} ${chalk.dim('— self-hosted memory for AI agents')}\n`,
   );
 
   // Read answers off the line iterator rather than rl.question(): with a piped

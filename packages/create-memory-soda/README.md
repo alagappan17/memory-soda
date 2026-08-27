@@ -1,6 +1,6 @@
 # create-memory-soda
 
-Scaffold a self-hosted [memory-soda](https://github.com/alagappan17/memory-soda)
+Scaffold a self-hosted [Memory Soda](https://github.com/alagappan17/memory-soda)
 instance — API, dashboard, SDK, and a Postgres to point them at.
 
 ```bash
