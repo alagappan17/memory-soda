@@ -303,6 +303,47 @@ export default function ProjectSettingsPage() {
     </div>
   );
 
+  // Nullable and stored in ms, so it does not fit the NumberField shape.
+  const idleMinutes = settings.episodic.autoEpisodeIntervalMs;
+  const idleTimeoutField = (
+    <div
+      className={`grid grid-cols-[1fr_7rem] gap-4 items-start py-4 border-b border-border last:border-0 ${
+        settings.episodic.enabled ? '' : 'opacity-40 pointer-events-none'
+      }`}
+    >
+      <div className="min-w-0">
+        <label htmlFor="episodic-idle" className="text-sm font-medium block">
+          Idle timeout (minutes)
+        </label>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          A thread quiet this long is summarised into an episode. Ending a
+          thread, or starting a new one for the same dataset, fires sooner.
+          Blank means only threads.end() triggers it.
+        </p>
+      </div>
+      <input
+        id="episodic-idle"
+        type="number"
+        min={1}
+        step={1}
+        placeholder="off"
+        value={idleMinutes === null ? '' : idleMinutes / 60_000}
+        onChange={(e) => {
+          const raw = e.target.value;
+          const parsed = parseFloat(raw);
+          const ms = raw === '' ? null : Number.isNaN(parsed) ? undefined : Math.max(1, parsed) * 60_000;
+          if (ms === undefined) return;
+          setSettings((prev) =>
+            prev
+              ? { ...prev, episodic: { ...prev.episodic, autoEpisodeIntervalMs: ms } }
+              : prev,
+          );
+        }}
+        className="h-9 rounded-lg border border-input bg-background px-3 text-sm tabular-nums"
+      />
+    </div>
+  );
+
   const layerToggle = (layer: Layer, label: string, help: string) => (
     <label className="flex items-start gap-3 py-4 border-b border-border cursor-pointer">
       <input
@@ -349,6 +390,11 @@ export default function ProjectSettingsPage() {
           'Semantic memory',
           'Extract durable facts from episodes and serve them through recall().',
         )}
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold mb-1">Episode triggers</h2>
+        {idleTimeoutField}
       </section>
 
       <section className="mb-8">
