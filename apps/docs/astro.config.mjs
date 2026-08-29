@@ -21,7 +21,7 @@ const nav = /** @type {{ sections: NavSection[] }} */ (
 const toSlug = (path) => path.replace(/\.md$/, '').replace(/(^|\/)index$/, '');
 
 export default defineConfig({
-  site: 'https://memory-soda.dev',
+  site: 'https://memorysoda.alagappan.dev',
   integrations: [
     starlight({
       title: 'Memory Soda',
