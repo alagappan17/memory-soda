@@ -219,9 +219,9 @@ retry cap) or orphaned. See [Background jobs](/operations/background-jobs/).
 | LLM | 3, episode summary, graph extraction, contradiction judging |
 | Embeddings | 3 batches, episode summary, entity names, fact strings |
 
-With `autoEpisodeIntervalMs` at its default of 10 seconds, a conversation with
-several natural pauses produces several episodes and pays this each time. Raising
-it to 60 seconds or more is the single biggest cost lever.
+Episodes open on `end()`, on a new thread for the same dataset, or after
+`autoEpisodeIntervalMs` (30 minutes) of silence, so one session normally pays
+this once. Lowering the interval is the single biggest cost lever.
 
 > The episode summarisation call is not used by semantic extraction at all,
 > extraction re-reads the raw messages. It exists for the episodic layer.

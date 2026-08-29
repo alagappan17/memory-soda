@@ -19,7 +19,8 @@ POST /v1/memory/working/threads/:id/messages
    messages row written, thread.lastActivityAt bumped,
    an episode scheduled for `now + autoEpisodeIntervalMs`
         │
-        ⋮ 10s of inactivity (default), then a 5s scheduler tick
+        ⋮ 30 min of inactivity (default), a new thread for the same
+        ⋮ dataset, or endThread(); then a 5s scheduler tick
         ▼
 ┌─────────────────────────────────────────────┐
 │ 1. Episode summarisation            1 LLM   │  "what was this conversation about"

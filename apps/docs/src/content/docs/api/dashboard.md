@@ -1,7 +1,8 @@
 ---
-title: "Dashboard routes"
-description: "Base paths: /auth and /dashboard · Auth: session token"
+title: 'Dashboard routes'
+description: 'Base paths: /auth and /dashboard · Auth: session token'
 ---
+
 Base paths: `/auth` and `/dashboard` · Auth: [session token](/api/authentication/#dashboard-sessions)
 
 These back the bundled dashboard UI. They are **not an integration surface**,
@@ -26,7 +27,12 @@ Public.
 ```json
 {
   "token": "ms_sess_1bbe…",
-  "user": { "id": "61a8…", "username": "admin", "createdAt": "…", "updatedAt": "…" }
+  "user": {
+    "id": "61a8…",
+    "username": "admin",
+    "createdAt": "…",
+    "updatedAt": "…"
+  }
 }
 ```
 
@@ -50,7 +56,11 @@ Session required. `204`, and the token is revoked immediately.
 ### `GET /dashboard/users`
 
 ```json
-{ "users": [ { "id": "61a8…", "username": "admin", "createdAt": "…", "updatedAt": "…" } ] }
+{
+  "users": [
+    { "id": "61a8…", "username": "admin", "createdAt": "…", "updatedAt": "…" }
+  ]
+}
 ```
 
 Password hashes are never returned.
@@ -63,20 +73,20 @@ Password hashes are never returned.
 
 `201` → `{ "user": { … } }`
 
-| Code | Cause |
-|---|---|
-| `409` | Username already taken |
+| Code  | Cause                                      |
+| ----- | ------------------------------------------ |
+| `409` | Username already taken                     |
 | `400` | Username 1–100 chars, password 6–200 chars |
 
 ### `DELETE /dashboard/users/:id`
 
 `204` on success.
 
-| Code | Cause |
-|---|---|
-| `400` | Deleting yourself |
+| Code  | Cause                            |
+| ----- | -------------------------------- |
+| `400` | Deleting yourself                |
 | `400` | Deleting the last remaining user |
-| `404` | No such user |
+| `404` | No such user                     |
 
 Both guards exist to prevent locking everyone out. The last-user check runs in a
 transaction with the rows locked, so concurrent deletes cannot both slip past it.
@@ -91,8 +101,16 @@ transaction with the rows locked, so concurrent deletes cannot both slip past it
 ### `GET /dashboard/projects`
 
 ```json
-{ "projects": [ { "id": "ea43…", "name": "default",
-                  "description": "Auto-created default project", "createdAt": "…" } ] }
+{
+  "projects": [
+    {
+      "id": "ea43…",
+      "name": "default",
+      "description": "Auto-created default project",
+      "createdAt": "…"
+    }
+  ]
+}
 ```
 
 ### `POST /dashboard/projects`
@@ -125,13 +143,25 @@ transaction with the rows locked, so concurrent deletes cannot both slip past it
 ```json
 {
   "settings": {
-    "episodic": { "enabled": true, "autoEpisodeIntervalMs": 10000, "maxMessages": 100,
-                  "maxRetries": 3, "contextEpisodes": 3,
-                  "similarityWeight": 0.7, "recencyWeight": 0.3 },
-    "semantic": { "enabled": true, "retrievalMinConfidence": 0.5, "factsInContext": 8,
-                  "entityResolutionThreshold": 0.88, "factDedupThreshold": 0.95,
-                  "contradictionBandMin": 0.8, "anchorVectorMin": 0.75,
-                  "anchorVectorTopK": 3 }
+    "episodic": {
+      "enabled": true,
+      "autoEpisodeIntervalMs": 1800000,
+      "maxMessages": 100,
+      "maxRetries": 3,
+      "contextEpisodes": 3,
+      "similarityWeight": 0.7,
+      "recencyWeight": 0.3
+    },
+    "semantic": {
+      "enabled": true,
+      "retrievalMinConfidence": 0.5,
+      "factsInContext": 8,
+      "entityResolutionThreshold": 0.88,
+      "factDedupThreshold": 0.95,
+      "contradictionBandMin": 0.8,
+      "anchorVectorMin": 0.75,
+      "anchorVectorTopK": 3
+    }
   }
 }
 ```
@@ -148,9 +178,8 @@ Partial, deep-merged:
 
 Bounds are in [Project settings](/reference/project-settings/).
 
-> `episodic.autoEpisodeIntervalMs` is validated as `>= 60000` here, but the
-> **default is 10000** and thread-level overrides accept `>= 1000`. The default
-> cannot be set through this endpoint.
+> `episodic.autoEpisodeIntervalMs` accepts `>= 1000` or `null`, same as
+> thread-level overrides.
 
 ---
 
@@ -159,9 +188,19 @@ Bounds are in [Project settings](/reference/project-settings/).
 ### `GET /dashboard/api-keys`
 
 ```json
-{ "apiKeys": [ { "id": "93fe…", "name": "production", "keyPreview": "ms_3f9a4c…0161",
-                 "projectId": "ea43…", "createdAt": "…",
-                 "lastUsedAt": "…", "revokedAt": null } ] }
+{
+  "apiKeys": [
+    {
+      "id": "93fe…",
+      "name": "production",
+      "keyPreview": "ms_3f9a4c…0161",
+      "projectId": "ea43…",
+      "createdAt": "…",
+      "lastUsedAt": "…",
+      "revokedAt": null
+    }
+  ]
+}
 ```
 
 Full key values are never returned, only a preview.
@@ -194,19 +233,27 @@ Takes the **key id**, not the key value.
 
 ### `GET /dashboard/browse/threads`
 
-| Param | Required | Default |
-|---|---|---|
-| `projectId` | **yes** |, |
-| `dataset` | no |, |
-| `limit` | no | `20` (1–100) |
-| `offset` | no | `0` |
+| Param       | Required | Default      |
+| ----------- | -------- | ------------ |
+| `projectId` | **yes**  | ,            |
+| `dataset`   | no       | ,            |
+| `limit`     | no       | `20` (1–100) |
+| `offset`    | no       | `0`          |
 
 ```json
 {
   "threads": [
-    { "threadId": "f2cb…", "dataset": "user_42", "projectId": "ea43…",
-      "tags": [], "messageCount": 2, "metadata": null,
-      "createdAt": "…", "updatedAt": "…", "lastActivityAt": "…" }
+    {
+      "threadId": "f2cb…",
+      "dataset": "user_42",
+      "projectId": "ea43…",
+      "tags": [],
+      "messageCount": 2,
+      "metadata": null,
+      "createdAt": "…",
+      "updatedAt": "…",
+      "lastActivityAt": "…"
+    }
   ],
   "total": 1
 }
@@ -219,7 +266,7 @@ Takes the **key id**, not the key value.
 Requires `?projectId=`.
 
 ```json
-{ "thread": { "…": "…" }, "messages": [ { "…": "…" } ] }
+{ "thread": { "…": "…" }, "messages": [{ "…": "…" }] }
 ```
 
 Every message in sequence order, including compacted ones.
@@ -235,18 +282,22 @@ status.
 
 ### `GET /dashboard/browse/datasets`
 
-| Param | Required | Default |
-|---|---|---|
-| `projectId` | **yes** |, |
-| `q` | no |, (ILIKE filter on the dataset name) |
-| `limit` | no | `50` (1–100) |
-| `offset` | no | `0` |
+| Param       | Required | Default                              |
+| ----------- | -------- | ------------------------------------ |
+| `projectId` | **yes**  | ,                                    |
+| `q`         | no       | , (ILIKE filter on the dataset name) |
+| `limit`     | no       | `50` (1–100)                         |
+| `offset`    | no       | `0`                                  |
 
 ```json
 {
   "datasets": [
-    { "dataset": "user_42", "threadCount": 3, "factCount": 17,
-      "lastActivityAt": "2026-08-16T09:14:02.114Z" }
+    {
+      "dataset": "user_42",
+      "threadCount": 3,
+      "factCount": 17,
+      "lastActivityAt": "2026-08-16T09:14:02.114Z"
+    }
   ],
   "total": 1
 }
@@ -263,10 +314,10 @@ Everything under `/v1` is mounted a second time at **`/dashboard/v1`**. Same
 router, same handlers, same response shapes, the only difference is the
 credential and where the project comes from.
 
-| | `/v1/…` | `/dashboard/v1/…` |
-|---|---|---|
-| Credential | API key | session token |
-| Project | the key's project | `?projectId=` on every request |
+|            | `/v1/…`           | `/dashboard/v1/…`              |
+| ---------- | ----------------- | ------------------------------ |
+| Credential | API key           | session token                  |
+| Project    | the key's project | `?projectId=` on every request |
 
 ```bash
 # Identical results, different callers.

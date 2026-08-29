@@ -18,7 +18,7 @@ Full field reference with bounds: [Project settings](/reference/project-settings
 |---|---|---|
 | `semantic.factsInContext` | `8` | Facts in the recall block. More context, more tokens. The main dial. |
 | `semantic.retrievalMinConfidence` | `0.5` | Confidence floor. Raise to cut noise, lower to recall more. |
-| `episodic.autoEpisodeIntervalMs` | `10000` | Idle time before extraction fires. Higher = cheaper, staler. |
+| `episodic.autoEpisodeIntervalMs` | `1800000` | Idle time before extraction fires. Lower = fresher, costlier. |
 | `episodic.enabled` / `semantic.enabled` | `true` | Turn a whole layer off. |
 
 Everything else is internal retrieval tuning. Changing those without measuring
@@ -31,7 +31,7 @@ usually makes results worse, see [below](#the-other-eleven).
 | Field | Default | Notes |
 |---|---|---|
 | `enabled` | `true` | Off means no episodes and therefore **no facts**, semantic memory depends on episodes |
-| `autoEpisodeIntervalMs` | `10000` | Idle time before extraction. `null` disables the timer (explicit `end()` still works) |
+| `autoEpisodeIntervalMs` | `1800000` | Idle time before extraction (30 min). `null` disables the timer and the backstop (explicit `end()` still works) |
 | `maxMessages` | `100` | Transcript cap for extraction. Longer conversations are head+tail truncated |
 | `maxRetries` | `3` | Retry cap for failed episodes |
 | `contextEpisodes` | `3` | Episodes returned by `recall({ include: ['episodes'] })` |
@@ -41,19 +41,19 @@ usually makes results worse, see [below](#the-other-eleven).
 ### `autoEpisodeIntervalMs` is the cost lever
 
 Each episode costs **three LLM calls and three embedding batches**. At the
-default of 10 seconds, a conversation with natural pauses produces several
-episodes and pays that each time.
+default of 30 minutes, one real session gap produces one episode. Ending a
+thread or starting a new one for the same dataset fires sooner regardless, so
+the interval only matters for conversations that trail off.
 
 | Value | Effect |
 |---|---|
-| `10000` (default) | Fresh memory, highest cost |
-| `60000` | Roughly the sensible production floor |
-| `300000` | Cheap, memory lags several minutes behind |
+| `1800000` (default) | One episode per session, standard session timeout |
+| `300000` | Memory lags minutes behind, more episodes on long chats |
+| `60000` | Fresh, pays per pause |
 | `null` | Only extract when you call `threads.end()` |
 
-> The form here enforces a minimum of **60000**, so the shipped default of
-> `10000` cannot be re-entered once changed. Per-thread overrides accept values
-> down to `1000`, use those for experiments.
+> The form takes minutes; blank disables the timer. Per-thread overrides in
+> code accept values down to `1000` ms, use those for experiments.
 
 ---
 

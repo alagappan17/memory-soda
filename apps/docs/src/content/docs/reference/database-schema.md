@@ -202,7 +202,8 @@ INDEX scheduled_episodes_fire_at_idx (fire_at)
 
 `addMessage` upserts `fire_at = now() + autoEpisodeIntervalMs`. Because the
 primary key is `thread_id`, a burst of messages keeps pushing the deadline out
-rather than queuing many episodes.
+rather than queuing many episodes. Creating a thread sets every sibling's
+`fire_at` (same project and dataset) to `LEAST(fire_at, now() + 5 min)`.
 
 Claimed with `DELETE … RETURNING`, so each row fires exactly once.
 

@@ -39,9 +39,10 @@ await memory.addMessage(threadId, {
   content: 'Yeah the corola hybrid looks great. I mostly do city commutes.',
 });
 
-// 3. Extraction is asynchronous. Give it a moment.
-//    (Default: ~10s of inactivity, then the pipeline runs.)
-await new Promise((r) => setTimeout(r, 45_000));
+// 3. Extraction is asynchronous and runs when the conversation is over:
+//    endThread(), a new thread for the same dataset, or 30 min idle.
+await memory.endThread(threadId);
+await new Promise((r) => setTimeout(r, 30_000));
 
 // 4. Read it back.
 const { context, factCount } = await memory.recall({
@@ -74,8 +75,8 @@ Known facts about the user, most relevant first.
 That `context` string goes straight into your system prompt. That is the whole
 integration.
 
-> **Why the wait?** Extraction runs in the background after a period of
-> inactivity, three LLM calls and two embedding batches. See
+> **Why the wait?** Extraction runs in the background once the thread is
+> ended, three LLM calls and two embedding batches. See
 > [How it works](/introduction/how-it-works/#the-write-path). To watch it
 > happen live, use the [Playground](/dashboard/playground/).
 

@@ -184,20 +184,20 @@ relevance = similarity × similarityWeight + 1/(1 + daysSince) × recencyWeight
 The weights are **not normalised**, they are used as given. `0.7/0.3` favours
 topical match; `0.4/0.6` favours "what did we talk about lately".
 
-### `autoEpisodeIntervalMs` (10000), the cost lever
+### `autoEpisodeIntervalMs` (1800000), the cost lever
 
 Each episode costs three LLM calls and three embedding batches. This is the
-setting that decides your bill.
+setting that decides your bill for conversations that trail off; `end()` and
+a new thread for the same dataset fire regardless of it.
 
 | Value | |
 |---|---|
-| `10000` | Freshest memory, highest cost |
-| `60000` | Roughly the production floor |
-| `300000` | Cheap; memory lags minutes behind |
+| `1800000` | Default. One episode per session gap |
+| `300000` | Memory lags minutes behind; more episodes on long chats |
+| `60000` | Freshest, pays per pause |
 | `null` | Only on explicit `threads.end()` |
 
-> The project-settings endpoint enforces `>= 60000`, so the shipped default
-> cannot be re-entered through it. Thread overrides accept `>= 1000`.
+> Anything down to `1000` is accepted, handy for tests.
 
 ---
 
@@ -242,7 +242,7 @@ Some problems are structural, not parametric:
 | | |
 |---|---|
 | Facts about anything other than the user | Extraction discards them by design, [why](/concepts/semantic-memory/#every-fact-is-about-the-user) |
-| Memory lagging 30 seconds behind | Inherent to async extraction; only `autoEpisodeIntervalMs` moves it |
+| Memory lagging behind the conversation | Inherent to deferred extraction; `end()` or a lower `autoEpisodeIntervalMs` moves it |
 | Anchor ranks being arbitrary | A known bug, not a setting |
 | Facts accumulating forever | There is no forgetting or consolidation pass |
 

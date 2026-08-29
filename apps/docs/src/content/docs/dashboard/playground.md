@@ -80,7 +80,8 @@ So the normal loop is:
 
 1. Send a few messages.
 2. Stop typing.
-3. Wait out `autoEpisodeIntervalMs` (default 10s) plus the scheduler tick.
+3. End the thread, or wait out `autoEpisodeIntervalMs` (default 30 min) plus
+   the scheduler tick.
 4. Watch `facts_extracted` land, ~20–60 seconds later.
 
 The polling GETs are deliberately **not** logged as ops, they would drown the
@@ -137,7 +138,8 @@ Working, episodic and semantic settings for the session.
 > [Project Settings](/dashboard/project-settings/).
 
 Lowering `autoEpisodeIntervalMs` to a second or two makes experimenting much
-faster, thread-level overrides accept values down to `1000`.
+faster, thread-level overrides accept values down to `1000`. Or end the
+thread; that fires immediately.
 
 ---
 

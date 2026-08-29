@@ -56,7 +56,7 @@ limiter in front if this is reachable beyond a trusted network.
 
 | Setting | Default | Range |
 |---|---|---|
-| `episodic.autoEpisodeIntervalMs` | `10000` | `>= 60000` (project) · `>= 1000` (thread) · `null` |
+| `episodic.autoEpisodeIntervalMs` | `1800000` | `>= 1000` · `null` |
 | `episodic.maxMessages` | `100` | 10–1000 |
 | `episodic.maxRetries` | `3` | 0–10 |
 | `episodic.contextEpisodes` | `3` | 1–20 |
@@ -215,9 +215,9 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
 | One `recall` with `synthesis` | 1 | 1 |
 | One `POST …/chat` | 2–3 | 1 |
 
-**The biggest lever is `autoEpisodeIntervalMs`.** At the default of 10 seconds, a
-conversation with several natural pauses produces several episodes and pays the
-per-episode cost each time.
+**The biggest lever is `autoEpisodeIntervalMs`.** At the default of 30 minutes
+one session gap pays the per-episode cost once; `end()` and a new thread for
+the same dataset fire it regardless of the interval.
 
 ---
 

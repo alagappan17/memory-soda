@@ -20,7 +20,7 @@ built-in defaults  ─►  project.settings  ─►  thread override (episodic o
 | Field | Type | Default | Bounds (project) | Bounds (thread) |
 |---|---|---|---|---|
 | `enabled` | boolean | `true` |, |, |
-| `autoEpisodeIntervalMs` | number \| null | `10000` | `>= 60000` or `null` | `>= 1000` or `null` |
+| `autoEpisodeIntervalMs` | number \| null | `1800000` | `>= 1000` or `null` | `>= 1000` or `null` |
 | `maxMessages` | integer | `100` | 10–1000 | 1–1000 |
 | `maxRetries` | integer | `3` | 0–10 | 0–10 |
 | `contextEpisodes` | integer | `3` | 1–20 | 1–20 |
@@ -32,22 +32,20 @@ Off means no episodes, and therefore **no facts**, because semantic extraction
 runs off episodes. Messages are still stored and `prepare()` still works.
 
 ### `autoEpisodeIntervalMs`
-Idle time before extraction fires. `null` disables the timer;
-`threads.end()` still works.
+Idle time before extraction fires. `null` disables the timer and the
+sleep-time backstop; `threads.end()` still works. Two other triggers ignore it:
+`end()` and a new thread for the same dataset (which pulls a waiting sibling's
+timer forward to at most 5 minutes).
 
 **The main cost lever.** Each episode costs three LLM calls and three embedding
 batches.
 
 | Value | |
 |---|---|
-| `10000` | Default. Freshest, most expensive |
-| `60000` | Roughly the production floor |
-| `300000` | Cheap; memory lags minutes behind |
+| `1800000` | Default. One episode per session gap |
+| `300000` | Memory lags minutes behind; more episodes on long chats |
+| `60000` | Freshest, pays per pause |
 | `null` | Explicit `end()` only |
-
-> **Inconsistency:** the default is `10000` but the project endpoint validates
-> `>= 60000`, so the shipped default cannot be re-entered through the API that
-> manages it. Thread overrides accept `>= 1000`.
 
 ### `maxMessages`
 Transcript cap for extraction. Longer conversations are truncated head + tail
@@ -145,7 +143,7 @@ curl http://localhost:3004/dashboard/projects/$PROJECT_ID/settings \
 ```json
 {
   "settings": {
-    "episodic": { "enabled": true, "autoEpisodeIntervalMs": 10000, "maxMessages": 100,
+    "episodic": { "enabled": true, "autoEpisodeIntervalMs": 1800000, "maxMessages": 100,
                   "maxRetries": 3, "contextEpisodes": 3,
                   "similarityWeight": 0.7, "recencyWeight": 0.3 },
     "semantic": { "enabled": true, "retrievalMinConfidence": 0.5, "factsInContext": 8,

@@ -43,33 +43,50 @@ semantically.
 
 ## When an episode is created
 
-Two triggers, both producing an identical row.
+"Done" is not knowable at write time: no message tells you the next one is not
+coming. So Memory Soda never guesses. Every trigger is either explicit or
+hindsight, and an episode is **consolidation, not freshness**, so firing late
+costs nothing while firing on every pause costs one LLM call each. All four
+triggers open the same kind of row over the same window: the messages since the
+thread's last episode.
 
-### 1. Inactivity (the normal path)
-
-Every `addMessage` upserts a row into `scheduled_episodes` with
-`fireAt = now + autoEpisodeIntervalMs` (**default 10 seconds**). A scheduler
-running every 5 seconds drains the due rows.
-
-Because it is an upsert, a burst of messages keeps pushing the deadline out, an
-episode fires once the conversation goes quiet, not once per message.
-
-```
-msg  msg  msg              (10s idle)
- │    │    │                    │
- └────┴────┴── fireAt keeps ────┴──► episode created
-              being pushed
-```
-
-### 2. Explicit
+### 1. Explicit
 
 ```ts
 await memory.endThread(threadId);   // → { threadId, episodeQueued: true }
 ```
 
 Queues extraction immediately. The thread stays writable, this is a checkpoint,
-not a close. Use it when you know a conversation has ended and don't want to wait
-out the timer.
+not a close. Use it whenever your agent knows a task or conversation ended.
+
+### 2. A new thread in the same dataset
+
+Starting a new thread for `user_42` is the strongest signal that their old one
+is over, the same rule chat products use. Any sibling thread still waiting on
+its idle timer has that timer pulled forward to at most **5 minutes** out (the
+grace covers agents that fan out across several threads at once). Threads with
+nothing uncaptured are not touched.
+
+### 3. Inactivity
+
+Every `addMessage` upserts a row into `scheduled_episodes` with
+`fireAt = now + autoEpisodeIntervalMs` (**default 30 minutes**, the standard
+session timeout). Because it is an upsert, a burst of messages keeps pushing the
+deadline out, so one real session gap yields one episode.
+
+```
+msg  msg  msg              (30 min idle)
+ │    │    │                    │
+ └────┴────┴── fireAt keeps ────┴──► episode created
+              being pushed
+```
+
+### 4. Sleep-time backstop
+
+Once an hour the worker looks for threads quiet for **24 hours** that still have
+messages no episode covers and no timer waiting on them. That only happens after
+a crash between claiming a timer and writing the episode, but it means nothing
+is ever lost.
 
 ---
 

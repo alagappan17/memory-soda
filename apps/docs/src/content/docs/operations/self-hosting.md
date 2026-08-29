@@ -286,10 +286,9 @@ Gemini is the running cost. Per episode:
 Plus one embedding per `recall()` with a query, and one LLM call per
 `recall({ include: ['synthesis'] })`.
 
-**The biggest lever is `autoEpisodeIntervalMs`.** At the default of 10 seconds, a
-conversation with natural pauses produces several episodes and pays that each
-time. Raising it to 60 seconds or more is the single most effective change. See
-[Tuning retrieval](/guides/tuning-retrieval/#autoepisodeintervalms-10000--the-cost-lever).
+**The biggest lever is `autoEpisodeIntervalMs`.** At the default of 30 minutes
+one session gap costs one episode. Lowering it trades money for freshness. See
+[Tuning retrieval](/guides/tuning-retrieval/#autoepisodeintervalms-1800000-the-cost-lever).
 
 ---
 

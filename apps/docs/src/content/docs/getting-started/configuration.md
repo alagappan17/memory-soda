@@ -67,7 +67,7 @@ curl -X PATCH http://localhost:3004/dashboard/projects/$PROJECT_ID/settings \
 |---|---|---|
 | `semantic.factsInContext` | `8` | How many facts `recall()` puts in the context block. The main quality/token dial. |
 | `semantic.retrievalMinConfidence` | `0.5` | Facts below this extraction confidence are excluded from retrieval. |
-| `episodic.autoEpisodeIntervalMs` | `10000` | Idle time before extraction fires. Higher = cheaper and staler. |
+| `episodic.autoEpisodeIntervalMs` | `1800000` | Idle time before extraction fires. Lower = fresher and costlier. |
 | `episodic.enabled` / `semantic.enabled` | `true` | Turn a whole layer off. |
 
 ### The rest
@@ -101,7 +101,7 @@ await memory.createThread({
   dataset: 'user_42',
   settings: {
     episodic: {
-      autoEpisodeIntervalMs: 120_000, // extract after 2 minutes idle, not 10 seconds
+      autoEpisodeIntervalMs: 120_000, // extract after 2 minutes idle, not 30
     },
   },
 });
@@ -151,7 +151,7 @@ Settings are validated on write. Requests outside these ranges return `400`.
 
 | Setting | Range |
 |---|---|
-| `autoEpisodeIntervalMs` (project) | `>= 60000`, or `null` to disable |
+| `autoEpisodeIntervalMs` (project) | `>= 1000`, or `null` to disable |
 | `autoEpisodeIntervalMs` (thread override) | `>= 1000`, or `null` |
 | `maxMessages` | 10–1000 |
 | `contextEpisodes` | 1–20 |
@@ -159,11 +159,6 @@ Settings are validated on write. Requests outside these ranges return `400`.
 | all `0..1` thresholds | 0–1 inclusive |
 | `anchorVectorTopK` | 1–10 |
 | `autoCompactThreshold` | `>= 2` |
-
-> **Known inconsistency.** The default `autoEpisodeIntervalMs` is `10000`, but
-> the project-settings endpoint enforces a minimum of `60000`, so the default
-> cannot be set through the API that manages it. Thread-level overrides accept
-> `>= 1000`.
 
 ---
 

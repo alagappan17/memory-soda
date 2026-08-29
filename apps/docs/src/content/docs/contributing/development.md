@@ -97,8 +97,8 @@ tail -f /tmp/api.log | grep -E '\[semantic\]|\[episodic\]|\[recall\]'
 
 ### Making extraction fast to iterate on
 
-The default 10-second inactivity timer plus a 5-second tick makes each cycle slow.
-Create test threads with a low override:
+The default 30-minute inactivity timer makes each cycle slow. Either call
+`endThread()` or create test threads with a low override:
 
 ```ts
 await memory.createThread({

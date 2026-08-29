@@ -210,8 +210,8 @@ dropped user turn costs a fact.
 
 ## 6. Closing a conversation
 
-Extraction fires after `autoEpisodeIntervalMs` of silence anyway, but when you
-*know* a conversation ended, say so:
+Extraction fires after 30 minutes of silence, or when the user starts a new
+thread, anyway. But when you *know* a conversation ended, say so:
 
 ```ts
 export async function endConversation(conversationId: string) {

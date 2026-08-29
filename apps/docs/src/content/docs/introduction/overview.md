@@ -126,9 +126,10 @@ every fact is the literal string `user`. Facts about a project, a codebase, a
 task or an agent are dropped by design. This makes it a personal-memory store,
 not a general agent-memory store.
 
-**Extraction is slow.** A statement becomes retrievable roughly 20–60 seconds
-after the user stops typing: an inactivity timer, then an episode summarisation
-call, then a graph extraction call, then a contradiction-judging call.
+**Extraction is deferred.** A statement becomes retrievable once its thread is
+ended, superseded by a new thread for the same dataset, or idle for 30 minutes,
+then an episode summarisation call, a graph extraction call and a
+contradiction-judging call run. Call `endThread()` when you want it sooner.
 
 **Scope is `(project, dataset)` only.** There is no notion of an agent or a run,
 so there is nowhere to put memory belonging to a particular workflow execution.

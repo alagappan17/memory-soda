@@ -14,6 +14,7 @@ and no separate worker.
 | **5 s** | `processScheduledEpisodes` | Drains due rows from `scheduled_episodes`; creates and processes episodes |
 | **120 s** | `retryFailedEpisodes` | Retries up to 20 failed episodes, bounded by `maxRetries` |
 | **120 s** | `sweepSemanticMemory` | Picks up episodes whose fact extraction is pending, failed or orphaned |
+| **1 h** | `sweepAbandonedThreads` | Opens episodes for threads quiet 24 h with uncaptured messages and no timer |
 
 All are `setInterval(...).unref()`, they never keep the process alive.
 
@@ -24,9 +25,12 @@ All are `setInterval(...).unref()`, they never keep the process alive.
 The main path from conversation to memory.
 
 Every `addMessage` upserts a row into `scheduled_episodes` with
-`fireAt = now + autoEpisodeIntervalMs`. Because it is an upsert, a burst of
-messages keeps pushing the deadline out, extraction fires when the conversation
-goes quiet, not once per message.
+`fireAt = now + autoEpisodeIntervalMs` (default 30 minutes). Because it is an
+upsert, a burst of messages keeps pushing the deadline out, extraction fires
+when the conversation goes quiet, not once per message. Creating a new thread in
+the same dataset pulls every sibling's `fire_at` forward to at most 5 minutes
+out (`LEAST(fire_at, now() + 5 min)`), so a user starting a fresh chat closes
+the old one without waiting out the interval.
 
 The job claims due rows atomically:
 
@@ -41,6 +45,17 @@ workers. Up to 20 threads per tick.
 
 For each, it creates a `pending` episode and starts processing. Episodes are
 skipped when episodic memory is disabled or `autoEpisodeIntervalMs` is `null`.
+
+---
+
+## `sweepAbandonedThreads` (1 h)
+
+The backstop for the timer. A thread whose `last_activity_at` is over 24 hours
+old, that has messages past its last episode's `end_sequence`, and that has no
+`scheduled_episodes` row gets an episode opened. The only way to reach that
+state is a crash between claiming the timer row and writing the pending
+episode, so the sweep is normally a no-op. Same `enabled` / `null` interval
+contract as the timer. Up to 20 threads per run.
 
 ---
 
