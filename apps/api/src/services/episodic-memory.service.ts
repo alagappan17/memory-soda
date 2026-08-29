@@ -11,6 +11,7 @@ import {
   inArray,
   isNotNull,
   ne,
+  notExists,
 } from 'drizzle-orm';
 import { db } from '../db/postgres.js';
 import {
@@ -715,6 +716,63 @@ export async function processScheduledEpisodes(): Promise<void> {
       console.error('[episodic] scheduled episode failed:', err),
     );
   }
+}
+
+/** A thread quiet this long with uncaptured messages is treated as abandoned. */
+export const ABANDONED_AFTER_MS = 24 * 60 * 60_000;
+
+/**
+ * Sleep-time backstop: threads with messages no episode covers, quiet for a
+ * day, and with no idle timer waiting on them.
+ *
+ * The idle timer is the normal path; this exists for the gaps it cannot close:
+ * a claimed timer row whose worker died before the pending episode was written,
+ * or rows lost to a crash. Cheap because `threads_activity_idx` prunes to the
+ * cold tail before the per-thread subqueries run.
+ */
+export async function sweepAbandonedThreads(): Promise<void> {
+  const rows = await findAbandonedThreads();
+  if (rows.length === 0) return;
+
+  const settingsMap = await episodicSettingsFor(rows.map((r) => r.projectId));
+  for (const row of rows) {
+    // Same contract as the timer: a null interval means explicit end() only.
+    const settings = settingsMap.get(row.projectId);
+    if (!settings?.enabled || settings.autoEpisodeIntervalMs === null) continue;
+    await openAndProcessEpisode({
+      threadId: row.id,
+      dataset: row.dataset,
+      projectId: row.projectId,
+    });
+  }
+}
+
+/** The query half of {@link sweepAbandonedThreads}, testable without an LLM. */
+export async function findAbandonedThreads(): Promise<
+  { id: string; dataset: string; projectId: string }[]
+> {
+  const quietSince = new Date(Date.now() - ABANDONED_AFTER_MS);
+  return db
+    .select({
+      id: threads.id,
+      dataset: threads.dataset,
+      projectId: threads.projectId,
+    })
+    .from(threads)
+    .where(
+      and(
+        lt(threads.lastActivityAt, quietSince),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(scheduledEpisodes)
+            .where(eq(scheduledEpisodes.threadId, threads.id)),
+        ),
+        sql`(select max(${messages.sequenceNumber}) from ${messages} where ${messages.threadId} = ${threads.id})
+          > coalesce((select max(${episodes.endSequence}) from ${episodes} where ${episodes.threadId} = ${threads.id}), 0)`,
+      ),
+    )
+    .limit(20);
 }
 
 /**

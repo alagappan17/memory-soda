@@ -10,7 +10,10 @@ export interface ProjectEpisodicSettings {
 
 export const DEFAULT_EPISODIC_SETTINGS: ProjectEpisodicSettings = {
   enabled: true,
-  autoEpisodeIntervalMs: 10_000,
+  // 30 minutes: the sessionisation convention (analytics, chat products). An
+  // episode is consolidation, not freshness, so firing late costs nothing and
+  // firing per pause costs one LLM call each.
+  autoEpisodeIntervalMs: 30 * 60_000,
   maxMessages: 100,
   maxRetries: 3,
   contextEpisodes: 3,

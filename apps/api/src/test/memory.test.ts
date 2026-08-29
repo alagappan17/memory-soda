@@ -245,3 +245,54 @@ test('episodes: list, get 404, archive twice is 400', async () => {
   const retry = await call('POST', `${base}/episodes/${ep!.id}/retry`);
   assert.equal(retry.status, 400);
 });
+
+test('a new thread in the same dataset pulls sibling idle timers forward', async () => {
+  const a = await newThread();
+  await call('POST', `/v1/memory/working/threads/${a.threadId}/messages`, {
+    role: 'user',
+    content: 'x',
+  });
+  const { NEW_THREAD_GRACE_MS } = await import('../services/thread.service.js');
+  const { eq } = await import('drizzle-orm');
+  const { scheduledEpisodes } = api.schema;
+  const before = await api.db.select().from(scheduledEpisodes).where(eq(scheduledEpisodes.threadId, a.threadId));
+  assert.ok(before[0]!.fireAt.getTime() > Date.now() + NEW_THREAD_GRACE_MS, 'idle timer starts far out');
+
+  // Different dataset: untouched.
+  await newThread();
+  const untouched = await api.db.select().from(scheduledEpisodes).where(eq(scheduledEpisodes.threadId, a.threadId));
+  assert.equal(untouched[0]!.fireAt.getTime(), before[0]!.fireAt.getTime());
+
+  await newThread({ dataset: a.dataset });
+  const after = await api.db.select().from(scheduledEpisodes).where(eq(scheduledEpisodes.threadId, a.threadId));
+  assert.ok(after[0]!.fireAt.getTime() <= Date.now() + NEW_THREAD_GRACE_MS, 'pulled forward to grace');
+});
+
+test('sleep-time sweep finds abandoned threads with uncaptured messages', async () => {
+  const t = await newThread();
+  await call('POST', `/v1/memory/working/threads/${t.threadId}/messages`, {
+    role: 'user',
+    content: 'x',
+  });
+  const { findAbandonedThreads, ABANDONED_AFTER_MS } = await import('../services/episodic-memory.service.js');
+  const { eq } = await import('drizzle-orm');
+  const { scheduledEpisodes, threads, episodes } = api.schema;
+  const found = async () => (await findAbandonedThreads()).some((r) => r.id === t.threadId);
+
+  // An idle timer is waiting on it: not the sweep's job.
+  await api.db
+    .update(threads)
+    .set({ lastActivityAt: new Date(Date.now() - ABANDONED_AFTER_MS - 1000) })
+    .where(eq(threads.id, t.threadId));
+  assert.equal(await found(), false);
+
+  await api.db.delete(scheduledEpisodes).where(eq(scheduledEpisodes.threadId, t.threadId));
+  assert.equal(await found(), true);
+
+  // Once an episode covers the message there is nothing left to capture.
+  await api.db.insert(episodes).values({
+    threadId: t.threadId, dataset: t.dataset, projectId, status: 'completed',
+    messageCount: 1, startSequence: 1, endSequence: 1,
+  });
+  assert.equal(await found(), false);
+});

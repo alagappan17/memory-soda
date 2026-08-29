@@ -4,6 +4,7 @@ import { sessions } from './db/schema.js';
 import {
   processScheduledEpisodes,
   retryFailedEpisodes,
+  sweepAbandonedThreads,
 } from './services/episodic-memory.service.js';
 import { sweepSemanticMemory } from './services/semantic-memory.service.js';
 
@@ -25,6 +26,9 @@ const TICK_MS = 5_000;
 /** Backstops are cheap but pointless to run every tick. */
 const BACKSTOP_EVERY = 24; // ~every 2 minutes
 
+/** Abandoned threads are a day old by definition; hourly is plenty. */
+const SLEEP_EVERY = 720; // ~every hour
+
 let timer: NodeJS.Timeout | null = null;
 let ticks = 0;
 let running = false;
@@ -40,6 +44,9 @@ async function tick(): Promise<void> {
       await run('episode retries', retryFailedEpisodes);
       await run('semantic sweep', sweepSemanticMemory);
       await run('expired sessions', purgeExpiredSessions);
+    }
+    if (ticks % SLEEP_EVERY === 0) {
+      await run('abandoned threads', sweepAbandonedThreads);
     }
   } finally {
     ticks++;

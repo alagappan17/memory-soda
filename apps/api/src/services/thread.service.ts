@@ -1,7 +1,7 @@
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, ne, sql, inArray } from 'drizzle-orm';
 import { generateUserId } from '../lib/generate-user-id.js';
 import { db } from '../db/postgres.js';
-import { threads } from '../db/schema.js';
+import { scheduledEpisodes, threads } from '../db/schema.js';
 import {
   getEffectiveEpisodicSettings,
   openAndProcessEpisode,
@@ -45,6 +45,9 @@ export function rowToThread(row: typeof threads.$inferSelect): Thread {
   };
 }
 
+/** Grace before a sibling thread's episode fires, for agents that fan out. */
+export const NEW_THREAD_GRACE_MS = 5 * 60_000;
+
 // ── Thread operations ─────────────────────────────────────────────────────────
 
 export interface NewThread {
@@ -71,6 +74,33 @@ export async function createThread(input: NewThread): Promise<Thread> {
     })
     .returning();
   if (!row) throw new Error('Failed to create thread');
+
+  // A new thread in the same dataset is the strongest hint that the old one is
+  // over, so its pending idle timer is pulled forward instead of waiting out
+  // the full interval. Only threads already waiting have anything new to
+  // capture, so this touches nothing else. LEAST keeps a nearer deadline.
+  const grace = new Date(Date.now() + NEW_THREAD_GRACE_MS);
+  await db
+    .update(scheduledEpisodes)
+    .set({
+      fireAt: sql`least(${scheduledEpisodes.fireAt}, ${grace.toISOString()}::timestamptz)`,
+    })
+    .where(
+      inArray(
+        scheduledEpisodes.threadId,
+        db
+          .select({ id: threads.id })
+          .from(threads)
+          .where(
+            and(
+              eq(threads.projectId, row.projectId),
+              eq(threads.dataset, row.dataset),
+              ne(threads.id, row.id),
+            ),
+          ),
+      ),
+    );
+
   return rowToThread(row);
 }
 
