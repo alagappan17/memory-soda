@@ -1,0 +1,5 @@
+user: looking for a car for city commutes, budget under $30k. i want a hybrid but it has to be easy to park
+assistant: The Toyota Corolla Hybrid is a great pick, 50 mpg, roomy boot, easy to park.
+user: yeah the corola hybrid looks great. suvs are probably too big for me
+assistant: Understood. Want me to compare it against the Honda Civic hybrid?
+user: sure. also I drive a Honda Civic today, picking up whatever I choose in September
