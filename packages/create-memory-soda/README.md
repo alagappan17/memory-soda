@@ -18,8 +18,9 @@ cd memory-soda
 npm run dev
 ```
 
-First boot applies migrations, creates your admin user, and prints an API key
-once. Dashboard on :3000, API on :3004.
+First boot applies migrations and creates your admin user. Sign in to the
+dashboard to create an API key.
+Dashboard on :3000, API on :3004.
 
 ## Postgres
 

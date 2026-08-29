@@ -203,7 +203,7 @@ npm run db:migrate
 npm run dev             # API on :3004, dashboard on :3000
 ```
 
-The API prints an API key on first boot. Save it — it is not shown again.
+Create an API key in the dashboard under **API Keys**. It is shown once.
 
 Full documentation: [github.com/alagappan17/memory-soda](https://github.com/alagappan17/memory-soda)
 

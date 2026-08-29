@@ -61,7 +61,8 @@ pg_dump "$DATABASE_URL" > backup-$(date +%F).sql
 ## When to use more than one
 
 The default deployment has a single project called `default`, created
-automatically on first boot. That is fine for most cases.
+automatically the first time a key is made without choosing a project. That is
+fine for most cases.
 
 Add projects when you want **separate settings** or **separate blast radius**:
 

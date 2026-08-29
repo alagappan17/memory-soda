@@ -13,24 +13,16 @@ Dashboard login accounts.
 
 ## First sign-in
 
-On an empty database the API seeds one admin account and prints it once:
+On an empty database the API seeds one admin account and says so once:
 
 ```
-┌───────────────────────────────────────────────────────┐
-│  Memory Soda, First-time setup                       │
-│                                                       │
-│  API Key:  ms_3f9a…                                   │
-│  Login:    admin / kR7v-2mQxPd1                       │
-│            (generated, set ADMIN_PASSWORD to choose) │
-│                                                       │
-│  Save these, the API key will not be shown again.    │
-└───────────────────────────────────────────────────────┘
+[ setup ] Log in to the dashboard with the admin login you created (admin) to get started.
 ```
 
 - Username comes from `ADMIN_USERNAME`, default `admin`.
-- Password comes from `ADMIN_PASSWORD`. **If unset, one is randomly generated**,
-  there is no fixed default credential.
-- Neither is recoverable after the log scrolls.
+- Password comes from `ADMIN_PASSWORD`. **If unset, one is randomly generated**
+  and included in that log line once; there is no fixed default credential.
+- A generated password is not recoverable after the log scrolls.
 
 ### If you lost it
 

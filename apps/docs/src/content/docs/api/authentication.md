@@ -42,8 +42,7 @@ const memory = new MemorySoda({ baseUrl, apiKey: process.env.MEMORY_SODA_API_KEY
 
 ### Getting one
 
-The first key is printed once on first boot. After that, create them in the
-dashboard under **API Keys**, or:
+Sign in to the dashboard and create one under **API Keys**, or:
 
 ```bash
 curl -X POST http://localhost:3004/dashboard/api-keys \
@@ -189,18 +188,11 @@ Comparison is constant-time.
 
 ## First boot
 
-On an empty database, the API seeds one of each and prints them once:
+On an empty database, the API seeds an admin login. No API key is seeded;
+create the first one from the dashboard:
 
 ```
-┌───────────────────────────────────────────────────────┐
-│  Memory Soda, First-time setup                       │
-│                                                       │
-│  API Key:  ms_3f9a…                                   │
-│  Login:    admin / kR7v-2mQxPd1                       │
-│            (generated, set ADMIN_PASSWORD to choose) │
-│                                                       │
-│  Save these, the API key will not be shown again.    │
-└───────────────────────────────────────────────────────┘
+[ setup ] Log in to the dashboard with the admin login you created (admin) to get started.
 ```
 
 - The admin password is **randomly generated** unless `ADMIN_PASSWORD` is set.

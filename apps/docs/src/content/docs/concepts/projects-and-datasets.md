@@ -17,7 +17,8 @@ dataset  ──►  "whose memory is this?"          a string you choose
 A project is the top-level tenant. It owns API keys, threads, episodes, facts,
 entities and settings.
 
-- Created from the dashboard, or automatically as `default` on first boot.
+- Created from the dashboard, or automatically as `default` the first time a
+  key is made without choosing a project.
 - Each API key belongs to exactly one project.
 - **You never pass a project ID to `/v1/*`**, it is derived from the key on
   every request. This is why a leaked key exposes exactly one project.

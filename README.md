@@ -41,19 +41,9 @@ npm run --workspace=apps/api db:migrate
 npm run dev
 ```
 
-On first boot the API prints a key to its logs — copy it before it scrolls away:
-
-```
-┌─────────────────────────────────────────────────┐
-│  Memory Soda — First-time setup                 │
-│                                                 │
-│  API Key: ms_xxxxxxxxxxxxxxxxxxxxxxxxxxxx       │
-│                                                 │
-│  Save this — it will not be shown again.        │
-└─────────────────────────────────────────────────┘
-```
-
-If you missed it, the key is stored in the `api_keys` table — or wipe it and restart to print a fresh one.
+On first boot the API prints the admin login to its logs (password comes from
+`ADMIN_PASSWORD`, or is generated). Sign in to the dashboard and create an API
+key under **API Keys**.
 
 | Service | URL |
 |---|---|

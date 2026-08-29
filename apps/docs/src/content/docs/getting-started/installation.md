@@ -151,21 +151,14 @@ npm run dev
 
 This runs the API and the dashboard together with hot reload.
 
-On **first boot only**, credentials are printed once:
+On **first boot only**, the admin user is created:
 
 ```
-┌───────────────────────────────────────────────────────┐
-│  Memory Soda, First-time setup                       │
-│                                                       │
-│  API Key:  ms_3f9a…                                   │
-│  Login:    admin / kR7v-2mQxPd1                       │
-│            (generated, set ADMIN_PASSWORD to choose) │
-│                                                       │
-│  Save these, the API key will not be shown again.    │
-└───────────────────────────────────────────────────────┘
+[ setup ] Log in to the dashboard with the admin login you created (admin) to get started.
 ```
 
-**Copy both before the log scrolls.**
+If `ADMIN_PASSWORD` was not set, the generated password is included in that
+line. Sign in and create an API key under **API Keys**.
 
 - The **API key** is hashed at rest and cannot be recovered. If you lose it,
   issue a new one from the dashboard's API Keys page.

@@ -103,8 +103,8 @@ boundary is a [project](/dashboard/projects/), not a key.
 
 ## The first key
 
-Printed once on first boot alongside the admin login. If you missed it, just
-create another here, there is nothing special about the first one.
+Nothing is seeded on first boot. Sign in with the admin login printed to the
+API log and create your first key here.
 
 ---
 

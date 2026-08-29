@@ -323,7 +323,7 @@ async function main() {
       `API        ${chalk.underline(`http://localhost:${apiPort}`)}`,
       `Login      ${adminUser} / ${adminPassword ? 'the password you chose' : 'password printed at first boot'}`,
       '',
-      'First boot applies migrations and prints your API key once.',
+      'First boot applies migrations. Sign in to the dashboard to create an API key.',
       ...(geminiKey ? [] : ['Set GOOGLE_GENERATIVE_AI_API_KEY in .env before starting.']),
     ].join('\n'),
     'Next steps',
