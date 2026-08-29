@@ -34,10 +34,12 @@ export interface RequestInput<S extends Schemas> {
 
 /** A response that is not a plain 200 with a JSON body. */
 class Responded<T> {
-  constructor(
-    readonly status: number,
-    readonly body: T,
-  ) {}
+  readonly status: number;
+  readonly body: T;
+  constructor(status: number, body: T) {
+    this.status = status;
+    this.body = body;
+  }
 }
 
 /** Respond 201 with a body. */

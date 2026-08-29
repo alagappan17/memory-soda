@@ -1,5 +1,6 @@
 import { eq, and, lt, desc, asc, sql, max, inArray, isNull } from 'drizzle-orm';
 import { summarizeMessages } from '../lib/gemini.js';
+import { AppError } from '../lib/errors.js';
 import { db } from '../db/postgres.js';
 import { threads, messages, scheduledEpisodes } from '../db/schema.js';
 import { getEffectiveEpisodicSettings } from './episodic-memory.service.js';
@@ -90,7 +91,7 @@ export async function addMessage(
       .for('update');
 
     if (!threadRow) {
-      throw Object.assign(new Error('Thread not found'), { code: 'NOT_FOUND' });
+      throw AppError.notFound('Thread');
     }
 
     const [seqRow] = await tx
