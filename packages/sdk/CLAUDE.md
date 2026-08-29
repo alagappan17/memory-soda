@@ -1,4 +1,4 @@
-# packages/sdk — @alagappan17/memory-soda
+# packages/sdk — @memory-soda/sdk
 
 Published client. Zero runtime dependencies (global `fetch`, `AbortSignal.timeout`,
 Node ≥18). Built by `tsup` to ESM + CJS + d.ts; `@memory-soda/types` is bundled

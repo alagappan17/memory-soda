@@ -1,11 +1,17 @@
 ---
-title: "Error handling"
-description: "Every SDK method rejects on failure. Nothing returns null to signal an error."
+title: 'Error handling'
+description: 'Every SDK method rejects on failure. Nothing returns null to signal an error.'
 ---
+
 Every SDK method rejects on failure. Nothing returns `null` to signal an error.
 
 ```ts
-import { ApiError, AuthError, NetworkError, MemorySodaError } from '@alagappan17/memory-soda';
+import {
+  ApiError,
+  AuthError,
+  NetworkError,
+  MemorySodaError,
+} from '@memory-soda/sdk';
 ```
 
 ---
@@ -24,8 +30,8 @@ Error
 
 ```ts
 class ApiError extends MemorySodaError {
-  readonly status: number;   // HTTP status
-  readonly body: unknown;    // parsed JSON body, or null
+  readonly status: number; // HTTP status
+  readonly body: unknown; // parsed JSON body, or null
 }
 ```
 
@@ -60,7 +66,7 @@ Causes: wrong key, revoked key, key not linked to a project, missing
 
 ```ts
 class NetworkError extends MemorySodaError {
-  readonly networkCause?: unknown;   // the original fetch error / AbortError
+  readonly networkCause?: unknown; // the original fetch error / AbortError
 }
 ```
 
@@ -77,15 +83,15 @@ if (err instanceof NetworkError) {
 
 ## Status codes
 
-| Status | Error | Means |
-|---|---|---|
-| 400 | `ApiError` | Validation failed, `body.issues` has the zod detail |
-| 401 | `AuthError` | Missing, invalid or revoked key |
-| 403 | `AuthError` |, |
-| 404 | `ApiError` | Thread, fact or episode not found, or not yours |
-| 409 | `ApiError` | Conflict (dashboard user creation) |
-| 500 | `ApiError` | Server error, safe to retry |
-| 503 | `ApiError` | `/health` when a dependency is down |
+| Status | Error       | Means                                               |
+| ------ | ----------- | --------------------------------------------------- |
+| 400    | `ApiError`  | Validation failed, `body.issues` has the zod detail |
+| 401    | `AuthError` | Missing, invalid or revoked key                     |
+| 403    | `AuthError` | ,                                                   |
+| 404    | `ApiError`  | Thread, fact or episode not found, or not yours     |
+| 409    | `ApiError`  | Conflict (dashboard user creation)                  |
+| 500    | `ApiError`  | Server error, safe to retry                         |
+| 503    | `ApiError`  | `/health` when a dependency is down                 |
 
 Full list: [Errors](/reference/errors/).
 
@@ -94,7 +100,7 @@ Full list: [Errors](/reference/errors/).
 ## Handling by kind
 
 ```ts
-import { ApiError, AuthError, NetworkError } from '@alagappan17/memory-soda';
+import { ApiError, AuthError, NetworkError } from '@memory-soda/sdk';
 
 async function safeRecall(dataset: string, query: string): Promise<string> {
   try {
@@ -102,11 +108,11 @@ async function safeRecall(dataset: string, query: string): Promise<string> {
     return context;
   } catch (err) {
     if (err instanceof AuthError) {
-      throw err;                                    // config problem, fail loudly
+      throw err; // config problem, fail loudly
     }
     if (err instanceof NetworkError) {
       logger.warn({ err }, 'memory unreachable');
-      return '';                                    // degrade: answer without memory
+      return ''; // degrade: answer without memory
     }
     if (err instanceof ApiError && err.status >= 500) {
       logger.error({ status: err.status }, 'memory server error');
@@ -139,7 +145,9 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
         err instanceof NetworkError ||
         (err instanceof ApiError && err.status >= 500);
       if (!retryable || i === attempts - 1) throw err;
-      await new Promise((r) => setTimeout(r, 2 ** i * 250 + Math.random() * 100));
+      await new Promise((r) =>
+        setTimeout(r, 2 ** i * 250 + Math.random() * 100),
+      );
     }
   }
   throw lastErr;
@@ -150,14 +158,14 @@ const { context } = await withRetry(() => memory.recall({ dataset, query }));
 
 ### Idempotency
 
-| Operation | Safe to retry? |
-|---|---|
-| `recall`, `prepare`, `get`, `list*`, `health` | Yes, pure reads |
-| `threads.create` | Creates a **new thread** each time |
-| `addMessage` | Appends a **duplicate** message |
-| `threads.end` | Creates another episode (harmless, costs 3 LLM calls) |
-| `compact` | No-op when nothing to compact |
-| `deleteFact` | 404 on the second call |
+| Operation                                     | Safe to retry?                                        |
+| --------------------------------------------- | ----------------------------------------------------- |
+| `recall`, `prepare`, `get`, `list*`, `health` | Yes, pure reads                                       |
+| `threads.create`                              | Creates a **new thread** each time                    |
+| `addMessage`                                  | Appends a **duplicate** message                       |
+| `threads.end`                                 | Creates another episode (harmless, costs 3 LLM calls) |
+| `compact`                                     | No-op when nothing to compact                         |
+| `deleteFact`                                  | 404 on the second call                                |
 
 There are no idempotency keys. For writes, retry only on `NetworkError` where you
 have reason to believe the request never landed, and accept that a timeout after
@@ -175,10 +183,10 @@ const memory = new MemorySoda({ baseUrl, apiKey, timeout: 15_000 });
 
 Defaults to 60 seconds, deliberately generous, because two operations are slow:
 
-| Operation | Can take |
-|---|---|
+| Operation                                  | Can take    |
+| ------------------------------------------ | ----------- |
 | `addMessage` that triggers auto-compaction | up to ~30 s |
-| `recall({ include: ['synthesis'] })` | 1–3.5 s |
+| `recall({ include: ['synthesis'] })`       | 1–3.5 s     |
 
 A tight global timeout will cut those off. Use two clients if you want a short
 timeout on the hot path:
@@ -216,9 +224,11 @@ end users.
 
 ```ts
 function describe(err: unknown) {
-  if (err instanceof ApiError) return { kind: 'api', status: err.status, body: err.body };
+  if (err instanceof ApiError)
+    return { kind: 'api', status: err.status, body: err.body };
   if (err instanceof AuthError) return { kind: 'auth' };
-  if (err instanceof NetworkError) return { kind: 'network', cause: String(err.networkCause) };
+  if (err instanceof NetworkError)
+    return { kind: 'network', cause: String(err.networkCause) };
   return { kind: 'unknown', message: String(err) };
 }
 ```

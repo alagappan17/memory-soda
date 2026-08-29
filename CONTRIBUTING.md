@@ -68,14 +68,14 @@ fix(api): scope episode summarisation to the episode's own message window
 
 ## Project layout
 
-| Path | What lives there |
-| --- | --- |
-| `apps/api` | Express API, Drizzle schema, the memory pipeline |
-| `apps/dashboard` | Vite + React dashboard and playground |
-| `apps/docs` | Astro Starlight documentation site |
-| `packages/sdk` | The published client, `@alagappan17/memory-soda` |
-| `packages/types` | Shared types and settings defaults — the single source of truth |
-| `packages/create-memory-soda` | The `npm create memory-soda` installer |
+| Path                          | What lives there                                                |
+| ----------------------------- | --------------------------------------------------------------- |
+| `apps/api`                    | Express API, Drizzle schema, the memory pipeline                |
+| `apps/dashboard`              | Vite + React dashboard and playground                           |
+| `apps/docs`                   | Astro Starlight documentation site                              |
+| `packages/sdk`                | The published client, `@memory-soda/sdk`                        |
+| `packages/types`              | Shared types and settings defaults — the single source of truth |
+| `packages/create-memory-soda` | The `npm create memory-soda` installer                          |
 
 ## Reporting bugs
 

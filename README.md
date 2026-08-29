@@ -54,10 +54,10 @@ npm run dev      # migrations apply on boot
 
 `.env` is gitignored, so your config survives the pull.
 
-| Service | URL |
-|---|---|
-| Dashboard | http://localhost:3000 |
-| API | http://localhost:3004 |
+| Service     | URL                          |
+| ----------- | ---------------------------- |
+| Dashboard   | http://localhost:3000        |
+| API         | http://localhost:3004        |
 | Status page | http://localhost:3000/status |
 
 Open the **Status page** first to confirm all services (Postgres) are green before integrating the SDK.
@@ -67,15 +67,15 @@ Open the **Status page** first to confirm all services (Postgres) are green befo
 ## Use the SDK
 
 ```bash
-npm install @alagappan17/memory-soda
+npm install @memory-soda/sdk
 ```
 
 ```ts
-import { MemorySoda } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@memory-soda/sdk';
 
 const memory = new MemorySoda({
-  baseUrl: 'http://localhost:3004',   // your self-hosted API
-  apiKey: 'ms_xxxx',                  // from the first-boot output
+  baseUrl: 'http://localhost:3004', // your self-hosted API
+  apiKey: 'ms_xxxx', // from the first-boot output
 });
 ```
 
@@ -116,7 +116,7 @@ and records every turn.
 ```ts
 import { google } from '@ai-sdk/google';
 import { generateText, wrapLanguageModel } from 'ai';
-import { memoryMiddleware } from '@alagappan17/memory-soda/ai';
+import { memoryMiddleware } from '@memory-soda/sdk/ai';
 
 const model = wrapLanguageModel({
   model: google('gemini-2.5-flash'),
@@ -133,10 +133,10 @@ that should decide when to look something up themselves.
 ### The rest
 
 ```ts
-await memory.listFacts('user_42');            // what is known, most recent first
-await memory.deleteFact('user_42', factId);  // retire something we got wrong
-await memory.exportDataset('user_42');       // everything held, for a SAR
-await memory.forgetDataset('user_42');       // erase it, for real
+await memory.listFacts('user_42'); // what is known, most recent first
+await memory.deleteFact('user_42', factId); // retire something we got wrong
+await memory.exportDataset('user_42'); // everything held, for a SAR
+await memory.forgetDataset('user_42'); // erase it, for real
 ```
 
 > **Server-side only.** An API key grants full read and write access to every
@@ -152,7 +152,7 @@ cd packages/sdk && npm run build && cd ../..
 npm link --workspace=packages/sdk
 
 # In your app
-npm link @alagappan17/memory-soda
+npm link @memory-soda/sdk
 
 # When you change SDK code, just rebuild — the link picks up the new dist:
 npm run sdk:build
@@ -162,7 +162,7 @@ npm run sdk:build
 
 ```bash
 # In your app's package.json:
-"@alagappan17/memory-soda": "file:../memory-soda/packages/sdk"
+"@memory-soda/sdk": "file:../memory-soda/packages/sdk"
 
 npm install
 
@@ -202,7 +202,7 @@ apps/
   docs/         ← Astro Starlight documentation site
 
 packages/
-  sdk/          ← @alagappan17/memory-soda — install this in your app
+  sdk/          ← @memory-soda/sdk — install this in your app
   types/        ← shared types and settings defaults (internal)
   create-memory-soda/ ← the `npm create memory-soda` installer
 ```
@@ -211,15 +211,15 @@ packages/
 
 ## Environment variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `GOOGLE_GENERATIVE_AI_API_KEY` | **Yes** | Gemini API key — [get one at aistudio.google.com](https://aistudio.google.com) |
-| `DATABASE_URL` | **Yes** | Postgres connection string (database must have the `vector` extension). |
-| `HOST` | No | API bind address. Default: `localhost` |
-| `PORT` | No | API port. Default: `3004` |
-| `CORS_ORIGIN` | No | Dashboard URL for CORS. Default: `http://localhost:3000` |
-| `MIGRATE_ON_START` | No | Run DB migrations on startup. Default: `true` |
-| `VITE_API_URL` | No | API URL as seen from the browser. Default: `http://localhost:3004` |
+| Variable                       | Required | Description                                                                    |
+| ------------------------------ | -------- | ------------------------------------------------------------------------------ |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | **Yes**  | Gemini API key — [get one at aistudio.google.com](https://aistudio.google.com) |
+| `DATABASE_URL`                 | **Yes**  | Postgres connection string (database must have the `vector` extension).        |
+| `HOST`                         | No       | API bind address. Default: `localhost`                                         |
+| `PORT`                         | No       | API port. Default: `3004`                                                      |
+| `CORS_ORIGIN`                  | No       | Dashboard URL for CORS. Default: `http://localhost:3000`                       |
+| `MIGRATE_ON_START`             | No       | Run DB migrations on startup. Default: `true`                                  |
+| `VITE_API_URL`                 | No       | API URL as seen from the browser. Default: `http://localhost:3004`             |
 
 Copy `.env.example` to `.env` for local development.
 
@@ -227,23 +227,18 @@ Copy `.env.example` to `.env` for local development.
 
 ## Development commands
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start API + Dashboard in watch mode |
-| `npm run build` | Build all projects |
-| `npm run typecheck` | Type-check all projects |
-| `npm run test` | Run the test suites |
-| `npm run lint` | Lint everything |
-| `npm run sdk:build` | Build the SDK package |
-| `npm run db:migrate` | Apply pending migrations |
+| Command              | Description                         |
+| -------------------- | ----------------------------------- |
+| `npm run dev`        | Start API + Dashboard in watch mode |
+| `npm run build`      | Build all projects                  |
+| `npm run typecheck`  | Type-check all projects             |
+| `npm run test`       | Run the test suites                 |
+| `npm run lint`       | Lint everything                     |
+| `npm run sdk:build`  | Build the SDK package               |
+| `npm run db:migrate` | Apply pending migrations            |
 
 ---
 
 ## Publishing the SDK
 
-The SDK publishes to npm automatically when a `v*` tag is pushed. Requires `NPM_TOKEN` set as a GitHub Actions secret.
-
-```bash
-git tag v0.2.0
-git push origin v0.2.0
-```
+The SDK is published locally: bump `packages/sdk/package.json`, then `npm run sdk:publish`.

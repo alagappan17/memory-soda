@@ -1,7 +1,8 @@
 ---
-title: "Your first integration"
-description: "A complete chat turn, with your own model. This is the shape every integration takes."
+title: 'Your first integration'
+description: 'A complete chat turn, with your own model. This is the shape every integration takes.'
 ---
+
 A complete chat turn, with your own model. This is the shape every integration
 takes.
 
@@ -22,7 +23,7 @@ inference.
 ## Minimal version
 
 ```ts
-import { MemorySoda } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@memory-soda/sdk';
 
 const memory = new MemorySoda(); // MEMORY_SODA_BASE_URL + MEMORY_SODA_API_KEY
 
@@ -115,7 +116,7 @@ await memory.createThread({ dataset: 'user_42' }); // Friday's chat, remembers M
 
 ```ts
 import express from 'express';
-import { MemorySoda, ApiError } from '@alagappan17/memory-soda';
+import { MemorySoda, ApiError } from '@memory-soda/sdk';
 
 const app = express();
 app.use(express.json());

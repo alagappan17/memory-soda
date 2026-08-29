@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "test": "nx run-many --target=test --all",
     "typecheck": "nx run-many --target=typecheck --all",
-    "sdk:build": "nx build @alagappan17/memory-soda",
+    "sdk:build": "nx build @memory-soda/sdk",
+    "sdk:publish": "npm run sdk:build && npm publish --workspace=packages/sdk --access public",
+    "installer:publish": "npm publish --workspace=packages/create-memory-soda --access public",
     "docs:dev": "nx dev @memory-soda/docs",
     "docs:build": "nx build @memory-soda/docs",
     "docs:check-links": "nx check-links @memory-soda/docs",
@@ -55,7 +57,7 @@
       "prettier --write",
       "eslint --fix"
     ],
-    "*.{json,md,mdx,css,astro}": [
+    "*.{json,md,mdx,css}": [
       "prettier --write"
     ]
   }

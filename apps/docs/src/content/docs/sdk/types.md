@@ -1,11 +1,12 @@
 ---
-title: "Type reference"
-description: "Every type exported from @alagappan17/memory-soda. All are type-only exports."
+title: 'Type reference'
+description: 'Every type exported from @memory-soda/sdk. All are type-only exports.'
 ---
-Every type exported from `@alagappan17/memory-soda`. All are type-only exports.
+
+Every type exported from `@memory-soda/sdk`. All are type-only exports.
 
 ```ts
-import type { RecallResponse, SemanticFact } from '@alagappan17/memory-soda';
+import type { RecallResponse, SemanticFact } from '@memory-soda/sdk';
 ```
 
 ---
@@ -16,7 +17,7 @@ import type { RecallResponse, SemanticFact } from '@alagappan17/memory-soda';
 interface MemorySodaConfig {
   baseUrl: string;
   apiKey: string;
-  timeout?: number;   // ms, default 60_000
+  timeout?: number; // ms, default 60_000
 }
 
 type ServiceStatus = 'ok' | 'error';
@@ -37,7 +38,7 @@ interface WMThread {
   dataset: string;
   tags: string[];
   metadata: Record<string, unknown> | null;
-  createdAt: string;              // ISO 8601
+  createdAt: string; // ISO 8601
   lastActivityAt: string;
   settings: WMThreadSettings;
   lastCompactedAt: string | null;
@@ -50,10 +51,10 @@ interface WMThreadSettings {
 }
 
 interface WMCreateThreadRequest {
-  dataset?: string;                          // generated if omitted
+  dataset?: string; // generated if omitted
   tags?: string[];
   metadata?: Record<string, unknown>;
-  autoCompactThreshold?: number;             // >= 2
+  autoCompactThreshold?: number; // >= 2
   settings?: { episodic?: Partial<ProjectEpisodicSettings> };
 }
 
@@ -65,7 +66,7 @@ interface WMCreateThreadResponse {
 }
 
 interface WMPatchThreadRequest {
-  metadata: Record<string, unknown>;         // merged, not replaced
+  metadata: Record<string, unknown>; // merged, not replaced
 }
 
 interface WMEndThreadResponse {
@@ -110,7 +111,7 @@ interface WMMessage {
 
 interface WMAddMessageRequest {
   role: MessageRole;
-  content: string;                 // non-empty
+  content: string; // non-empty
   tokens?: WMTokenCount;
   model?: string;
   latencyMs?: number;
@@ -123,13 +124,13 @@ interface WMAddMessageResponse {
   sequenceNumber: number;
   role: MessageRole;
   createdAt: string;
-  compacted: boolean;              // this insert triggered compaction
+  compacted: boolean; // this insert triggered compaction
 }
 
 interface WMListMessagesQuery {
-  limit?: number;                  // 1–100, default 20
-  before?: number;                 // cursor on sequenceNumber
-  order?: 'asc' | 'desc';          // default 'asc'
+  limit?: number; // 1–100, default 20
+  before?: number; // cursor on sequenceNumber
+  order?: 'asc' | 'desc'; // default 'asc'
 }
 
 interface WMListMessagesResponse {
@@ -148,7 +149,7 @@ interface WMListMessagesResponse {
 
 ```ts
 interface WMPrepareRequest {
-  messageLimit?: number;           // 1–100, default 20
+  messageLimit?: number; // 1–100, default 20
 }
 
 interface WMPrepareResponse {
@@ -158,7 +159,7 @@ interface WMPrepareResponse {
   messageCount: number;
   truncated: boolean;
   compacted: boolean;
-  warning?: string;                // messageLimit < autoCompactThreshold
+  warning?: string; // messageLimit < autoCompactThreshold
 }
 ```
 
@@ -207,25 +208,25 @@ interface WMThreadStatsResponse {
 
 ```ts
 interface RecallRequest {
-  dataset: string;                                    // required, 1–256 chars
-  query?: string;                                     // max 2000 chars
+  dataset: string; // required, 1–256 chars
+  query?: string; // max 2000 chars
   include?: ('episodes' | 'synthesis' | 'raw')[];
-  limit?: number;                                     // 1–100
-  minConfidence?: number;                             // 0–1
-  asOf?: string;                                      // ISO datetime or date
+  limit?: number; // 1–100
+  minConfidence?: number; // 0–1
+  asOf?: string; // ISO datetime or date
 }
 
 interface RecallResponse {
-  context: string;                                    // always; "" when empty
-  factCount: number;                                  // always
-  synthesis: string | null;                           // include: ['synthesis']
-  facts: SemanticFact[] | null;                       // include: ['raw']
-  groups: RankedContextGroup[] | null;                // include: ['raw']
-  episodes: EpisodeContext | null;                    // include: ['episodes']
+  context: string; // always; "" when empty
+  factCount: number; // always
+  synthesis: string | null; // include: ['synthesis']
+  facts: SemanticFact[] | null; // include: ['raw']
+  groups: RankedContextGroup[] | null; // include: ['raw']
+  episodes: EpisodeContext | null; // include: ['episodes']
 }
 
 interface RankedContextGroup {
-  entityName: string;                                 // the anchor
+  entityName: string; // the anchor
   facts: {
     subject: string;
     predicate: string;
@@ -235,7 +236,7 @@ interface RankedContextGroup {
     validUntil: string | null;
     relevanceScore: number;
   }[];
-  groupRelevance: number;                             // max score in the group
+  groupRelevance: number; // max score in the group
 }
 ```
 
@@ -245,25 +246,35 @@ interface RankedContextGroup {
 
 ```ts
 const ENTITY_TYPES = [
-  'PERSON', 'ORG', 'PLACE', 'PRODUCT', 'SKILL', 'TOPIC',
-  'EVENT', 'FOOD', 'ROLE', 'CONCEPT', 'THING', 'DATE',
+  'PERSON',
+  'ORG',
+  'PLACE',
+  'PRODUCT',
+  'SKILL',
+  'TOPIC',
+  'EVENT',
+  'FOOD',
+  'ROLE',
+  'CONCEPT',
+  'THING',
+  'DATE',
 ] as const;
 
 type EntityType = (typeof ENTITY_TYPES)[number];
 
 interface SemanticFact {
   factId: string;
-  subject: string;                 // always 'user'
+  subject: string; // always 'user'
   predicate: string;
   object: string;
   objectIsEntity: boolean;
-  confidence: number;              // 0–1, model self-rated
+  confidence: number; // 0–1, model self-rated
   sourceQuote: string | null;
   validAt: string;
   validUntil: string | null;
   invalidAt: string | null;
   episodeId: string | null;
-  relevanceScore?: number;         // only on retrieval results
+  relevanceScore?: number; // only on retrieval results
 }
 
 interface SemanticEntity {
@@ -289,8 +300,12 @@ interface SemanticFactsResponse {
   total: number;
 }
 
-interface SemanticEntitiesResponse  { entities: SemanticEntity[] }
-interface SemanticEntityFactsResponse { facts: SemanticFact[] }
+interface SemanticEntitiesResponse {
+  entities: SemanticEntity[];
+}
+interface SemanticEntityFactsResponse {
+  facts: SemanticFact[];
+}
 ```
 
 ---
@@ -309,7 +324,7 @@ interface EpisodeContextItem {
 
 interface EpisodeContext {
   episodes: EpisodeContextItem[] | null;
-  episodeCount: number;            // total for the dataset, not the array length
+  episodeCount: number; // total for the dataset, not the array length
 }
 ```
 

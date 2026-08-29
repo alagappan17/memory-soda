@@ -1,6 +1,6 @@
 {
-  "name": "@alagappan17/memory-soda",
-  "version": "0.2.0",
+  "name": "@memory-soda/sdk",
+  "version": "0.3.0",
   "description": "Memory for AI agents. Threads in, recalled context out.",
   "keywords": [
     "ai",
@@ -63,7 +63,9 @@
       },
       "test": {
         "executor": "nx:run-commands",
-        "dependsOn": ["^build"],
+        "dependsOn": [
+          "^build"
+        ],
         "options": {
           "command": "node --import ./tools/resolve-ts.mjs --test \"packages/sdk/src/**/*.test.ts\""
         }

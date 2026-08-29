@@ -1,11 +1,16 @@
 ---
-title: "AI SDK integration"
-description: "Wire memory into generateText, streamText and agent loops through a language-model middleware."
+title: 'AI SDK integration'
+description: 'Wire memory into generateText, streamText and agent loops through a language-model middleware.'
 ---
+
 Memory Soda ships a subpath for the [Vercel AI SDK](https://sdk.vercel.ai):
 
 ```ts
-import { memoryMiddleware, memoryTool, toMemoryMessages } from '@alagappan17/memory-soda/ai';
+import {
+  memoryMiddleware,
+  memoryTool,
+  toMemoryMessages,
+} from '@memory-soda/sdk/ai';
 ```
 
 It is a separate entry point, so importing the client never pulls in code that
@@ -24,8 +29,8 @@ Wrapping the model instead of every call site means memory behaves the same in
 ```ts
 import { google } from '@ai-sdk/google';
 import { generateText, wrapLanguageModel } from 'ai';
-import { MemorySoda } from '@alagappan17/memory-soda';
-import { memoryMiddleware } from '@alagappan17/memory-soda/ai';
+import { MemorySoda } from '@memory-soda/sdk';
+import { memoryMiddleware } from '@memory-soda/sdk/ai';
 
 const memory = new MemorySoda();
 const { threadId, dataset } = await memory.createThread({ dataset: 'u_42' });
@@ -41,17 +46,17 @@ const { text } = await generateText({ model, prompt: 'What should I cook?' });
 
 ### Options
 
-| Option | Default | What it does |
-|---|---|---|
-| `memory` |, | The client to use. Required. |
-| `dataset` |, | Whose memory this is. Required. |
-| `threadId` |, | Thread to append to. A string, or a function resolving one per call. Omit it and the middleware only reads. |
-| `recall` | `true` | Inject recalled context into the system prompt. |
-| `write` | `true` when a thread is available | Record the finished turn. |
-| `limit` | project setting | Facts to retrieve. |
-| `includeEpisodes` | `false` | Also inject cross-thread episode summaries. |
-| `recallTimeoutMs` | `2000` | Cap on how long recall may delay a model call. |
-| `onError` | `console.warn` | Called when recall or the write-back fails. |
+| Option            | Default                           | What it does                                                                                                |
+| ----------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `memory`          | ,                                 | The client to use. Required.                                                                                |
+| `dataset`         | ,                                 | Whose memory this is. Required.                                                                             |
+| `threadId`        | ,                                 | Thread to append to. A string, or a function resolving one per call. Omit it and the middleware only reads. |
+| `recall`          | `true`                            | Inject recalled context into the system prompt.                                                             |
+| `write`           | `true` when a thread is available | Record the finished turn.                                                                                   |
+| `limit`           | project setting                   | Facts to retrieve.                                                                                          |
+| `includeEpisodes` | `false`                           | Also inject cross-thread episode summaries.                                                                 |
+| `recallTimeoutMs` | `2000`                            | Cap on how long recall may delay a model call.                                                              |
+| `onError`         | `console.warn`                    | Called when recall or the write-back fails.                                                                 |
 
 ### Two guarantees
 
@@ -100,7 +105,7 @@ decides when a lookup is worth a round trip, and says what it is looking for,
 usually a better retrieval query than the raw user message.
 
 ```ts
-import { memoryTool } from '@alagappan17/memory-soda/ai';
+import { memoryTool } from '@memory-soda/sdk/ai';
 
 const { text } = await generateText({
   model: google('gemini-2.5-flash'),
@@ -124,7 +129,7 @@ The AI SDK models a message as a role plus an array of parts. Memory stores
 text. `toMemoryMessages` flattens one into the other:
 
 ```ts
-import { toMemoryMessages } from '@alagappan17/memory-soda/ai';
+import { toMemoryMessages } from '@memory-soda/sdk/ai';
 
 await memory.addMessages(threadId, toMemoryMessages(messages));
 ```

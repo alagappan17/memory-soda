@@ -1,8 +1,9 @@
 ---
-title: "Releasing the SDK"
-description: "@alagappan17/memory-soda is the only published package. The API and dashboard are deployed, not published; @memory-soda/types is private and bundled into the SDK's…"
+title: 'Releasing the SDK'
+description: "@memory-soda/sdk is the only published package. The API and dashboard are deployed, not published; @memory-soda/types is private and bundled into the SDK's…"
 ---
-`@alagappan17/memory-soda` is the only published package. The API and dashboard are
+
+`@memory-soda/sdk` is the only published package. The API and dashboard are
 deployed, not published; `@memory-soda/types` is private and bundled into the
 SDK's declarations.
 
@@ -12,13 +13,13 @@ SDK's declarations.
 
 ```json
 {
-  "name": "@alagappan17/memory-soda",
+  "name": "@memory-soda/sdk",
   "version": "0.1.0",
   "type": "module",
-  "main":   "./dist/index.cjs",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.js",
-  "types":  "./dist/index.d.ts",
-  "files":  ["dist", "README.md"],
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
   "engines": { "node": ">=18" },
   "sideEffects": false,
   "publishConfig": { "access": "public" }
@@ -39,30 +40,19 @@ ls packages/sdk/dist
 
 ## Publishing
 
-Automated. Pushing a `v*` tag triggers the GitHub Actions workflow, which builds
-and publishes.
+Local, from the repo root (npm will prompt for your OTP):
 
 ```bash
 # bump the version in packages/sdk/package.json first
-git commit -am "chore(sdk): v0.2.0"
-git tag v0.2.0
-git push origin main --tags
-```
-
-Requires `NPM_TOKEN` as a repository secret.
-
-### Manually
-
-```bash
-npm run sdk:build
-cd packages/sdk
-npm publish --access public
+npm run sdk:publish          # builds, then publishes @memory-soda/sdk
+npm run installer:publish    # publishes create-memory-soda
+git commit -am "chore(sdk): v0.3.0" && git tag v0.3.0 && git push origin main --tags
 ```
 
 Check the tarball first:
 
 ```bash
-npm pack --dry-run
+cd packages/sdk && npm pack --dry-run
 ```
 
 `dist/` and `README.md` only. If `src/` or `node_modules/` appear, the `files`
@@ -74,13 +64,13 @@ field has been broken.
 
 Semver, pre-1.0, so a minor bump may still break.
 
-| Change | Bump |
-|---|---|
-| New method or optional parameter | minor |
-| Bug fix, docs, types | patch |
-| Removed or renamed method | minor while `0.x`, major after |
-| Changed response shape | minor while `0.x`, major after |
-| Required parameter added | minor while `0.x`, major after |
+| Change                           | Bump                           |
+| -------------------------------- | ------------------------------ |
+| New method or optional parameter | minor                          |
+| Bug fix, docs, types             | patch                          |
+| Removed or renamed method        | minor while `0.x`, major after |
+| Changed response shape           | minor while `0.x`, major after |
+| Required parameter added         | minor while `0.x`, major after |
 
 ### Coupling to the API
 
@@ -113,10 +103,10 @@ npm run sdk:build
 npm link --workspace=packages/sdk
 
 mkdir /tmp/sdk-smoke && cd /tmp/sdk-smoke && npm init -y
-npm link @alagappan17/memory-soda
+npm link @memory-soda/sdk
 
 cat > test.mjs <<'EOF'
-import { MemorySoda } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@memory-soda/sdk';
 const m = new MemorySoda({ baseUrl: 'http://localhost:3004', apiKey: process.env.KEY });
 console.log(await m.health());
 const { threadId } = await m.createThread({ dataset: 'smoke_test' });
@@ -131,7 +121,7 @@ KEY=ms_… node test.mjs
 Check CJS too, since it is a separate build output:
 
 ```bash
-node -e "const { MemorySoda } = require('@alagappan17/memory-soda'); console.log(typeof MemorySoda)"
+node -e "const { MemorySoda } = require('@memory-soda/sdk'); console.log(typeof MemorySoda)"
 ```
 
 ---

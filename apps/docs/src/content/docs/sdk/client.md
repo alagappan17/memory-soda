@@ -1,11 +1,12 @@
 ---
-title: "`MemorySoda`"
-description: "The root client. Owns configuration and the two top-level reads."
+title: '`MemorySoda`'
+description: 'The root client. Owns configuration and the two top-level reads.'
 ---
+
 The root client. Owns configuration and the two top-level reads.
 
 ```ts
-import { MemorySoda } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@memory-soda/sdk';
 
 const memory = new MemorySoda({
   baseUrl: 'http://localhost:3004',
@@ -21,11 +22,11 @@ const memory = new MemorySoda({
 new MemorySoda(config: MemorySodaConfig)
 ```
 
-| Option | Type | Default | Notes |
-|---|---|---|---|
-| `baseUrl` | `string` |, | Required. Trailing slash is stripped. |
-| `apiKey` | `string` |, | Required. `ms_…`, sent as `Authorization: Bearer`. |
-| `timeout` | `number` | `60000` | Per-request timeout in ms. |
+| Option    | Type     | Default | Notes                                              |
+| --------- | -------- | ------- | -------------------------------------------------- |
+| `baseUrl` | `string` | ,       | Required. Trailing slash is stripped.              |
+| `apiKey`  | `string` | ,       | Required. `ms_…`, sent as `Authorization: Bearer`. |
+| `timeout` | `number` | `60000` | Per-request timeout in ms.                         |
 
 ### `new MemorySoda()`
 
@@ -41,13 +42,13 @@ if either is missing, this is a startup misconfiguration, not a runtime failure.
 Every method is on the client itself, there are no sub-clients to reach
 through. The pages below group them by what you are doing.
 
-| Doing | Methods | Page |
-|---|---|---|
-| Running a conversation | `createThread`, `getThread`, `updateThread`, `endThread` | [threads](/sdk/threads/) |
-| Writing and reading it back | `addMessage`, `addMessages`, `listMessages`, `prepare`, `compact` | [messages](/sdk/working-memory/) |
-| Durable facts | `listFacts`, `deleteFact`, `listEntities` | [facts and entities](/sdk/semantic-memory/) |
-| What was learned, and when | `listEpisodes`, `searchEpisodes`, `getEpisode` | [episodes](/sdk/episodes/) |
-| Export and erasure | `exportDataset`, `forgetDataset` | [datasets](/sdk/datasets/) |
+| Doing                       | Methods                                                           | Page                                        |
+| --------------------------- | ----------------------------------------------------------------- | ------------------------------------------- |
+| Running a conversation      | `createThread`, `getThread`, `updateThread`, `endThread`          | [threads](/sdk/threads/)                    |
+| Writing and reading it back | `addMessage`, `addMessages`, `listMessages`, `prepare`, `compact` | [messages](/sdk/working-memory/)            |
+| Durable facts               | `listFacts`, `deleteFact`, `listEntities`                         | [facts and entities](/sdk/semantic-memory/) |
+| What was learned, and when  | `listEpisodes`, `searchEpisodes`, `getEpisode`                    | [episodes](/sdk/episodes/)                  |
+| Export and erasure          | `exportDataset`, `forgetDataset`                                  | [datasets](/sdk/datasets/)                  |
 
 ---
 
@@ -62,25 +63,25 @@ recall(req: RecallRequest): Promise<RecallResponse>
 
 ### Request
 
-| Field | Type | Default | Notes |
-|---|---|---|---|
-| `dataset` | `string` |, | **Required.** 1–256 chars. |
-| `query` | `string` |, | Drives ranking. Omit for most-recent facts. Max 2000 chars. |
-| `include` | `('episodes' \| 'synthesis' \| 'raw')[]` | `[]` | Opt-in extras. |
-| `limit` | `number` | `factsInContext` (8) | 1–100. |
-| `minConfidence` | `number` | `retrievalMinConfidence` (0.5) | 0–1. |
-| `asOf` | `string` |, | ISO datetime or date. Point-in-time. |
+| Field           | Type                                     | Default                        | Notes                                                       |
+| --------------- | ---------------------------------------- | ------------------------------ | ----------------------------------------------------------- |
+| `dataset`       | `string`                                 | ,                              | **Required.** 1–256 chars.                                  |
+| `query`         | `string`                                 | ,                              | Drives ranking. Omit for most-recent facts. Max 2000 chars. |
+| `include`       | `('episodes' \| 'synthesis' \| 'raw')[]` | `[]`                           | Opt-in extras.                                              |
+| `limit`         | `number`                                 | `factsInContext` (8)           | 1–100.                                                      |
+| `minConfidence` | `number`                                 | `retrievalMinConfidence` (0.5) | 0–1.                                                        |
+| `asOf`          | `string`                                 | ,                              | ISO datetime or date. Point-in-time.                        |
 
 ### Response
 
 ```ts
 interface RecallResponse {
-  context: string;                       // always, the prompt-ready block, "" if nothing
-  factCount: number;                     // always
-  synthesis: string | null;              // only with include: ['synthesis']
-  facts: SemanticFact[] | null;          // only with include: ['raw']
-  groups: RankedContextGroup[] | null;   // only with include: ['raw']
-  episodes: EpisodeContext | null;       // only with include: ['episodes']
+  context: string; // always, the prompt-ready block, "" if nothing
+  factCount: number; // always
+  synthesis: string | null; // only with include: ['synthesis']
+  facts: SemanticFact[] | null; // only with include: ['raw']
+  groups: RankedContextGroup[] | null; // only with include: ['raw']
+  episodes: EpisodeContext | null; // only with include: ['episodes']
 }
 ```
 
@@ -88,7 +89,10 @@ interface RecallResponse {
 
 ```ts
 // The common case
-const { context } = await memory.recall({ dataset: 'user_42', query: userMessage });
+const { context } = await memory.recall({
+  dataset: 'user_42',
+  query: userMessage,
+});
 
 // Session opener, no query, most recent facts
 const { context } = await memory.recall({ dataset: 'user_42' });
@@ -128,7 +132,7 @@ prepareAndRecall(
 
 ```ts
 const { prepared, recalled } = await memory.prepareAndRecall(threadId, {
-  dataset: userId,       // pass it if you know it
+  dataset: userId, // pass it if you know it
   query: userMessage,
   messageLimit: 20,
 });
@@ -185,11 +189,10 @@ try {
 
 ---
 
-
 ## Full turn
 
 ```ts
-import { MemorySoda } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@memory-soda/sdk';
 
 const memory = new MemorySoda();
 

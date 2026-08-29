@@ -1,7 +1,8 @@
 ---
-title: "Architecture"
-description: "An Nx monorepo with npm workspaces."
+title: 'Architecture'
+description: 'An Nx monorepo with npm workspaces.'
 ---
+
 ---
 
 ## Repository layout
@@ -22,7 +23,7 @@ memory-soda/
 │   │       └── main.ts    wiring, first-boot seed, background jobs
 │   └── dashboard/         Vite + React 19 + React Router + Tailwind/shadcn
 ├── packages/
-│   ├── sdk/               @alagappan17/memory-soda, published to npm
+│   ├── sdk/               @memory-soda/sdk, published to npm
 │   └── types/             shared TypeScript types, type-only at runtime
 └── developer-docs/        this documentation
 ```
@@ -62,11 +63,11 @@ only dependency.
 
 ### Ports
 
-| Service | Default | Env var |
-|---|---|---|
-| API | `3004` | `PORT` |
-| Dashboard | `3000` |, (Vite) |
-| Postgres | `5432` | inside `DATABASE_URL` |
+| Service   | Default | Env var               |
+| --------- | ------- | --------------------- |
+| API       | `3004`  | `PORT`                |
+| Dashboard | `3000`  | , (Vite)              |
+| Postgres  | `5432`  | inside `DATABASE_URL` |
 
 ---
 
@@ -74,10 +75,10 @@ only dependency.
 
 They are entirely separate and never mix.
 
-| Plane | Path prefix | Guard | Credential |
-|---|---|---|---|
-| **SDK / integration** | `/v1/*` | `requireApiKey` | `ms_<64 hex>`, SHA-256 hashed at rest, resolves to a `projectId` |
-| **Dashboard** | `/dashboard/*` | `requireSession` | opaque session token, SHA-256 hashed, with `expiresAt` and `revokedAt` |
+| Plane                 | Path prefix    | Guard            | Credential                                                             |
+| --------------------- | -------------- | ---------------- | ---------------------------------------------------------------------- |
+| **SDK / integration** | `/v1/*`        | `requireApiKey`  | `ms_<64 hex>`, SHA-256 hashed at rest, resolves to a `projectId`       |
+| **Dashboard**         | `/dashboard/*` | `requireSession` | opaque session token, SHA-256 hashed, with `expiresAt` and `revokedAt` |
 
 `/health` and `/auth/*` are public. See [Authentication](/api/authentication/).
 
@@ -144,11 +145,11 @@ error middleware yet, see [Errors](/reference/errors/).
 All three run in-process via `setInterval` in `main.ts`, and all are `unref`'d so
 they never keep the process alive.
 
-| Every | Job | Does |
-|---|---|---|
-| 5 s | `processScheduledEpisodes` | drains due rows from `scheduled_episodes` and starts episode processing |
-| 120 s | `retryFailedEpisodes` | retries up to 20 failed episodes, bounded by `maxRetries` |
-| 120 s | `sweepSemanticMemory` | picks up episodes whose semantic extraction is pending, failed, or orphaned by a dead worker |
+| Every | Job                        | Does                                                                                         |
+| ----- | -------------------------- | -------------------------------------------------------------------------------------------- |
+| 5 s   | `processScheduledEpisodes` | drains due rows from `scheduled_episodes` and starts episode processing                      |
+| 120 s | `retryFailedEpisodes`      | retries up to 20 failed episodes, bounded by `maxRetries`                                    |
+| 120 s | `sweepSemanticMemory`      | picks up episodes whose semantic extraction is pending, failed, or orphaned by a dead worker |
 
 Work is claimed with atomic `UPDATE … WHERE status IN (…) RETURNING`, so a
 duplicate tick cannot double-process. A `processing` claim older than 10 minutes
@@ -163,14 +164,14 @@ is treated as orphaned and reclaimed.
 
 Everything goes through `apps/api/src/lib/gemini.ts`.
 
-| Purpose | Model | Timeout |
-|---|---|---|
-| Episode summarisation | `gemini-2.5-flash` | 30 s |
-| Graph extraction | `gemini-2.5-flash`, structured output, thinking disabled | 90 s |
-| Contradiction judging | `gemini-2.5-flash`, structured output, thinking disabled | 90 s |
-| Compaction summary | `gemini-2.5-flash` | 30 s |
-| Synthesis (opt-in) | `gemini-2.5-flash` | 30 s |
-| Embeddings | `gemini-embedding-001`, 768 dimensions | 30 s |
+| Purpose               | Model                                                    | Timeout |
+| --------------------- | -------------------------------------------------------- | ------- |
+| Episode summarisation | `gemini-2.5-flash`                                       | 30 s    |
+| Graph extraction      | `gemini-2.5-flash`, structured output, thinking disabled | 90 s    |
+| Contradiction judging | `gemini-2.5-flash`, structured output, thinking disabled | 90 s    |
+| Compaction summary    | `gemini-2.5-flash`                                       | 30 s    |
+| Synthesis (opt-in)    | `gemini-2.5-flash`                                       | 30 s    |
+| Embeddings            | `gemini-embedding-001`, 768 dimensions                   | 30 s    |
 
 Thinking is disabled on the structured calls deliberately: extraction and
 judging are pattern-matching tasks, and thinking mode was observed to spiral for
@@ -193,8 +194,8 @@ wrapped in explicit framing:
 - Fact text is collapsed to a single line before rendering so it cannot break
   out of the block.
 
-This mitigates injection *through* memory. It does not address memory
-*poisoning*, a user deliberately teaching the system false facts. The only
+This mitigates injection _through_ memory. It does not address memory
+_poisoning_, a user deliberately teaching the system false facts. The only
 remedy there is deletion; see [Curating memory](/guides/curating-memory/).
 
 ---

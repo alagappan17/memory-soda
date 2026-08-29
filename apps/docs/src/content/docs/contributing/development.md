@@ -1,7 +1,8 @@
 ---
-title: "Development setup"
-description: "Node 20+ (22 recommended), PostgreSQL 14+ with pgvector, and a Gemini API key."
+title: 'Development setup'
+description: 'Node 20+ (22 recommended), PostgreSQL 14+ with pgvector, and a Gemini API key.'
 ---
+
 ---
 
 ## Prerequisites
@@ -44,7 +45,7 @@ apps/
       main.ts             wiring, first-boot seed, background jobs
   dashboard/              Vite + React 19 + React Router
 packages/
-  sdk/                    @alagappan17/memory-soda, published
+  sdk/                    @memory-soda/sdk, published
   types/                  shared types, type-only at runtime
 developer-docs/           this documentation
 ```
@@ -153,7 +154,7 @@ Testing against a local app:
 npm run sdk:build
 npm link --workspace=packages/sdk
 # in your app
-npm link @alagappan17/memory-soda
+npm link @memory-soda/sdk
 ```
 
 After changing SDK source, `npm run sdk:build` is enough, the link picks up the
@@ -199,14 +200,14 @@ subquery qualifies `threads.id`. Match that.
 ## Gotchas
 
 **Drizzle renders interpolated columns unqualified.** In a correlated subquery a
-bare `"id"` binds to the *inner* table:
+bare `"id"` binds to the _inner_ table:
 
 ```ts
 // wrong, "id" resolves to messages.id, so the predicate is never true
-sql`(select count(*)::int from ${messages} where ${messages.threadId} = ${threads.id})`
+sql`(select count(*)::int from ${messages} where ${messages.threadId} = ${threads.id})`;
 
 // right
-sql`(select count(*)::int from ${messages} where ${messages.threadId} = ${threads}."id")`
+sql`(select count(*)::int from ${messages} where ${messages.threadId} = ${threads}."id")`;
 ```
 
 **Drizzle wraps driver errors.** The pg `code` is on `.cause`, not the thrown

@@ -1,7 +1,8 @@
 ---
-title: "Installation"
-description: "Memory Soda is self-hosted. You run Postgres, you bring a Gemini API key."
+title: 'Installation'
+description: 'Memory Soda is self-hosted. You run Postgres, you bring a Gemini API key.'
 ---
+
 Memory Soda is self-hosted. You run Postgres, you bring a Gemini API key.
 
 ---
@@ -37,11 +38,11 @@ Everything below is the same setup done by hand.
 
 ## Prerequisites
 
-| Requirement | Version | Notes |
-|---|---|---|
-| Node.js | 20 or newer | 22+ recommended |
-| PostgreSQL | 14 or newer | must have the [pgvector](https://github.com/pgvector/pgvector) extension available |
-| Gemini API key |, | free tier is enough to evaluate, [aistudio.google.com](https://aistudio.google.com) |
+| Requirement    | Version     | Notes                                                                               |
+| -------------- | ----------- | ----------------------------------------------------------------------------------- |
+| Node.js        | 20 or newer | 22+ recommended                                                                     |
+| PostgreSQL     | 14 or newer | must have the [pgvector](https://github.com/pgvector/pgvector) extension available  |
+| Gemini API key | ,           | free tier is enough to evaluate, [aistudio.google.com](https://aistudio.google.com) |
 
 ### Installing pgvector
 
@@ -53,6 +54,7 @@ brew install pgvector
 # If you installed Postgres via Homebrew, that's it. Otherwise build from source:
 #   git clone https://github.com/pgvector/pgvector && cd pgvector && make && sudo make install
 ```
+
 </details>
 
 <details>
@@ -61,6 +63,7 @@ brew install pgvector
 ```bash
 sudo apt install postgresql-16-pgvector   # match your server major version
 ```
+
 </details>
 
 <details>
@@ -74,6 +77,7 @@ docker run -d --name memory-pg \
   -p 5432:5432 \
   pgvector/pgvector:pg16
 ```
+
 </details>
 
 Verify it is available:
@@ -166,10 +170,10 @@ line. Sign in and create an API key under **API Keys**.
   It is not recoverable either, but you can create another user from the
   dashboard, or insert one directly.
 
-| Service | URL |
-|---|---|
-| Dashboard | http://localhost:3000 |
-| API | http://localhost:3004 |
+| Service      | URL                          |
+| ------------ | ---------------------------- |
+| Dashboard    | http://localhost:3000        |
+| API          | http://localhost:3004        |
 | Health check | http://localhost:3004/health |
 
 ---
@@ -191,11 +195,11 @@ Then sign in to the dashboard at http://localhost:3000 and open **Status**.
 ## Installing the SDK in your app
 
 ```bash
-npm install @alagappan17/memory-soda
+npm install @memory-soda/sdk
 ```
 
 ```ts
-import { MemorySoda } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@memory-soda/sdk';
 
 const memory = new MemorySoda({
   baseUrl: 'http://localhost:3004',
@@ -213,7 +217,7 @@ npm run sdk:build
 npm link --workspace=packages/sdk
 
 # in your app
-npm link @alagappan17/memory-soda
+npm link @memory-soda/sdk
 ```
 
 After changing SDK source, `npm run sdk:build` is enough, the link picks up the
@@ -222,7 +226,7 @@ new `dist`.
 Alternatively, pin a file path in your app's `package.json`:
 
 ```json
-{ "dependencies": { "@alagappan17/memory-soda": "file:../memory-soda/packages/sdk" } }
+{ "dependencies": { "@memory-soda/sdk": "file:../memory-soda/packages/sdk" } }
 ```
 
 ---
@@ -234,7 +238,7 @@ The API throws at import time without it. It is required even for endpoints that
 never call a model.
 
 **`extension "vector" is not available`**
-pgvector is not installed for your Postgres *major version*. Installing it for
+pgvector is not installed for your Postgres _major version_. Installing it for
 16 does not help a 15 server.
 
 **`Error: listen EADDRINUSE :::3004`**

@@ -1,7 +1,8 @@
 ---
-title: "Build a chatbot with memory"
-description: "A complete, production-shaped integration. Streaming, multi-user, degrading gracefully when memory is unavailable."
+title: 'Build a chatbot with memory'
+description: 'A complete, production-shaped integration. Streaming, multi-user, degrading gracefully when memory is unavailable.'
 ---
+
 A complete, production-shaped integration. Streaming, multi-user, degrading
 gracefully when memory is unavailable.
 
@@ -27,7 +28,7 @@ Two reads before the model, two writes after. That is the whole thing.
 
 ```ts
 // lib/memory.ts
-import { MemorySoda } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@memory-soda/sdk';
 
 export const memory = new MemorySoda({
   baseUrl: process.env.MEMORY_SODA_BASE_URL!,
@@ -50,11 +51,13 @@ A thread is one conversation. Store its id with your own conversation record.
 import { memory } from './memory';
 
 export async function resolveThread(userId: string, conversationId: string) {
-  const row = await db.conversation.findUnique({ where: { id: conversationId } });
+  const row = await db.conversation.findUnique({
+    where: { id: conversationId },
+  });
   if (row?.threadId) return row.threadId;
 
   const { threadId } = await memory.createThread({
-    dataset: userId,                      // ← the identity that owns the memory
+    dataset: userId, // ← the identity that owns the memory
     metadata: { conversationId },
     autoCompactThreshold: 40,
   });
@@ -78,7 +81,7 @@ the thread, so every conversation this user ever has feeds the same memory. See
 ```ts
 // lib/context.ts
 import { memory } from './memory';
-import { AuthError } from '@alagappan17/memory-soda';
+import { AuthError } from '@memory-soda/sdk';
 
 export async function loadContext(
   threadId: string,
@@ -86,23 +89,28 @@ export async function loadContext(
   message: string,
 ) {
   const [prepared, recalled] = await Promise.all([
-    memory
-      .prepare(threadId, { messageLimit: 40 })
-      .catch((err) => {
-        if (err instanceof AuthError) throw err;         // config problem
-        logger.warn({ err }, 'prepare failed');
-        return { messages: [], messageCount: 0, truncated: false, compacted: false };
-      }),
-    memory
-      .recall({ dataset: userId, query: message })
-      .catch((err) => {
-        if (err instanceof AuthError) throw err;
-        logger.warn({ err }, 'recall failed');
-        return { context: '', factCount: 0 };
-      }),
+    memory.prepare(threadId, { messageLimit: 40 }).catch((err) => {
+      if (err instanceof AuthError) throw err; // config problem
+      logger.warn({ err }, 'prepare failed');
+      return {
+        messages: [],
+        messageCount: 0,
+        truncated: false,
+        compacted: false,
+      };
+    }),
+    memory.recall({ dataset: userId, query: message }).catch((err) => {
+      if (err instanceof AuthError) throw err;
+      logger.warn({ err }, 'recall failed');
+      return { context: '', factCount: 0 };
+    }),
   ]);
 
-  return { history: prepared.messages, context: recalled.context, factCount: recalled.factCount };
+  return {
+    history: prepared.messages,
+    context: recalled.context,
+    factCount: recalled.factCount,
+  };
 }
 ```
 
@@ -147,7 +155,7 @@ Two things matter here:
 
 ## 5. Streaming
 
-Streaming changes only *when* you write, not what.
+Streaming changes only _when_ you write, not what.
 
 ```ts
 // app/api/chat/route.ts
@@ -192,9 +200,14 @@ export async function POST(req: Request) {
             content: full,
             model: 'your-model-id',
             latencyMs: Date.now() - started,
-            tokens: { input: stream.usage?.input, output: stream.usage?.output },
+            tokens: {
+              input: stream.usage?.input,
+              output: stream.usage?.output,
+            },
           })
-          .catch((err) => logger.warn({ err, threadId }, 'assistant write failed'));
+          .catch((err) =>
+            logger.warn({ err, threadId }, 'assistant write failed'),
+          );
       },
     }),
     { headers: { 'Content-Type': 'text/plain; charset=utf-8' } },
@@ -211,14 +224,18 @@ dropped user turn costs a fact.
 ## 6. Closing a conversation
 
 Extraction fires after 30 minutes of silence, or when the user starts a new
-thread, anyway. But when you *know* a conversation ended, say so:
+thread, anyway. But when you _know_ a conversation ended, say so:
 
 ```ts
 export async function endConversation(conversationId: string) {
-  const { threadId } = await db.conversation.findUniqueOrThrow({ where: { id: conversationId } });
-  await memory.endThread(threadId).catch((err) =>
-    logger.warn({ err, threadId }, 'failed to queue extraction'),
-  );
+  const { threadId } = await db.conversation.findUniqueOrThrow({
+    where: { id: conversationId },
+  });
+  await memory
+    .endThread(threadId)
+    .catch((err) =>
+      logger.warn({ err, threadId }, 'failed to queue extraction'),
+    );
 }
 ```
 
@@ -229,12 +246,12 @@ writable, this is a checkpoint, not a close.
 
 ## 7. Latency budget
 
-| Step | Typical | Notes |
-|---|---|---|
-| `resolveThread` | your DB | cached after the first turn |
-| `prepare` ∥ `recall` | 200–500 ms | parallel; dominated by one embedding call |
-| your model |, | |
-| `addMessage` ×2 | 10–30 ms | occasionally ~30 s when it triggers compaction |
+| Step                 | Typical    | Notes                                          |
+| -------------------- | ---------- | ---------------------------------------------- |
+| `resolveThread`      | your DB    | cached after the first turn                    |
+| `prepare` ∥ `recall` | 200–500 ms | parallel; dominated by one embedding call      |
+| your model           | ,          |                                                |
+| `addMessage` ×2      | 10–30 ms   | occasionally ~30 s when it triggers compaction |
 
 **Memory adds ~300–500 ms before first token.** If that matters:
 
@@ -278,10 +295,11 @@ Extraction is asynchronous, which makes tests awkward. Force it:
 const { threadId } = await memory.createThread({ dataset: 'test_user_1' });
 
 await memory.addMessage(threadId, {
-  role: 'user', content: 'I love sci-fi movies and cannot stand horror.',
+  role: 'user',
+  content: 'I love sci-fi movies and cannot stand horror.',
 });
 
-await memory.endThread(threadId);          // queue extraction now
+await memory.endThread(threadId); // queue extraction now
 
 // poll rather than sleeping a fixed amount
 const facts = await waitFor(

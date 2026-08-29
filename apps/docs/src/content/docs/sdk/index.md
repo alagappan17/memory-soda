@@ -1,30 +1,31 @@
 ---
-title: "SDK reference"
-description: "@alagappan17/memory-soda, a typed, zero-dependency TypeScript client."
+title: 'SDK reference'
+description: '@memory-soda/sdk, a typed, zero-dependency TypeScript client.'
 ---
-`@alagappan17/memory-soda`, a typed, zero-dependency TypeScript client.
+
+`@memory-soda/sdk`, a typed, zero-dependency TypeScript client.
 
 ---
 
 ## Install
 
 ```bash
-npm install @alagappan17/memory-soda
+npm install @memory-soda/sdk
 ```
 
-| | |
-|---|---|
-| Runtime | Node 18+ (uses global `fetch` and `AbortSignal.timeout`) |
-| Formats | ESM and CJS |
-| Dependencies | none |
-| Types | bundled |
+|              |                                                          |
+| ------------ | -------------------------------------------------------- |
+| Runtime      | Node 18+ (uses global `fetch` and `AbortSignal.timeout`) |
+| Formats      | ESM and CJS                                              |
+| Dependencies | none                                                     |
+| Types        | bundled                                                  |
 
 ---
 
 ## Initialise
 
 ```ts
-import { MemorySoda } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@memory-soda/sdk';
 
 const memory = new MemorySoda({
   baseUrl: 'http://localhost:3004',
@@ -83,18 +84,18 @@ MemorySoda
 Names carry the tiering: the calls a chat turn makes are short, `recall`,
 `prepare`, `addMessage`, and the occasional ones are compound.
 
-A separate subpath, `@alagappan17/memory-soda/ai`, wires all of this into the
+A separate subpath, `@memory-soda/sdk/ai`, wires all of this into the
 Vercel AI SDK, see [AI SDK integration](/sdk/ai-sdk/).
 
-| Page | Covers |
-|---|---|
-| [`MemorySoda`](/sdk/client/) | constructor, `recall`, `prepareAndRecall`, `health` |
-| [Threads](/sdk/threads/) | thread lifecycle |
-| [Messages](/sdk/working-memory/) | `addMessage`, `listMessages`, `prepare`, `compact` |
-| [Facts and entities](/sdk/semantic-memory/) | `listFacts`, `deleteFact`, `listEntities` |
-| [Episodes](/sdk/episodes/) | `listEpisodes`, `searchEpisodes`, `getEpisode` |
-| [Datasets](/sdk/datasets/) | export and erase |
-| [AI SDK integration](/sdk/ai-sdk/) | middleware, tool, message bridge |
+| Page                                        | Covers                                              |
+| ------------------------------------------- | --------------------------------------------------- |
+| [`MemorySoda`](/sdk/client/)                | constructor, `recall`, `prepareAndRecall`, `health` |
+| [Threads](/sdk/threads/)                    | thread lifecycle                                    |
+| [Messages](/sdk/working-memory/)            | `addMessage`, `listMessages`, `prepare`, `compact`  |
+| [Facts and entities](/sdk/semantic-memory/) | `listFacts`, `deleteFact`, `listEntities`           |
+| [Episodes](/sdk/episodes/)                  | `listEpisodes`, `searchEpisodes`, `getEpisode`      |
+| [Datasets](/sdk/datasets/)                  | export and erase                                    |
+| [AI SDK integration](/sdk/ai-sdk/)          | middleware, tool, message bridge                    |
 
 ---
 
@@ -143,22 +144,39 @@ import {
   ApiError,
   AuthError,
   NetworkError,
-} from '@alagappan17/memory-soda';
+} from '@memory-soda/sdk';
 
 import type {
   MemorySodaConfig,
   HealthResponse,
-  WMThread, WMCreateThreadRequest, WMCreateThreadResponse,
-  WMPatchThreadRequest, WMEndThreadResponse, WMThreadSettings,
-  WMMessage, WMAddMessageRequest, WMAddMessageResponse,
-  WMListMessagesQuery, WMListMessagesResponse,
-  WMPrepareRequest, WMPrepareResponse,
-  WMCompactResult, WMThreadStatsResponse, WMTokenUsage, WMTokenCount,
-  MessageRole, WMMessageMetadata,
-  RecallRequest, RecallResponse, RankedContextGroup,
-  SemanticFact, SemanticEntity, EntityType,
-  EpisodeContext, EpisodeContextItem,
-} from '@alagappan17/memory-soda';
+  WMThread,
+  WMCreateThreadRequest,
+  WMCreateThreadResponse,
+  WMPatchThreadRequest,
+  WMEndThreadResponse,
+  WMThreadSettings,
+  WMMessage,
+  WMAddMessageRequest,
+  WMAddMessageResponse,
+  WMListMessagesQuery,
+  WMListMessagesResponse,
+  WMPrepareRequest,
+  WMPrepareResponse,
+  WMCompactResult,
+  WMThreadStatsResponse,
+  WMTokenUsage,
+  WMTokenCount,
+  MessageRole,
+  WMMessageMetadata,
+  RecallRequest,
+  RecallResponse,
+  RankedContextGroup,
+  SemanticFact,
+  SemanticEntity,
+  EntityType,
+  EpisodeContext,
+  EpisodeContextItem,
+} from '@memory-soda/sdk';
 ```
 
 ---
@@ -167,11 +185,11 @@ import type {
 
 Deliberate omissions. Call the HTTP API directly if you need them.
 
-| | Why | Endpoint |
-|---|---|---|
-| `chat` | A demo endpoint that runs the model server-side. Use `prepare` + `recall` with your own model. | [`POST /v1/memory/working/threads/:id/chat`](/api/working-memory/#chat) |
-| Episodic CRUD | Admin surface. Normal reads go through `recall({ include: ['episodes'] })`. | [Episodic memory](/api/episodic-memory/) |
-| Projects, API keys, users | Session-authenticated dashboard routes, not integration surface. | [Dashboard routes](/api/dashboard/) |
+|                           | Why                                                                                            | Endpoint                                                                |
+| ------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `chat`                    | A demo endpoint that runs the model server-side. Use `prepare` + `recall` with your own model. | [`POST /v1/memory/working/threads/:id/chat`](/api/working-memory/#chat) |
+| Episodic CRUD             | Admin surface. Normal reads go through `recall({ include: ['episodes'] })`.                    | [Episodic memory](/api/episodic-memory/)                                |
+| Projects, API keys, users | Session-authenticated dashboard routes, not integration surface.                               | [Dashboard routes](/api/dashboard/)                                     |
 
 There is also **no `add()`**, facts cannot be written directly, only derived
 from messages. See [Known limitations](/introduction/overview/#known-limitations).

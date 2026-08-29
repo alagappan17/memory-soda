@@ -6,14 +6,14 @@ Read `CONTRIBUTING.md` for review standards; this file is the operational map.
 
 ## Layout
 
-| Path | What | Notes |
-|---|---|---|
-| `apps/api` | Express API + Drizzle schema + memory pipeline | see `apps/api/CLAUDE.md` |
-| `apps/dashboard` | Vite/React dashboard + playground | monochrome UI, talks to `/dashboard/*` |
-| `apps/docs` | Astro Starlight docs, deployed to memorysoda.alagappan.dev | `nav.json` drives sidebar |
-| `packages/types` | Zod schemas, TS types, project-setting defaults | **single source of truth** |
-| `packages/sdk` | `@alagappan17/memory-soda`, zero runtime deps | see `packages/sdk/CLAUDE.md` |
-| `packages/create-memory-soda` | `npm create memory-soda` installer | published separately |
+| Path                          | What                                                       | Notes                                  |
+| ----------------------------- | ---------------------------------------------------------- | -------------------------------------- |
+| `apps/api`                    | Express API + Drizzle schema + memory pipeline             | see `apps/api/CLAUDE.md`               |
+| `apps/dashboard`              | Vite/React dashboard + playground                          | monochrome UI, talks to `/dashboard/*` |
+| `apps/docs`                   | Astro Starlight docs, deployed to memorysoda.alagappan.dev | `nav.json` drives sidebar              |
+| `packages/types`              | Zod schemas, TS types, project-setting defaults            | **single source of truth**             |
+| `packages/sdk`                | `@memory-soda/sdk`, zero runtime deps                      | see `packages/sdk/CLAUDE.md`           |
+| `packages/create-memory-soda` | `npm create memory-soda` installer                         | published separately                   |
 
 ## Commands
 
@@ -68,7 +68,7 @@ preferences. Reuse them; don't introduce new domains.
 ## Working rules
 
 - Never commit or push unless explicitly asked for that batch.
-- No `as` casts. Comments explain *why*, not *what*.
+- No `as` casts. Comments explain _why_, not _what_.
 - Any public change (route, SDK method, setting, env var) updates the docs in the
   same change — use the `docs-sync` skill.
 - Few-shot examples inside Gemini prompts (`apps/api/src/lib/semantic-extraction.ts`,

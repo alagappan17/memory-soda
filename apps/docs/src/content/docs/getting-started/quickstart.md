@@ -1,7 +1,8 @@
 ---
-title: "Quickstart"
-description: "Store your first memory and read it back. Assumes you have completed Installation and the API is running on port 3004."
+title: 'Quickstart'
+description: 'Store your first memory and read it back. Assumes you have completed Installation and the API is running on port 3004.'
 ---
+
 Store your first memory and read it back. Assumes you have completed
 [Installation](/getting-started/installation/) and the API is running on port 3004.
 
@@ -10,11 +11,11 @@ Store your first memory and read it back. Assumes you have completed
 ## With the SDK
 
 ```bash
-npm install @alagappan17/memory-soda
+npm install @memory-soda/sdk
 ```
 
 ```ts
-import { MemorySoda } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@memory-soda/sdk';
 
 const memory = new MemorySoda({
   baseUrl: 'http://localhost:3004',
@@ -28,11 +29,13 @@ const { threadId } = await memory.createThread({ dataset: 'user_42' });
 // 2. Append a conversation. This is all extraction ever sees.
 await memory.addMessage(threadId, {
   role: 'user',
-  content: "I'm looking for a family car under $30k. It has to be easy to park, SUVs are too big for me.",
+  content:
+    "I'm looking for a family car under $30k. It has to be easy to park, SUVs are too big for me.",
 });
 await memory.addMessage(threadId, {
   role: 'assistant',
-  content: 'The Toyota Corolla Hybrid is a great fit, 50 mpg, roomy boot, easy to park.',
+  content:
+    'The Toyota Corolla Hybrid is a great fit, 50 mpg, roomy boot, easy to park.',
 });
 await memory.addMessage(threadId, {
   role: 'user',
@@ -134,12 +137,12 @@ queues extraction now instead of on the timer. See
 
 ## What just happened
 
-| Step | Stored |
-|---|---|
+| Step             | Stored                                                              |
+| ---------------- | ------------------------------------------------------------------- |
 | `threads.create` | a row in `threads`, scoped to your project and the `dataset` string |
-| `addMessage` ×3 | three rows in `messages` with sequence numbers 1, 2, 3 |
-| the wait | an `episodes` row, then four `facts` rows and three `entities` rows |
-| `recall` | nothing, a pure read |
+| `addMessage` ×3  | three rows in `messages` with sequence numbers 1, 2, 3              |
+| the wait         | an `episodes` row, then four `facts` rows and three `entities` rows |
+| `recall`         | nothing, a pure read                                                |
 
 Open the dashboard's [Datasets](/dashboard/datasets/) page and select
 `user_42` to see all of it.

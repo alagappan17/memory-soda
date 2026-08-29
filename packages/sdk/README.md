@@ -1,4 +1,4 @@
-# @alagappan17/memory-soda
+# @memory-soda/sdk
 
 Memory for AI agents. Your app has the conversation; this remembers what it
 revealed and hands it back before the next model call.
@@ -6,7 +6,7 @@ revealed and hands it back before the next model call.
 Self-hosted, Postgres-backed, no dependencies.
 
 ```bash
-npm install @alagappan17/memory-soda
+npm install @memory-soda/sdk
 ```
 
 Node 18+ (uses global `fetch` and `AbortSignal.timeout`). ESM and CJS. Types
@@ -17,7 +17,7 @@ bundled.
 ## Quick start
 
 ```ts
-import { MemorySoda } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@memory-soda/sdk';
 
 const memory = new MemorySoda({
   baseUrl: 'http://localhost:3004',
@@ -76,7 +76,7 @@ built on them.
 ```ts
 import { google } from '@ai-sdk/google';
 import { generateText, wrapLanguageModel } from 'ai';
-import { memoryMiddleware } from '@alagappan17/memory-soda/ai';
+import { memoryMiddleware } from '@memory-soda/sdk/ai';
 
 const model = wrapLanguageModel({
   model: google('gemini-2.5-flash'),
@@ -93,7 +93,7 @@ write-back never blocks the response.
 For agents that should decide when to look something up:
 
 ```ts
-import { memoryTool } from '@alagappan17/memory-soda/ai';
+import { memoryTool } from '@memory-soda/sdk/ai';
 
 await generateText({
   model: google('gemini-2.5-flash'),
@@ -134,10 +134,10 @@ memory
 ```
 
 ```ts
-await memory.listFacts('user_42');            // what is known, most recent first
-await memory.deleteFact('user_42', factId);  // retire something we got wrong
-await memory.exportDataset('user_42');       // everything held, for a SAR
-await memory.forgetDataset('user_42');       // erase it, for real
+await memory.listFacts('user_42'); // what is known, most recent first
+await memory.deleteFact('user_42', factId); // retire something we got wrong
+await memory.exportDataset('user_42'); // everything held, for a SAR
+await memory.forgetDataset('user_42'); // erase it, for real
 ```
 
 Facts are bi-temporal: `validAt`/`validUntil` is when something is true in the
@@ -156,8 +156,8 @@ await memory.recall({ dataset, query, asOf: '2026-01-01' });
 new MemorySoda({
   baseUrl: 'https://memory.example.com',
   apiKey: 'ms_…',
-  timeout: 30_000,     // per request, default 60s
-  maxRetries: 2,       // for 429, 5xx and network failures. Default 2.
+  timeout: 30_000, // per request, default 60s
+  maxRetries: 2, // for 429, 5xx and network failures. Default 2.
   onRequest: ({ method, path }) => log(method, path),
   onResponse: ({ status, durationMs }) => log(status, durationMs),
 });
@@ -173,11 +173,11 @@ request will not get better by asking again.
 
 ## Errors
 
-| Class | When |
-|---|---|
-| `AuthError` | 401 or 403 — missing, invalid, or revoked key |
-| `ApiError` | any other non-2xx; carries `status` and `body` |
-| `NetworkError` | the request never got a response |
+| Class          | When                                           |
+| -------------- | ---------------------------------------------- |
+| `AuthError`    | 401 or 403 — missing, invalid, or revoked key  |
+| `ApiError`     | any other non-2xx; carries `status` and `body` |
+| `NetworkError` | the request never got a response               |
 
 All extend `MemorySodaError`.
 

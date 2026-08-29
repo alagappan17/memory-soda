@@ -1,4 +1,4 @@
-import { MemorySoda } from '@alagappan17/memory-soda';
+import { MemorySoda } from '@memory-soda/sdk';
 import type { WMChatResponse } from '@memory-soda/types';
 import api, { API_URL } from '../../lib/api';
 import type { OpTrace } from './types';
@@ -110,11 +110,14 @@ export async function adminCall<T>(
       },
     };
   } catch (err) {
-    throw new PlaygroundError(describe(err, `${method.toUpperCase()} ${fullPath} failed`), {
-      method: method.toUpperCase(),
-      path: fullPath,
-      durationMs: Date.now() - startedAt,
-    });
+    throw new PlaygroundError(
+      describe(err, `${method.toUpperCase()} ${fullPath} failed`),
+      {
+        method: method.toUpperCase(),
+        path: fullPath,
+        durationMs: Date.now() - startedAt,
+      },
+    );
   }
 }
 
