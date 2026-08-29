@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn, execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs';
+import { existsSync, readdirSync, writeFileSync, realpathSync } from 'node:fs';
 import { resolve, basename, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { connect } from 'node:net';
@@ -263,7 +263,6 @@ async function main() {
     guard(await p.password({ message: `Dashboard admin password ${chalk.dim('(leave blank to generate one at first boot)')}`, mask: '•' })) ?? '';
 
   await runWithSpinner(`Cloning into ${chalk.bold(dirName)}`, 'git', ['clone', '--depth', '1', REPO, target]);
-  rmSync(resolve(target, '.git'), { recursive: true, force: true });
 
   const writeEnv = () =>
     writeFileSync(resolve(target, '.env'), renderEnv({ databaseUrl, geminiKey, adminUser, adminPassword, apiPort, dashboardPort }));

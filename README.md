@@ -45,6 +45,15 @@ On first boot the API prints the admin login to its logs (password comes from
 `ADMIN_PASSWORD`, or is generated). Sign in to the dashboard and create an API
 key under **API Keys**.
 
+### Updating
+
+```bash
+npm run update   # git pull && npm install
+npm run dev      # migrations apply on boot
+```
+
+`.env` is gitignored, so your config survives the pull.
+
 | Service | URL |
 |---|---|
 | Dashboard | http://localhost:3000 |

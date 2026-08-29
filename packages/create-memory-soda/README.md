@@ -22,6 +22,8 @@ First boot applies migrations and creates your admin user. Sign in to the
 dashboard to create an API key.
 Dashboard on :3000, API on :3004.
 
+To update later, run `npm run update` (git pull + install) and restart.
+
 ## Postgres
 
 You bring the server; the installer creates the database. It asks for a
