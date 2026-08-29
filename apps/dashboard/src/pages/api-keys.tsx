@@ -101,7 +101,7 @@ export default function ApiKeysPage() {
             <span className="font-medium text-foreground">
               {selectedProject.name}
             </span>
-            . Store them securely — they are shown only once.
+            . Store them securely, they are shown only once.
           </p>
         </div>
         <button
@@ -134,7 +134,7 @@ export default function ApiKeysPage() {
               <DialogHeader>
                 <DialogTitle>Key created</DialogTitle>
                 <DialogDescription>
-                  Copy it now — it won&apos;t be shown again after you close
+                  Copy it now, it won&apos;t be shown again after you close
                   this.
                 </DialogDescription>
               </DialogHeader>
@@ -268,7 +268,7 @@ export default function ApiKeysPage() {
                   <td className="px-4 py-3 text-muted-foreground">
                     {key.lastUsedAt
                       ? new Date(key.lastUsedAt).toLocaleDateString()
-                      : '—'}
+                      : '-'}
                   </td>
                   <td className="px-4 py-3">
                     {key.revokedAt ? (

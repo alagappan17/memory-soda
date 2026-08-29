@@ -103,7 +103,7 @@ export async function updateThreadMetadata(
 }
 
 /**
- * Threads never terminate — "end" marks a natural break point and triggers
+ * Threads never terminate, "end" marks a natural break point and triggers
  * episodic extraction. The thread stays writable and the user can return to it.
  * The pending episode row is created synchronously so the trigger survives a
  * crash; the LLM extraction itself runs async.
@@ -128,7 +128,7 @@ export async function endThread(
   }
 
   // False when the thread has no messages the last episode did not already
-  // cover — ending an unchanged thread is a no-op, not a new empty episode.
+  // cover, ending an unchanged thread is a no-op, not a new empty episode.
   const episodeQueued = await openAndProcessEpisode({
     threadId,
     dataset: row.dataset,

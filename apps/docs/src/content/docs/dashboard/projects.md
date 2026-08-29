@@ -13,8 +13,8 @@ See [Projects and datasets](/concepts/projects-and-datasets/) for the model.
 
 Bottom of the sidebar, next to your avatar.
 
-Everything under the **Project** group — Datasets, Playground, API Keys, Settings
-— reads from whichever project is selected. The **Application** group (Projects,
+Everything under the **Project** group, Datasets, Playground, API Keys, Settings
+reads from whichever project is selected. The **Application** group (Projects,
 Users, Status) ignores it.
 
 The selection persists across page loads. If you are looking at an empty Datasets
@@ -69,7 +69,7 @@ Add projects when you want **separate settings** or **separate blast radius**:
 |---|---|
 | Staging vs production | Different data, different keys, no chance of cross-contamination |
 | Two unrelated products on one deployment | Independent tuning, independent keys |
-| A tenant that must never see another tenant | The only real isolation boundary — see below |
+| A tenant that must never see another tenant | The only real isolation boundary, see below |
 
 Do **not** use a project per end user. That is what
 [datasets](/concepts/projects-and-datasets/) are for, and they need no
@@ -82,7 +82,7 @@ provisioning.
 An API key resolves to exactly one project, and every query filters on it. A key
 for project A cannot read project B.
 
-Within a project there is **no isolation between datasets** — any key for the
+Within a project there is **no isolation between datasets**, any key for the
 project can read and delete every dataset in it. There are no per-dataset or
 read-only keys.
 
@@ -98,7 +98,7 @@ project with one dataset per user is simpler and correct.
 ## Settings
 
 Each project carries its own episodic and semantic settings, merged over the
-built-in defaults — a project row only stores what you changed.
+built-in defaults, a project row only stores what you changed.
 
 Reach them from the sidebar's **Project Settings** entry, or the card on Home.
 See [Project settings](/dashboard/project-settings/).

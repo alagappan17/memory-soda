@@ -69,7 +69,7 @@ export default function PlaygroundPage() {
   const { ops, addOp, clearOps } = useOps();
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  /** Facts the model has already been shown on this thread — drives the "new" markers. */
+  /** Facts the model has already been shown on this thread, drives the "new" markers. */
   const seenFactIds = useRef<Set<string>>(new Set());
 
   const poller = useExtractionPoller({
@@ -111,7 +111,7 @@ export default function PlaygroundPage() {
       // Ignore a stale response after the thread changed.
       setStats((prev) => (threadIdRef.current === tid ? res : prev));
     } catch {
-      // Stats are decorative — don't surface transient failures.
+      // Stats are decorative, don't surface transient failures.
     } finally {
       setStatsLoading(false);
     }
@@ -159,7 +159,7 @@ export default function PlaygroundPage() {
   function noteEpisodeScheduling() {
     if (episodicSettings.enabled && episodicSettings.autoEpisodeIntervalMs) {
       addOp('episode_scheduled', {
-        note: 'Auto-episode timer reset — episode will generate after inactivity window',
+        note: 'Auto-episode timer reset, episode will generate after inactivity window',
         intervalMs: episodicSettings.autoEpisodeIntervalMs,
       });
       poller.schedule(episodicSettings.autoEpisodeIntervalMs);
@@ -207,11 +207,11 @@ export default function PlaygroundPage() {
         verbose: true,
       };
       // Chat runs the model server-side, so it goes over the dashboard's own
-      // session route rather than the SDK — the project comes from the thread
+      // session route rather than the SDK, the project comes from the thread
       // the playground just created.
       const { data: chatRes, trace } = await chatTurn(project, tid, body);
 
-      // One HTTP call, four logical memory ops — each gets the response
+      // One HTTP call, four logical memory ops, each gets the response
       // slice it's about; the recall op carries the full injected payload.
       addOp(
         'message_added',
@@ -275,13 +275,13 @@ export default function PlaygroundPage() {
 
       if (requestId === currentRequestId.current) {
         if (chatRes.compacted) {
-          // Compaction rewrote history server-side — refetch the real state.
+          // Compaction rewrote history server-side, refetch the real state.
           setMessages((prev) =>
             prev.filter((m) => m.messageId !== optimisticId),
           );
           await refreshMessages(apiKey, tid);
         } else {
-          // The response already carries both rows — no refetch needed.
+          // The response already carries both rows, no refetch needed.
           const blank = {
             threadId: tid,
             tokens: null,
@@ -313,7 +313,7 @@ export default function PlaygroundPage() {
     }
   }
 
-  /** Raw addMessage — inserts without triggering an AI reply. */
+  /** Raw addMessage, inserts without triggering an AI reply. */
   async function addManualMessage(req: WMAddMessageRequest): Promise<boolean> {
     if (!apiKey.trim()) return false;
     setError(null);
@@ -446,7 +446,7 @@ export default function PlaygroundPage() {
   }
 
   /**
-   * New thread keeps the dataset — episodes/facts/recall are dataset-scoped
+   * New thread keeps the dataset, episodes/facts/recall are dataset-scoped
    * and survive. Only thread-scoped state resets.
    */
   function newThread() {
@@ -486,7 +486,7 @@ export default function PlaygroundPage() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Top bar — API key + actions */}
+      {/* Top bar, API key + actions */}
       <div className="border-b border-border px-4 py-2 bg-card flex items-center gap-3 flex-wrap text-sm shrink-0">
         <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
           API Key
@@ -548,7 +548,7 @@ export default function PlaygroundPage() {
 
       {/* Main area */}
       <div className="flex flex-1 min-h-0">
-        {/* LEFT — Chat */}
+        {/* LEFT, Chat */}
         <ChatPanel
           messages={messages}
           sending={sending}
@@ -561,7 +561,7 @@ export default function PlaygroundPage() {
           inputRef={inputRef}
         />
 
-        {/* RIGHT — Settings + tabs */}
+        {/* RIGHT, Settings + tabs */}
         <div className="w-[440px] shrink-0 flex flex-col min-h-0">
           <WorkingMemoryPanel
             settings={settings}

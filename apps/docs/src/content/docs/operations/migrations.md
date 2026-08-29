@@ -38,7 +38,7 @@ default for single-instance deployments.
 npm run --workspace=apps/api db:migrate
 ```
 
-Reads `DATABASE_URL` from the environment. Idempotent — already-applied
+Reads `DATABASE_URL` from the environment. Idempotent, already-applied
 migrations are skipped.
 
 ### As a deploy step
@@ -95,7 +95,7 @@ drop-and-recreate where an `ALTER` was intended.
 
 ### When generation needs a decision
 
-`drizzle-kit generate` prompts interactively when a change is ambiguous — a
+`drizzle-kit generate` prompts interactively when a change is ambiguous, a
 renamed column looks identical to a drop plus an add. It cannot be answered
 non-interactively.
 
@@ -114,7 +114,7 @@ npm run --workspace=apps/api db:generate
 # should report "No schema changes, nothing to migrate"
 ```
 
-That check is the important part — it proves the snapshot matches the schema.
+That check is the important part, it proves the snapshot matches the schema.
 
 ### Statement separator
 
@@ -225,22 +225,22 @@ npm run --workspace=apps/api db:push     # push schema without a migration file
 
 ## Troubleshooting
 
-**`extension "vector" is not available`** — pgvector is not installed for your
+**`extension "vector" is not available`**, pgvector is not installed for your
 Postgres *major version*.
 
-**`permission denied for schema public`** — the role in `DATABASE_URL` must own
+**`permission denied for schema public`**, the role in `DATABASE_URL` must own
 the database: `ALTER DATABASE memory_db OWNER TO memory_user;`
 
-**`relation already exists`** — the journal and the database disagree, usually
+**`relation already exists`**, the journal and the database disagree, usually
 after a `db:push`. Reconcile `drizzle.__drizzle_migrations` by hand or restore
 from backup.
 
-**Migration hangs** — another connection holds a conflicting lock. Check
+**Migration hangs**, another connection holds a conflicting lock. Check
 `pg_stat_activity` for idle-in-transaction sessions.
 
 ---
 
 ## Next
 
-- [Database schema](/reference/database-schema/) — the resulting tables
+- [Database schema](/reference/database-schema/), the resulting tables
 - [Self-hosting](/operations/self-hosting/)

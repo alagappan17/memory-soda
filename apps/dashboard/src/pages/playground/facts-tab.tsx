@@ -62,7 +62,7 @@ export function FactsTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey, scope, q, includeInvalidated, asOf, ready]);
 
-  // Entities don't depend on the fact filters — fetch once per scope
+  // Entities don't depend on the fact filters, fetch once per scope
   // (and on explicit refresh), not on every debounced keystroke.
   const loadEntities = useCallback(async () => {
     if (!ready) return;
@@ -252,7 +252,7 @@ export function FactsTab({
             {facts.length === 0 && !loading ? (
               <p className="text-xs text-muted-foreground">
                 {ready
-                  ? 'No facts yet — they extract automatically after conversations.'
+                  ? 'No facts yet, they extract automatically after conversations.'
                   : 'Enter your API key and dataset above.'}
               </p>
             ) : (

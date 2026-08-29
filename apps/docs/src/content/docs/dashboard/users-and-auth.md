@@ -17,18 +17,18 @@ On an empty database the API seeds one admin account and prints it once:
 
 ```
 ┌───────────────────────────────────────────────────────┐
-│  Memory Soda — First-time setup                       │
+│  Memory Soda, First-time setup                       │
 │                                                       │
 │  API Key:  ms_3f9a…                                   │
 │  Login:    admin / kR7v-2mQxPd1                       │
-│            (generated — set ADMIN_PASSWORD to choose) │
+│            (generated, set ADMIN_PASSWORD to choose) │
 │                                                       │
-│  Save these — the API key will not be shown again.    │
+│  Save these, the API key will not be shown again.    │
 └───────────────────────────────────────────────────────┘
 ```
 
 - Username comes from `ADMIN_USERNAME`, default `admin`.
-- Password comes from `ADMIN_PASSWORD`. **If unset, one is randomly generated** —
+- Password comes from `ADMIN_PASSWORD`. **If unset, one is randomly generated**,
   there is no fixed default credential.
 - Neither is recoverable after the log scrolls.
 
@@ -36,8 +36,8 @@ On an empty database the API seeds one admin account and prints it once:
 
 There is no password reset. Options:
 
-1. **Another account exists** — sign in with that and create a replacement.
-2. **No account is usable** — insert one directly. Generate a hash with the
+1. **Another account exists**, sign in with that and create a replacement.
+2. **No account is usable**, insert one directly. Generate a hash with the
    project's own function so the format matches:
 
    ```bash
@@ -60,7 +60,7 @@ There is no password reset. Options:
 Reached at `/login`, or automatically when you hit any page without a session.
 
 - Username and password, with a show/hide toggle.
-- A single error — *Invalid username or password* — for both an unknown user and
+- A single error, *Invalid username or password*, for both an unknown user and
   a wrong password.
 - **Deep links survive.** Visiting `/datasets?q=abc` while signed out sends you
   to `/login` and back to `/datasets?q=abc` afterwards, query string and hash
@@ -92,7 +92,7 @@ Lists every account with its creation date, and allows creating and deleting.
 | Password | 6–200 characters |
 
 Six characters is a low floor. Nothing enforces complexity, and there is no rate
-limiting on sign-in — pick something strong.
+limiting on sign-in, pick something strong.
 
 Duplicate usernames return `409`, including under concurrent creation.
 
@@ -108,7 +108,7 @@ Two guards, both intended to stop you locking everyone out:
 The last-user check runs in a transaction with the user rows locked, so two
 simultaneous deletes cannot both pass it.
 
-Deleting a user **cascades to their sessions** — they are signed out immediately.
+Deleting a user **cascades to their sessions**, they are signed out immediately.
 Nothing else is affected; memory data is untouched.
 
 ---
@@ -137,7 +137,7 @@ would trust with all of that.
 scrypt$32768$8$3$<salt hex>$<derived key hex>
 ```
 
-- **scrypt**, per-password random salt, `N=2^15, r=8, p=3` — 32 MiB per
+- **scrypt**, per-password random salt, `N=2^15, r=8, p=3`, 32 MiB per
   derivation, one of the configurations on OWASP's list.
 - Parameters are **recorded in the hash**, so they can be raised later without
   invalidating existing passwords.
@@ -163,6 +163,6 @@ scrypt$32768$8$3$<salt hex>$<derived key hex>
 
 ## Next
 
-- [Authentication API](/api/authentication/) — the endpoints
-- [API keys](/dashboard/api-keys/) — the *other* credential
+- [Authentication API](/api/authentication/), the endpoints
+- [API keys](/dashboard/api-keys/), the *other* credential
 - [Self-hosting](/operations/self-hosting/)

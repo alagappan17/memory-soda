@@ -53,7 +53,7 @@ import type {
 const MAX_SEMANTIC_RETRIES = 3;
 
 // A 'processing' claim older than this is considered orphaned (the worker died
-// mid-extraction — crash, restart, deploy) and may be reclaimed.
+// mid-extraction, crash, restart, deploy) and may be reclaimed.
 const STALE_PROCESSING_MS = 10 * 60 * 1000;
 
 // ── Settings ──────────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ function stripNullish<T extends object>(
 ): Partial<T> {
   const out: Partial<T> = {};
   if (!raw) return out;
-  // Object.keys is typed string[] regardless of the object — the one place
+  // Object.keys is typed string[] regardless of the object, the one place
   // this function needs to state what it already knows.
   for (const key of Object.keys(raw) as (keyof T)[]) {
     const value = raw[key];
@@ -94,8 +94,8 @@ const factKey = (s: string, p: string, o: string) => `${s}|${p}|${o}`;
  * Whether two facts are similar enough to be worth judging for contradiction
  * but not so similar they are the same fact.
  *
- * The band exists to catch predicate rewordings — "works at" versus "is
- * employed by" — that an exact predicate match misses and deduplication would
+ * The band exists to catch predicate rewordings, "works at" versus "is
+ * employed by", that an exact predicate match misses and deduplication would
  * wrongly swallow.
  */
 function inContradictionBand(
@@ -183,7 +183,7 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
       return;
     }
 
-    // Raw messages — scoped to the episode's stamped sequence range so multiple
+    // Raw messages, scoped to the episode's stamped sequence range so multiple
     // episodes on one thread don't re-extract each other's messages. Legacy
     // episodes (NULL range) fall back to the whole uncompacted thread.
     const scope =
@@ -209,17 +209,17 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
       return;
     }
 
-    // Bounded transcript — direct signal beats the lossy summary, but a long
+    // Bounded transcript, direct signal beats the lossy summary, but a long
     // episode must not blow the extraction prompt (head + tail truncation).
     const transcript = buildTranscript(
       msgRows,
       projectSettings.episodic.maxMessages,
     );
 
-    // Step 1 — extract (pass `now` as the anchor for resolving relative dates)
+    // Step 1, extract (pass `now` as the anchor for resolving relative dates)
     const graph = await extractGraph(transcript, now);
 
-    // Step 2 — resolve entities (dedup the entities table)
+    // Step 2, resolve entities (dedup the entities table)
     const canonical = await resolveEntities(
       episode.dataset,
       episode.projectId,
@@ -227,7 +227,7 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
       settings,
     );
 
-    // Steps 3–5 — dedup, evolve contradictions, write
+    // Steps 3–5, dedup, evolve contradictions, write
     await writeFacts(
       {
         dataset: episode.dataset,
@@ -275,7 +275,7 @@ async function resolveEntities(
     eq(entities.projectId, projectId),
   );
 
-  // One embedding call, then pair each entity with its vector — indexing two
+  // One embedding call, then pair each entity with its vector, indexing two
   // arrays in step is how they silently drift apart.
   const embeddings = await batchEmbedTexts(extracted.map((e) => e.name));
   const candidates = extracted.flatMap((ent, i) => {
@@ -303,7 +303,7 @@ async function resolveEntities(
     }
   }
 
-  // Nearest existing entity of the SAME TYPE via pgvector — type-aware so
+  // Nearest existing entity of the SAME TYPE via pgvector, type-aware so
   // "apple" (ORG) never merges into "apple" (FOOD). `<=>` is cosine distance,
   // so similarity is 1 - distance. Each needs its own vector, so these run
   // concurrently rather than in sequence.
@@ -433,7 +433,7 @@ async function writeFacts(
   // detect facts a concurrent job committed while we were off calling the LLM.
   const snapshotAt = new Date();
 
-  // Step 3 — drop exact duplicates, against what is already live and within
+  // Step 3, drop exact duplicates, against what is already live and within
   // this batch. One indexed lookup on the exact triples, rather than loading
   // the dataset to compare in memory.
   const seen = new Set<string>();
@@ -479,7 +479,7 @@ async function writeFacts(
   const toDate = (iso: string | null): Date | null => (iso ? new Date(iso) : null);
 
   // Effective valid-from instant. validFrom is date-only, so "today" resolves to
-  // midnight — hours BEFORE facts recorded earlier the same day, which would make
+  // midnight, hours BEFORE facts recorded earlier the same day, which would make
   // a brand-new statement look older than what it supersedes (and the judge would
   // wrongly keep the old fact). A same-day validFrom therefore means "now".
   const today = now.toISOString().slice(0, 10);
@@ -492,10 +492,10 @@ async function writeFacts(
   // Embed candidates (enriched with the derived anchor).
   const embeds = await batchEmbedTexts(deduped.map(buildFactEmbedString));
 
-  // Step 3b — the neighbourhood of each candidate, from Postgres.
+  // Step 3b, the neighbourhood of each candidate, from Postgres.
   //
   // This used to load every live fact for the dataset into Node, with its
-  // 768-float embedding, and compare in JavaScript — O(candidates × facts) work
+  // 768-float embedding, and compare in JavaScript, O(candidates × facts) work
   // and a working set that grew without bound. pgvector already has an ivfflat
   // index on this column; asking it for the nearest few rows per candidate is
   // both exact enough and bounded by the number of candidates.
@@ -523,7 +523,7 @@ async function writeFacts(
   );
 
   // Same-predicate conflicts are a lexical match, not a vector one, so they get
-  // their own indexed lookup — a fact stating a different object for the same
+  // their own indexed lookup, a fact stating a different object for the same
   // predicate must be judged even when its embedding is far away.
   const samePredicateLive = await db
     .select({
@@ -573,20 +573,20 @@ async function writeFacts(
   }
   if (survivors.length === 0) return;
 
-  // Step 4 — collect (survivor ↔ conflicting live fact) pairs, then resolve all
+  // Step 4, collect (survivor ↔ conflicting live fact) pairs, then resolve all
   // contradictions in ONE batched LLM call. A live fact conflicts when it states
   // a different object for the same predicate ("works at google" vs "works at
   // anthropic"), or is a paraphrase-level neighbour by embedding (band below the
-  // dedup threshold) — which catches predicate rewordings like "works at" vs
+  // dedup threshold), which catches predicate rewordings like "works at" vs
   // "is employed by". Historical candidates (validUntil already past) never
-  // supersede anything — they are inserted as history without judging.
+  // supersede anything, they are inserted as history without judging.
   const conflictRefs: { survivorIndex: number; oldId: string }[] = [];
   const pairs: ContradictionPair[] = [];
   survivors.forEach(({ c }, si) => {
     const historical = c.validUntil !== null && new Date(c.validUntil) <= now;
     if (historical) return;
     // Low-confidence facts are stored but never trusted to invalidate an
-    // existing fact — they skip contradiction judging entirely.
+    // existing fact, they skip contradiction judging entirely.
     if (c.confidence < settings.retrievalMinConfidence) return;
     const newValidAt = effectiveValidAt(c.validFrom).toISOString();
 
@@ -644,7 +644,7 @@ async function writeFacts(
     .filter(({ si }) => !supersededSurvivors.has(si));
   if (staged.length === 0) return;
 
-  // Step 5 — apply atomically, serialized per tenant via an advisory lock so
+  // Step 5, apply atomically, serialized per tenant via an advisory lock so
   // concurrent episode jobs can't interleave their invalidate/insert. The
   // live-facts partial unique index + ON CONFLICT DO NOTHING is the final
   // backstop against duplicates.
@@ -660,7 +660,7 @@ async function writeFacts(
     //
     // Matching is on subject + predicate + anchor, not subject + predicate.
     // Extraction forces every subject to the literal "user", so a
-    // subject+predicate key is really just the predicate — and two genuinely
+    // subject+predicate key is really just the predicate, and two genuinely
     // different facts that share one ("user likes thai food", "user likes
     // rust") would have silently discarded each other.
     const appeared = await tx
@@ -693,7 +693,7 @@ async function writeFacts(
 
     // Renewal: an expired-but-not-superseded row (valid_until in the past,
     // invalid_at NULL) still occupies the live-unique index. A new statement of
-    // the same fact supersedes it — stamp it so the insert can land.
+    // the same fact supersedes it, stamp it so the insert can land.
     const renewalConds = finalStaged.map(({ c }) =>
       and(
         eq(facts.subject, c.subject),
@@ -754,7 +754,7 @@ export async function sweepSemanticMemory(): Promise<void> {
     .where(
       and(
         // Archived included: an episode can be archived (by the next episode on
-        // its thread) before its semantic pass ran — its message window would
+        // its thread) before its semantic pass ran, its message window would
         // otherwise never be extracted.
         inArray(episodes.status, ['completed', 'archived']),
         or(
@@ -771,7 +771,7 @@ export async function sweepSemanticMemory(): Promise<void> {
     .orderBy(episodes.createdAt)
     .limit(20);
   for (const row of rows) {
-    // Sequential on purpose — these each fan out LLM + embedding calls.
+    // Sequential on purpose, these each fan out LLM + embedding calls.
     try {
       await processSemanticMemory(row.id);
     } catch (err) {
@@ -796,7 +796,7 @@ const FACT_COLUMNS = {
   episodeId: facts.episodeId,
 } as const;
 
-/** Exactly the row shape {@link FACT_COLUMNS} selects — derived, not restated. */
+/** Exactly the row shape {@link FACT_COLUMNS} selects, derived, not restated. */
 type FactSelect = Pick<FactRow, keyof typeof FACT_COLUMNS>;
 
 function rowToSemanticFact(r: FactSelect, relevanceScore?: number): SemanticFact {
@@ -816,14 +816,14 @@ function rowToSemanticFact(r: FactSelect, relevanceScore?: number): SemanticFact
   };
 }
 
-// Keyword search expression — MUST stay identical to the facts_tsv_idx GIN
+// Keyword search expression, MUST stay identical to the facts_tsv_idx GIN
 // index expression in the migration SQL for the planner to use the index.
 const factsTsv = sql`to_tsvector('english', coalesce(${facts.subject}, '') || ' ' || coalesce(${facts.predicate}, '') || ' ' || coalesce(${facts.object}, ''))`;
 
 /**
  * Hybrid fact retrieval: vector similarity + entity-anchored lookup + keyword
  * (full-text), fused with Reciprocal Rank Fusion. Entity-anchor is the reliability
- * net — it surfaces facts tied to a named entity even when no lexical/semantic
+ * net, it surfaces facts tied to a named entity even when no lexical/semantic
  * bridge exists (e.g. "trip to Thailand" → "favorite food is mango sticky rice").
  */
 export interface SemanticRetrievalOptions {
@@ -867,7 +867,7 @@ export async function getSemanticContext(
     };
   }
 
-  // Signal 1 — vector similarity.
+  // Signal 1, vector similarity.
   const vectorSignal = async (): Promise<FactSelect[]> => {
     if (!queryEmbedding || queryEmbedding.length === 0) return [];
     const vectorLiteral = toVectorLiteral(queryEmbedding);
@@ -879,7 +879,7 @@ export async function getSemanticContext(
       .limit(scan));
   };
 
-  // Signal 2 — entity-anchored: resolve entities the query mentions (word-boundary
+  // Signal 2, entity-anchored: resolve entities the query mentions (word-boundary
   // match, so "art" can't fire inside "start") plus the query's nearest entities
   // by embedding, then pull every live fact touching those names.
   const anchorSignal = async (): Promise<FactSelect[]> => {
@@ -929,7 +929,7 @@ export async function getSemanticContext(
       .limit(scan));
   };
 
-  // Signal 3 — keyword / full-text.
+  // Signal 3, keyword / full-text.
   const keywordSignal = async (): Promise<FactSelect[]> => {
     const tsquery = sql`plainto_tsquery('english', ${query})`;
     return (await db
@@ -940,7 +940,7 @@ export async function getSemanticContext(
       .limit(scan));
   };
 
-  // The three signals are independent — run them in one round-trip.
+  // The three signals are independent, run them in one round-trip.
   const signalResults = await Promise.all([
     vectorSignal(),
     anchorSignal(),

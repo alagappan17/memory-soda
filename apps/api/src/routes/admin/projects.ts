@@ -65,7 +65,7 @@ router.patch(
 );
 
 /**
- * Delete a project and everything scoped to it — API keys, threads, messages,
+ * Delete a project and everything scoped to it, API keys, threads, messages,
  * episodes, facts and entities all cascade.
  */
 router.delete(

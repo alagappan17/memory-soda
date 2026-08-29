@@ -32,7 +32,7 @@ A fact is a **subject–predicate–object triple** with a validity window.
 
 | Field | Meaning |
 |---|---|
-| `subject` | **Always `"user"`.** Enforced in both the prompt and code — see [below](#every-fact-is-about-the-user). |
+| `subject` | **Always `"user"`.** Enforced in both the prompt and code, see [below](#every-fact-is-about-the-user). |
 | `predicate` | A short present-tense verb phrase, lower-cased and punctuation-stripped. |
 | `object` | An entity name, or a literal value. Capped at 500 characters. |
 | `objectIsEntity` | Whether `object` names a row in `entities`. |
@@ -45,10 +45,10 @@ A fact is a **subject–predicate–object triple** with a validity window.
 ### Two kinds in one table
 
 ```ts
-// Relationship — object names an entity
+// Relationship, object names an entity
 { subject: 'user', predicate: 'works at', object: 'anthropic', objectIsEntity: true }
 
-// Literal — object is a value with no entity behind it
+// Literal, object is a value with no entity behind it
 { subject: 'user', predicate: 'wants a travel camera that is',
   object: 'small, cinematic-looking, under $1000', objectIsEntity: false }
 ```
@@ -111,7 +111,7 @@ and the memory doesn't silently split in two.
 
 ## The anchor
 
-Every fact has an **anchor entity** — derived, never stored:
+Every fact has an **anchor entity**, derived, never stored:
 
 ```
 anchor = objectIsEntity ? object : subject
@@ -151,7 +151,7 @@ from its own answers, and retrieval quality collapses.
 a project, a codebase, a task or an agent are architecturally impossible today.
 If you need those, this is the constraint to know about before adopting.
 
-Other entities appear freely as the **object** of a user fact — that is how
+Other entities appear freely as the **object** of a user fact, that is how
 `asus rog` gets into the store at all.
 
 ---
@@ -191,13 +191,13 @@ entity-centric retrieval.
 
 ## Reading facts
 
-**For a prompt** — use [`recall()`](/api/recall/):
+**For a prompt**, use [`recall()`](/api/recall/):
 
 ```ts
 const { context } = await memory.recall({ dataset: 'user_42', query: userMessage });
 ```
 
-**For inspection or a UI** — use the fact list, which is unranked and
+**For inspection or a UI**, use the fact list, which is unranked and
 chronological:
 
 ```ts
@@ -226,7 +226,7 @@ You can, however, **remove** one:
 await memory.deleteFact('user_42', factId);
 ```
 
-This is a soft delete — it stamps `invalidAt`, so the fact disappears from
+This is a soft delete, it stamps `invalidAt`, so the fact disappears from
 retrieval but the history remains queryable with `asOf`. See
 [Curating memory](/guides/curating-memory/).
 
@@ -234,6 +234,6 @@ retrieval but the history remains queryable with `asOf`. See
 
 ## Next
 
-- [The bi-temporal model](/concepts/bi-temporal-model/) — why there are four timestamps
-- [Retrieval](/concepts/retrieval/) — how facts are found and ranked
-- [The extraction pipeline](/concepts/extraction-pipeline/) — how they are created
+- [The bi-temporal model](/concepts/bi-temporal-model/), why there are four timestamps
+- [Retrieval](/concepts/retrieval/), how facts are found and ranked
+- [The extraction pipeline](/concepts/extraction-pipeline/), how they are created

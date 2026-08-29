@@ -51,7 +51,7 @@ last_used_at timestamp
 revoked_at   timestamp
 ```
 
-`last_used_at` is written on **every authenticated request** — one UPDATE per
+`last_used_at` is written on **every authenticated request**, one UPDATE per
 API call.
 
 ---
@@ -181,7 +181,7 @@ semantic_status : pending | processing | completed | failed | skipped
 ```
 
 `status` tracks summarisation; `semantic_status` drives fact extraction.
-`semantic_status` is **not exposed on any endpoint** — query it directly.
+`semantic_status` is **not exposed on any endpoint**, query it directly.
 
 `[start_sequence, end_sequence]` is the message window extraction reads. `NULL`
 on legacy rows, which fall back to the whole un-compacted thread.
@@ -277,7 +277,7 @@ AND (valid_until IS NULL OR valid_until > now())
 ```
 
 `now()` is not immutable, so the `valid_until` clause cannot be pushed into the
-partial indexes — they are keyed on `invalid_at IS NULL` and cover a superset of
+partial indexes, they are keyed on `invalid_at IS NULL` and cover a superset of
 live rows.
 
 Point-in-time:
@@ -312,7 +312,7 @@ INDEX entities_embedding_idx ivfflat (embedding vector_cosine_ops) WITH (lists=1
 
 **Facts reference entities by name, not by foreign key.** Deliberate: it keeps
 the write path free of lookups and makes the anchor query a plain `IN (…)`.
-The cost is no referential integrity — a renamed entity would orphan its facts,
+The cost is no referential integrity, a renamed entity would orphan its facts,
 which is why entity names are never updated in place.
 
 ---
@@ -324,7 +324,7 @@ which is why entity names are never updated in place.
 - ~3 KB per embedding. They dominate database size and compress poorly.
 
 > The IVFFlat indexes were created on empty tables, so their centroids are
-> degenerate. On a populated instance, `REINDEX` or switch to HNSW —
+> degenerate. On a populated instance, `REINDEX` or switch to HNSW,
 > see [Migrations](/operations/migrations/#a-note-on-the-ivfflat-indexes).
 
 ---
@@ -335,7 +335,7 @@ which is why entity names are never updated in place.
 |---|---|
 | `projects` | api_keys, threads → messages, episodes, facts, entities, scheduled_episodes |
 | `threads` | messages, scheduled_episodes. **Not episodes** (nullable FK), **not facts** |
-| `episodes` | Nothing — `facts.episode_id` is `ON DELETE SET NULL` |
+| `episodes` | Nothing, `facts.episode_id` is `ON DELETE SET NULL` |
 | `users` | sessions |
 
 Facts and entities are scoped to the **dataset**, not the thread, and outlive

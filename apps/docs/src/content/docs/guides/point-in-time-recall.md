@@ -47,7 +47,7 @@ AND (invalid_at  IS NULL OR invalid_at  > $asOf)         -- and was still believ
 ```
 
 That last line is the interesting one. A fact superseded *after* `asOf` is
-included — because at `asOf` we still believed it.
+included, because at `asOf` we still believed it.
 
 ---
 
@@ -140,7 +140,7 @@ Consequences:
 | Keyword | ✅ | ✅ |
 | Recency | ✅ | ✅ |
 
-- Results are **correct** — the right facts for that instant.
+- Results are **correct**, the right facts for that instant.
 - Ranking is **weaker**. A `query` still filters by keyword but will not find
   semantic matches.
 - Raise `limit` to compensate; with fewer signals the top few are less reliable.
@@ -154,7 +154,7 @@ await memory.recall({
 });
 ```
 
-For auditing this rarely matters — you usually want *everything* known at a
+For auditing this rarely matters, you usually want *everything* known at a
 moment, not the top 8.
 
 ---
@@ -195,7 +195,7 @@ facts
 ## Gotchas
 
 **Future-dated facts.** `asOf` in the future returns facts whose `validAt` has
-arrived by then but which we already know about — including a stated future
+arrived by then but which we already know about, including a stated future
 change. Correct, occasionally surprising.
 
 **Timezones.** A bare date is midnight **UTC**. If your users are elsewhere,
@@ -203,7 +203,7 @@ build the instant explicitly rather than trusting a date string.
 
 **`createdAt` vs `validAt`.** A fact stated today about the past has
 `validAt` in the past but `createdAt` today. `asOf` before `createdAt` excludes
-it — we did not know it yet, even though it was true. That is the point of
+it, we did not know it yet, even though it was true. That is the point of
 bi-temporality.
 
 **Not free.** It is a database read with the same shape as normal recall. Cheaper
@@ -213,6 +213,6 @@ than normal recall, actually, since it skips the embedding call.
 
 ## Next
 
-- [The bi-temporal model](/concepts/bi-temporal-model/) — the underlying design
+- [The bi-temporal model](/concepts/bi-temporal-model/), the underlying design
 - [Curating and correcting memory](/guides/curating-memory/)
 - [Recall API](/api/recall/)

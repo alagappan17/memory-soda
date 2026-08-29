@@ -9,7 +9,7 @@ const estTokens = (s: string) => Math.ceil(s.length / 4);
 
 /**
  * The prompt the model would see on the next turn: the recall context block
- * followed by the prepared thread — exactly what `prepareAndRecall()` hands an
+ * followed by the prepared thread, exactly what `prepareAndRecall()` hands an
  * integrator. Re-fetched whenever the thread changes.
  */
 export function PromptTab({
@@ -149,7 +149,7 @@ export function PromptTab({
               </pre>
             ) : (
               <p className="text-xs text-muted-foreground">
-                Empty — no facts recalled.
+                Empty, no facts recalled.
               </p>
             )}
           </section>

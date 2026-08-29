@@ -4,7 +4,7 @@ description: "Reading and curating the durable fact store."
 ---
 Reading and curating the durable fact store.
 
-For prompts, use [`recall()`](/sdk/client/#recall) — it ranks and renders. These
+For prompts, use [`recall()`](/sdk/client/#recall), it ranks and renders. These
 methods are for inspection, admin UIs and correction: unranked, chronological,
 structured.
 
@@ -27,10 +27,10 @@ listFacts(dataset: string, opts?: {
 
 | Option | Default | Notes |
 |---|---|---|
-| `q` | — | Keyword (full-text) filter over subject + predicate + object |
+| `q` |, | Keyword (full-text) filter over subject + predicate + object |
 | `limit` | `50` | 1–100 |
 | `includeInvalidated` | `false` | Include superseded and soft-deleted facts |
-| `asOf` | — | Point-in-time. **Overrides `includeInvalidated`.** |
+| `asOf` |, | Point-in-time. **Overrides `includeInvalidated`.** |
 
 ```ts
 const { facts, total } = await memory.listFacts('user_42', {
@@ -60,7 +60,7 @@ const { facts, total } = await memory.listFacts('user_42', {
 }
 ```
 
-Ordered by `validAt` descending. No `relevanceScore` — these are not ranked.
+Ordered by `validAt` descending. No `relevanceScore`, these are not ranked.
 `total` is the count matching the filter, ignoring `limit`.
 
 ### Showing history
@@ -94,14 +94,14 @@ await memory.deleteFact('user_42', '3a91…');
 // { factId: '3a91…', deleted: true }
 ```
 
-A **soft delete** — stamps `invalidAt`. The fact leaves retrieval immediately but
+A **soft delete**, stamps `invalidAt`. The fact leaves retrieval immediately but
 stays queryable via `includeInvalidated` and `asOf`.
 
 Throws `ApiError` with `status: 404` if the fact does not exist, belongs to
 another dataset, or is already invalidated.
 
 > This is the **only write operation** in the whole SDK. Facts cannot be created
-> or edited directly — see [Curating memory](/guides/curating-memory/) for
+> or edited directly, see [Curating memory](/guides/curating-memory/) for
 > how to correct something.
 
 ---
@@ -117,7 +117,7 @@ const entities = await memory.listEntities('user_42');
 // [{ entityId: 'c1f2…', name: 'dji osmo pocket 3', type: 'PRODUCT' }, …]
 ```
 
-Ordered by `updatedAt` descending — most recently mentioned first.
+Ordered by `updatedAt` descending, most recently mentioned first.
 
 > **Unpaginated.** Returns every entity for the dataset. Fine at normal sizes;
 > keep it off hot paths.
@@ -137,7 +137,7 @@ const { facts } = await memory.listFacts('user_42', { entity: 'berlin' });
 ```
 
 The name is lower-cased on the way out, so `'Berlin'` and `'berlin'` both work.
-Names must otherwise match exactly — this is a lookup, not a search. Get valid
+Names must otherwise match exactly, this is a lookup, not a search. Get valid
 names from `listEntities()`.
 
 Returns `[]` for an unknown entity rather than throwing. `entity` takes
@@ -156,7 +156,7 @@ const profile = await Promise.all(
 );
 ```
 
-One request per entity — fine for a dashboard, not for a request path.
+One request per entity, fine for a dashboard, not for a request path.
 
 ---
 
@@ -188,7 +188,7 @@ async function memoryProfile(dataset: string) {
 |---|---|
 | Create a fact | No write API. Facts are derived from messages only. |
 | Edit a fact | Delete and let extraction re-derive. |
-| Pin a fact | No immutability flag — anything can be superseded. |
+| Pin a fact | No immutability flag, anything can be superseded. |
 | Bulk delete a dataset | No endpoint. See [Privacy and data deletion](/operations/privacy-and-deletion/). |
 | Paginate entities | `listEntities` returns everything. |
 | Keyword + entity together | `entity` wins; the other filters are ignored. |
@@ -198,5 +198,5 @@ async function memoryProfile(dataset: string) {
 ## Next
 
 - [Curating and correcting memory](/guides/curating-memory/)
-- [Semantic memory](/concepts/semantic-memory/) — the concepts
+- [Semantic memory](/concepts/semantic-memory/), the concepts
 - [Type reference](/sdk/types/)

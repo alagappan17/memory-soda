@@ -22,12 +22,12 @@ memory-soda/
 │   │       └── main.ts    wiring, first-boot seed, background jobs
 │   └── dashboard/         Vite + React 19 + React Router + Tailwind/shadcn
 ├── packages/
-│   ├── sdk/               @alagappan17/memory-soda — published to npm
+│   ├── sdk/               @alagappan17/memory-soda, published to npm
 │   └── types/             shared TypeScript types, type-only at runtime
 └── developer-docs/        this documentation
 ```
 
-There is **one process** — the API — plus a static frontend. No queue, no
+There is **one process**, the API, plus a static frontend. No queue, no
 worker pool, no cache. Redis, Neo4j and Docker were all removed; Postgres is the
 only dependency.
 
@@ -65,7 +65,7 @@ only dependency.
 | Service | Default | Env var |
 |---|---|---|
 | API | `3004` | `PORT` |
-| Dashboard | `3000` | — (Vite) |
+| Dashboard | `3000` |, (Vite) |
 | Postgres | `5432` | inside `DATABASE_URL` |
 
 ---
@@ -104,8 +104,8 @@ users ──── sessions          (dashboard login only, not tenant data)
 
 **Tenancy** is `(projectId, dataset)` on every memory table.
 
-- `projectId` — a UUID, resolved from the API key on every request.
-- `dataset` — a free-form string you choose. Usually your user ID. Created
+- `projectId`, a UUID, resolved from the API key on every request.
+- `dataset`, a free-form string you choose. Usually your user ID. Created
   implicitly on first write; there is no provisioning step.
 
 **`entities` are referenced by name, not by foreign key.** A fact stores
@@ -135,7 +135,7 @@ request
 ```
 
 Each route handler owns its own `try/catch` and error shape. There is no shared
-error middleware yet — see [Errors](/reference/errors/).
+error middleware yet, see [Errors](/reference/errors/).
 
 ---
 
@@ -176,7 +176,7 @@ Thinking is disabled on the structured calls deliberately: extraction and
 judging are pattern-matching tasks, and thinking mode was observed to spiral for
 minutes on trivial inputs.
 
-> The API **will not boot** without `GOOGLE_GENERATIVE_AI_API_KEY` — the module
+> The API **will not boot** without `GOOGLE_GENERATIVE_AI_API_KEY`, the module
 > throws at import time.
 
 ---
@@ -194,7 +194,7 @@ wrapped in explicit framing:
   out of the block.
 
 This mitigates injection *through* memory. It does not address memory
-*poisoning* — a user deliberately teaching the system false facts. The only
+*poisoning*, a user deliberately teaching the system false facts. The only
 remedy there is deletion; see [Curating memory](/guides/curating-memory/).
 
 ---

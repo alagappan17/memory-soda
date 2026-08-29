@@ -19,7 +19,7 @@ entities and settings.
 
 - Created from the dashboard, or automatically as `default` on first boot.
 - Each API key belongs to exactly one project.
-- **You never pass a project ID to `/v1/*`** — it is derived from the key on
+- **You never pass a project ID to `/v1/*`**, it is derived from the key on
   every request. This is why a leaked key exposes exactly one project.
 
 Use separate projects when you want separate **settings** or separate **blast
@@ -27,7 +27,7 @@ radius**: staging vs production, or two unrelated products sharing one
 deployment.
 
 ```ts
-// Nothing to configure — the key decides.
+// Nothing to configure, the key decides.
 const memory = new MemorySoda({ baseUrl, apiKey: STAGING_KEY });
 ```
 
@@ -35,7 +35,7 @@ const memory = new MemorySoda({ baseUrl, apiKey: STAGING_KEY });
 
 ## Datasets
 
-A dataset is the memory store for one subject — almost always one end user.
+A dataset is the memory store for one subject, almost always one end user.
 
 - A free-form string. **Created implicitly on first write**; there is no
   provisioning call.
@@ -51,7 +51,7 @@ await memory.addMessage(a.threadId, {
   role: 'user', content: 'I only drink decaf after 2pm.',
 });
 
-// Friday — a completely different thread
+// Friday, a completely different thread
 const b = await memory.createThread({ dataset: 'user_42' });
 const { context } = await memory.recall({ dataset: 'user_42', query: 'coffee' });
 // → "- user only drinks decaf after 2pm  (valid: … – present)"
@@ -70,7 +70,7 @@ dataset: `org_${orgId}_${userId}`   // namespaced, still deterministic
 
 ```ts
 dataset: user.email      // changes; memory splits in two when it does
-dataset: sessionId       // a new store every visit — nothing accumulates
+dataset: sessionId       // a new store every visit, nothing accumulates
 dataset: 'default'       // every user's memory merged into one pile
 ```
 
@@ -85,7 +85,7 @@ that memory again without having stored the generated value.
 
 ```ts
 const { threadId, dataset } = await memory.createThread({});
-// dataset === 'usr_9f3ka2be' — keep it or lose it
+// dataset === 'usr_9f3ka2be', keep it or lose it
 ```
 
 ---
@@ -110,7 +110,7 @@ tenant its own project and its own key.
 
 ## Enumerating datasets
 
-There is no `/v1` endpoint that lists datasets — by design, so a leaked
+There is no `/v1` endpoint that lists datasets, by design, so a leaked
 integration key cannot enumerate your users. The dashboard can, behind a login
 session:
 
@@ -135,7 +135,7 @@ not appear.
 
 ## Cardinality
 
-Nothing is provisioned per dataset — no table, no index, no namespace. A dataset
+Nothing is provisioned per dataset, no table, no index, no namespace. A dataset
 is just a string in a `WHERE` clause backed by composite indexes on
 `(dataset, project_id, …)`.
 
@@ -148,5 +148,5 @@ a dataset into memory on every run. See
 
 ## Next
 
-- [Working memory](/concepts/working-memory/) — threads and messages
-- [Semantic memory](/concepts/semantic-memory/) — what actually gets stored per dataset
+- [Working memory](/concepts/working-memory/), threads and messages
+- [Semantic memory](/concepts/semantic-memory/), what actually gets stored per dataset

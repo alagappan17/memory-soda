@@ -21,14 +21,14 @@ No queue, no cache, no worker pool, no object storage.
 
 ## Sizing
 
-The API is IO-bound — it waits on Postgres and on Gemini. Extraction runs
+The API is IO-bound, it waits on Postgres and on Gemini. Extraction runs
 in-process but is mostly network wait.
 
 | Deployment | API | Postgres |
 |---|---|---|
 | Evaluation, one developer | 0.5 vCPU, 512 MB | shared, 1 GB |
 | Small production, < 10k datasets | 1 vCPU, 1 GB | 2 vCPU, 4 GB, SSD |
-| Larger | 2 vCPU, 2 GB | scale Postgres first — it is always the bottleneck |
+| Larger | 2 vCPU, 2 GB | scale Postgres first, it is always the bottleneck |
 
 Two memory notes:
 
@@ -46,11 +46,11 @@ Two memory notes:
 
 Three `setInterval` jobs run in-process: scheduled episodes (5 s), failed-episode
 retry (120 s) and the semantic sweep (120 s). Work is claimed atomically, so
-duplicates do not corrupt data — but N replicas do N times the polling and N
+duplicates do not corrupt data, but N replicas do N times the polling and N
 times the wake-ups, with no leader election.
 
 Scale vertically, or run one instance and accept it. If you need more, add
-`pg_try_advisory_lock` around each tick — a few lines. See
+`pg_try_advisory_lock` around each tick, a few lines. See
 [Background jobs](/operations/background-jobs/).
 
 ---
@@ -84,15 +84,15 @@ MIGRATE_ON_START=true \
 node apps/api/dist/apps/api/src/main.js
 ```
 
-`HOST=0.0.0.0` is required in a container — the default `localhost` will not
+`HOST=0.0.0.0` is required in a container, the default `localhost` will not
 accept external connections.
 
 ### Serve the dashboard
 
 `apps/dashboard/dist/` is a static SPA. Any host works, with two requirements:
 
-1. **SPA fallback** — rewrite unknown paths to `index.html`, or deep links 404.
-2. **`VITE_API_URL` at build time** — it is baked into the bundle and must be the
+1. **SPA fallback**, rewrite unknown paths to `index.html`, or deep links 404.
+2. **`VITE_API_URL` at build time**, it is baked into the bundle and must be the
    URL **the browser** can reach, not the one the server uses.
 
 ```bash
@@ -134,7 +134,7 @@ EXPOSE 3004
 CMD ["node", "apps/api/dist/apps/api/src/main.js"]
 ```
 
-Copy `drizzle/` — the migrator reads the SQL files at runtime when
+Copy `drizzle/`, the migrator reads the SQL files at runtime when
 `MIGRATE_ON_START=true`.
 
 ---
@@ -168,7 +168,7 @@ migrations and your own tooling.
 
 An unexpected idle-client error calls `process.exit(1)`. A Postgres failover will
 take the API down rather than reconnecting. **Run it under a supervisor that
-restarts** — systemd, Docker `--restart`, a Kubernetes Deployment.
+restarts**, systemd, Docker `--restart`, a Kubernetes Deployment.
 
 ---
 
@@ -197,7 +197,7 @@ readinessProbe:
   periodSeconds: 10
 ```
 
-Boot takes a few seconds — migrations run before the listener opens.
+Boot takes a few seconds, migrations run before the listener opens.
 
 ---
 
@@ -211,7 +211,7 @@ front of it.
 | Missing | Mitigation |
 |---|---|
 | TLS | Terminate at the proxy |
-| Rate limiting — including `/auth/login` | Rate-limit at the proxy |
+| Rate limiting, including `/auth/login` | Rate-limit at the proxy |
 | Per-dataset or read-only API keys | One project per tenant |
 | API key expiry | Rotate manually |
 | Audit logging | Log at the proxy |
@@ -221,12 +221,12 @@ front of it.
 
 - [ ] TLS terminated in front
 - [ ] Rate limits on `/auth/login` and `/v1/*`
-- [ ] `CORS_ORIGIN` set to the exact dashboard origin — never `*`
+- [ ] `CORS_ORIGIN` set to the exact dashboard origin, never `*`
 - [ ] `ADMIN_PASSWORD` unset in production so a random one is generated, or set
       to something strong
 - [ ] Postgres not publicly reachable
 - [ ] `GOOGLE_GENERATIVE_AI_API_KEY` in a secret store
-- [ ] Dashboard on a trusted origin — the session token lives in `localStorage`
+- [ ] Dashboard on a trusted origin, the session token lives in `localStorage`
 - [ ] One API key per environment and service
 
 ---
@@ -254,7 +254,7 @@ pg_restore --dbname="$DATABASE_URL" --clean --if-exists memory-2026-08-16.dump
 
 Embeddings are ~3 KB per row, so dumps are dominated by vector columns. They
 compress poorly. Facts and entities regenerate only by re-running extraction over
-messages, which costs LLM calls — back up properly.
+messages, which costs LLM calls, back up properly.
 
 Nothing outside Postgres needs backing up. There is no local state on the API.
 
@@ -269,7 +269,7 @@ npm run build
 # restart; migrations run on boot with MIGRATE_ON_START=true
 ```
 
-Take a backup before upgrading — migrations are not reversible. See
+Take a backup before upgrading, migrations are not reversible. See
 [Migrations](/operations/migrations/).
 
 ---
@@ -280,8 +280,8 @@ Gemini is the running cost. Per episode:
 
 | | |
 |---|---|
-| LLM calls | 3 — summary, extraction, contradiction judging |
-| Embedding batches | 3 — summary, entity names, fact strings |
+| LLM calls | 3, summary, extraction, contradiction judging |
+| Embedding batches | 3, summary, entity names, fact strings |
 
 Plus one embedding per `recall()` with a query, and one LLM call per
 `recall({ include: ['synthesis'] })`.

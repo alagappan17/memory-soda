@@ -36,7 +36,7 @@ router.post(
 );
 
 /**
- * Delete a user — unless it is you, or the last one. Either would lock someone
+ * Delete a user, unless it is you, or the last one. Either would lock someone
  * out of the dashboard with no way back in.
  */
 router.delete(

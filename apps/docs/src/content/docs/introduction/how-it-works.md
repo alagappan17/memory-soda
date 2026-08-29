@@ -14,7 +14,7 @@ You append messages. Everything else happens in the background.
 ```
 POST /v1/memory/working/threads/:id/messages
         │
-        │ synchronous — returns in a few milliseconds
+        │ synchronous, returns in a few milliseconds
         ▼
    messages row written, thread.lastActivityAt bumped,
    an episode scheduled for `now + autoEpisodeIntervalMs`
@@ -82,7 +82,7 @@ camera-shopping conversation it emits roughly four facts, not forty:
 
 Two independent calls, because they cost different amounts.
 
-### `prepare()` — conversation state
+### `prepare()`, conversation state
 
 Pure SQL. No embeddings, no model calls. Returns the active compact summary plus
 the last N messages, oldest first, ready to spread into a chat-completion
@@ -94,7 +94,7 @@ const { messages } = await memory.prepare(threadId, { messageLimit: 20 });
 //  { role: 'user', content: '…' }, { role: 'assistant', content: '…' }]
 ```
 
-### `recall()` — long-term memory
+### `recall()`, long-term memory
 
 Thread-free: it needs only a `dataset`, so you can personalise a search page or
 an agent tool call, not just a chat turn.
@@ -134,7 +134,7 @@ See [Retrieval](/concepts/retrieval/).
 ## Putting a turn together
 
 ```ts
-// 1. Read — both calls are independent, so run them together
+// 1. Read, both calls are independent, so run them together
 const [{ messages }, { context }] = await Promise.all([
   memory.prepare(threadId, { messageLimit: 20 }),
   memory.recall({ dataset, query: userMessage }),
@@ -146,7 +146,7 @@ const reply = await yourLLM({
   messages: [...messages, { role: 'user', content: userMessage }],
 });
 
-// 3. Write — fire and forget; extraction happens in the background
+// 3. Write, fire and forget; extraction happens in the background
 await memory.addMessage(threadId, { role: 'user', content: userMessage });
 await memory.addMessage(threadId, { role: 'assistant', content: reply });
 ```
@@ -173,5 +173,5 @@ Rough numbers from a local instance.
 
 ## Next
 
-- [Architecture](/introduction/architecture/) — processes, tables, background jobs
-- [Working memory](/concepts/working-memory/) — threads, messages, compaction
+- [Architecture](/introduction/architecture/), processes, tables, background jobs
+- [Working memory](/concepts/working-memory/), threads, messages, compaction

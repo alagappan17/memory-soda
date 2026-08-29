@@ -80,7 +80,7 @@ export default function StatusPage() {
 
       {error ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error} — is the API running?
+          {error}, is the API running?
         </div>
       ) : (
         <div className="rounded-lg border border-border divide-y divide-border">

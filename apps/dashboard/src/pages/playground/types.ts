@@ -40,7 +40,7 @@ export interface Operation {
   response?: unknown;
 }
 
-/** Shared signature of useOps().addOp — the single way anything logs an op. */
+/** Shared signature of useOps().addOp, the single way anything logs an op. */
 export type AddOp = (
   type: OpType,
   summary: Record<string, unknown>,

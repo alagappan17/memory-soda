@@ -16,7 +16,7 @@ const DEFAULT_CONTROLS: RecallControls = {
 };
 
 /**
- * Recall inspector — exercises POST /v1/memory/recall with every knob the API
+ * Recall inspector, exercises POST /v1/memory/recall with every knob the API
  * accepts. Thread-free: only needs an API key + dataset.
  */
 export function RecallTab({
@@ -263,7 +263,7 @@ export function RecallTab({
               </pre>
             ) : (
               <p className="text-xs text-muted-foreground">
-                No facts yet — they extract automatically after conversations.
+                No facts yet, they extract automatically after conversations.
               </p>
             )}
           </section>

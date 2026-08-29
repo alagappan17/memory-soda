@@ -82,7 +82,7 @@ export const apiKeysRelations = relations(apiKeys, ({ one, many }) => ({
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   username: text('username').notNull().unique(),
-  // Stored as "salt:scryptHex" — never plaintext.
+  // Stored as "salt:scryptHex", never plaintext.
   passwordHash: text('password_hash').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
@@ -326,17 +326,17 @@ export type ScheduledEpisodeRow = typeof scheduledEpisodes.$inferSelect;
 // without a second store.
 //
 // Bi-temporal semantics:
-//   valid time  — `validAt` → `validUntil`: when the fact is true in the world.
+//   valid time , `validAt` → `validUntil`: when the fact is true in the world.
 //     `validUntil` may be in the future ("running daily for six months") or the
 //     past (a stated historical fact).
-//   belief time — `createdAt` → `invalidAt`: `invalidAt` means superseded by a
+//   belief time, `createdAt` → `invalidAt`: `invalidAt` means superseded by a
 //     contradiction or soft-deleted, ONLY. Never a stated end of validity.
 //
 // The fact's anchor entity is derived, not stored: object when objectIsEntity,
 // else subject.
 //
-// Specialised indexes — the ivfflat cosine index on `embedding` and the
-// expression GIN index for keyword search — are hand-added in the migration SQL
+// Specialised indexes, the ivfflat cosine index on `embedding` and the
+// expression GIN index for keyword search, are hand-added in the migration SQL
 // (drizzle-kit does not emit them from the `vector` customType), mirroring
 // `episodes_embedding_idx`.
 

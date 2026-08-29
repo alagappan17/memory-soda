@@ -52,7 +52,7 @@ await memory.createThread({
 });
 ```
 
-Messages are still stored and `prepare()` still works — nothing becomes a fact.
+Messages are still stored and `prepare()` still works, nothing becomes a fact.
 
 ---
 
@@ -84,7 +84,7 @@ const thread = await memory.getThread(threadId);
 ```
 
 Throws `ApiError` with `status: 404` when the thread does not exist **or belongs
-to another project** — the two are deliberately indistinguishable.
+to another project**, the two are deliberately indistinguishable.
 
 > `WMThread` has no `messageCount`. Counts come from
 > [thread stats](/sdk/working-memory/#thread-stats), an HTTP-only endpoint.
@@ -106,7 +106,7 @@ await memory.updateThread(threadId, { metadata: { resolved: true } });
 // after:  { channel: 'web', ticketId: 'T-1094', resolved: true }
 ```
 
-Merging is one level deep — a nested object is replaced wholesale, not merged.
+Merging is one level deep, a nested object is replaced wholesale, not merged.
 
 ```ts
 // removing a key requires reading, deleting and writing the whole object
@@ -197,12 +197,12 @@ socket.on('disconnect', () => {
 | | Status |
 |---|---|
 | Delete a thread | No endpoint. Deleting the row cascades to messages; do it in SQL. |
-| List threads for a dataset | Dashboard only — [`GET /dashboard/browse/threads`](/api/dashboard/). |
+| List threads for a dataset | Dashboard only, [`GET /dashboard/browse/threads`](/api/dashboard/). |
 | Change `tags` or `autoCompactThreshold` after creation | Not patchable. |
 
 ---
 
 ## Next
 
-- [`memory.working`](/sdk/working-memory/) — appending and reading messages
-- [Working memory](/concepts/working-memory/) — the concepts
+- [`memory.working`](/sdk/working-memory/), appending and reading messages
+- [Working memory](/concepts/working-memory/), the concepts

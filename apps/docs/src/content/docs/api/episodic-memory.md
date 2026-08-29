@@ -5,7 +5,7 @@ description: "Base path: /v1/memory/episodic · Auth: API key"
 Base path: `/v1/memory/episodic` · Auth: [API key](/api/authentication/)
 
 An admin surface for inspecting and repairing episodes. **Not exposed on the
-SDK** — normal reads go through
+SDK**, normal reads go through
 [`recall({ include: ['episodes'] })`](/api/recall/#episodes).
 
 Concepts: [Episodic memory](/concepts/episodic-memory/)
@@ -19,7 +19,7 @@ Concepts: [Episodic memory](/concepts/episodic-memory/)
 | Param | Type | Default | Notes |
 |---|---|---|---|
 | `limit` | integer | `10` | 1–50 |
-| `before` | ISO datetime | — | Cursor on `endedAt` |
+| `before` | ISO datetime |, | Cursor on `endedAt` |
 | `status` | enum | `completed` | `pending`, `processing`, `completed`, `failed` |
 
 > The enum here does **not** accept `archived` or `all`, unlike the equivalent
@@ -129,7 +129,7 @@ Wrapped in an `episode` key, unlike the list endpoints.
 
 ## `DELETE /v1/memory/episodic/episodes/:episodeId`
 
-Soft delete — sets `status: archived`.
+Soft delete, sets `status: archived`.
 
 ### Response `200`
 
@@ -143,7 +143,7 @@ Soft delete — sets `status: archived`.
 | `404` | `{ "error": "Episode not found" }` | |
 
 > **Facts extracted from the episode are not deleted.** They keep their
-> `episodeId` reference. To remove the knowledge, delete the facts —
+> `episodeId` reference. To remove the knowledge, delete the facts,
 > see [Curating memory](/guides/curating-memory/).
 >
 > The summary, key learnings and embedding are also retained; only the status
@@ -168,7 +168,7 @@ Re-queue a failed episode.
 
 Resets to `pending`, increments `retryCount`, and starts processing
 asynchronously. The background retry job does this automatically every 120
-seconds up to `maxRetries` (default 3) — this endpoint is for pushing past that
+seconds up to `maxRetries` (default 3), this endpoint is for pushing past that
 cap or retrying immediately.
 
 ```bash
@@ -190,7 +190,7 @@ curl -X POST "http://localhost:3004/v1/memory/episodic/episodes/8b21…/retry" \
 | `deleted` | Reserved; not currently produced |
 
 A second column, `semanticStatus`, drives the
-[extraction pipeline](/concepts/extraction-pipeline/) — `pending`,
+[extraction pipeline](/concepts/extraction-pipeline/), `pending`,
 `processing`, `completed`, `failed`, `skipped`.
 
 > **`semanticStatus` is not exposed on any endpoint.** An episode can show
@@ -223,6 +223,6 @@ The [Playground](/dashboard/playground/) does most of this live.
 
 ## Next
 
-- [Episodic memory](/concepts/episodic-memory/) — the concepts
+- [Episodic memory](/concepts/episodic-memory/), the concepts
 - [The extraction pipeline](/concepts/extraction-pipeline/)
 - [Background jobs](/operations/background-jobs/)

@@ -1,8 +1,8 @@
 /*
  * Theme: mirrors the dashboard (apps/dashboard/src/index.css).
  *
- * That theme is already pure neutral — every colour is oklch(L 0 0), zero
- * chroma — so the values below are copied across verbatim rather than
+ * That theme is already pure neutral, every colour is oklch(L 0 0), zero
+ * chroma, so the values below are copied across verbatim rather than
  * approximated. If the dashboard palette changes, change it here too.
  *
  *   dashboard token          light            dark
@@ -119,8 +119,8 @@
 /* ── Type scale ───────────────────────────────────────────────────────────── */
 
 /*
- * Starlight's defaults are sized for prose. This is reference documentation —
- * dense tables, long signatures, a lot of scanning — so the whole scale comes
+ * Starlight's defaults are sized for prose. This is reference documentation,
+ * dense tables, long signatures, a lot of scanning, so the whole scale comes
  * down roughly 15% and headings lose their display-face proportions.
  */
 :root {
@@ -218,8 +218,8 @@
 
 /*
  * The mark ships in one ink colour and the dark theme flips it, rather than
- * shipping a second file that differs only in fill. Both places it appears —
- * the nav and the landing hero — are covered here, so the flip is one rule.
+ * shipping a second file that differs only in fill. Both places it appears,
+ * the nav and the landing hero, are covered here, so the flip is one rule.
  */
 :root[data-theme='dark'] :is(.site-title img, .hero-mark) {
   filter: invert(1);
@@ -249,7 +249,7 @@ site-search button[data-open-modal] > kbd {
 /*
  * Right-hand controls.
  *
- * Defaults: a 1rem gap on both the group and the icons, and a 2rem divider —
+ * Defaults: a 1rem gap on both the group and the icons, and a 2rem divider,
  * three near-identical spaces that read as one loose cluster. The icons tighten
  * to each other, the divider gets its own breathing room, and the theme select
  * trims the 6.25em width that stranded its caret a word away from "Auto".
@@ -289,7 +289,7 @@ starlight-theme-select select {
   padding-top: 0.75rem;
 }
 
-/* Group labels recede: small, uppercase, muted — chrome, not content. */
+/* Group labels recede: small, uppercase, muted, chrome, not content. */
 .sidebar-content summary,
 .sidebar-content > ul > li > span,
 .sidebar-content .large {
@@ -362,7 +362,7 @@ starlight-toc nav a:hover {
 
 /*
  * Code needs to read as a distinct surface. Without a background and border it
- * sits directly on the page and looks like pasted plain text — which is
+ * sits directly on the page and looks like pasted plain text, which is
  * especially bad here, where several pages are ASCII diagrams.
  *
  * Token colours are authored monochrome in ./code-themes.mjs rather than
@@ -457,8 +457,8 @@ starlight-toc nav a:hover {
 /* ── Tables ───────────────────────────────────────────────────────────────── */
 
 /*
- * Horizontal rules only. A full grid turns every reference table — and there
- * are many — into a heavy box that competes with the prose around it.
+ * Horizontal rules only. A full grid turns every reference table, and there
+ * are many, into a heavy box that competes with the prose around it.
  */
 .sl-markdown-content table {
   display: block;
@@ -522,13 +522,13 @@ starlight-toc nav a:hover {
  */
 /*
  * The hero sits in a 1080px container while the body is 768px, so the two
- * start at different left edges — 156px apart, which reads as a mistake.
+ * start at different left edges, 156px apart, which reads as a mistake.
  * Constrain the hero's stack to the same measure so they share an edge.
  */
 /*
  * Starlight lays the hero out as a two-column grid (~7fr text / 4fr image).
  * There is no hero image, so the second track is 380px of dead space and the
- * text is squeezed into 667px — which is why it did not line up with the 768px
+ * text is squeezed into 667px, which is why it did not line up with the 768px
  * body below it. One column, and the stack below can take the full measure.
  */
 .hero {

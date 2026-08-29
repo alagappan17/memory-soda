@@ -13,11 +13,11 @@ npm create memory-soda@latest
 ```
 
 The installer asks for a folder name, your Gemini API key, your `DATABASE_URL`,
-which ports to use, and the dashboard admin login — then clones the repo, writes
+which ports to use, and the dashboard admin login, then clones the repo, writes
 `.env`, installs dependencies, and checks the database. Skip to
 [Quickstart](/getting-started/quickstart/) once it finishes.
 
-You supply Postgres yourself, so set it up first — see
+You supply Postgres yourself, so set it up first, see
 [Prerequisites](#prerequisites) below. The installer connects before it finishes
 and tells you exactly what is missing rather than leaving it to fail at boot:
 
@@ -28,7 +28,7 @@ Fix it and press enter to retry, or type a new DATABASE_URL (s to skip):
 ```
 
 > Planning to send patches? Clone instead. The installer removes `.git` so your
-> project is not a fork of this repo — see
+> project is not a fork of this repo, see
 > [Development setup](/contributing/development/).
 
 Everything below is the same setup done by hand.
@@ -41,7 +41,7 @@ Everything below is the same setup done by hand.
 |---|---|---|
 | Node.js | 20 or newer | 22+ recommended |
 | PostgreSQL | 14 or newer | must have the [pgvector](https://github.com/pgvector/pgvector) extension available |
-| Gemini API key | — | free tier is enough to evaluate — [aistudio.google.com](https://aistudio.google.com) |
+| Gemini API key |, | free tier is enough to evaluate, [aistudio.google.com](https://aistudio.google.com) |
 
 ### Installing pgvector
 
@@ -114,7 +114,7 @@ psql -d memory_db -c "ALTER DATABASE memory_db OWNER TO memory_user;"
 cp .env.example .env
 ```
 
-Edit `.env` — only two values are required:
+Edit `.env`, only two values are required:
 
 ```bash
 # Required
@@ -155,13 +155,13 @@ On **first boot only**, credentials are printed once:
 
 ```
 ┌───────────────────────────────────────────────────────┐
-│  Memory Soda — First-time setup                       │
+│  Memory Soda, First-time setup                       │
 │                                                       │
 │  API Key:  ms_3f9a…                                   │
 │  Login:    admin / kR7v-2mQxPd1                       │
-│            (generated — set ADMIN_PASSWORD to choose) │
+│            (generated, set ADMIN_PASSWORD to choose) │
 │                                                       │
-│  Save these — the API key will not be shown again.    │
+│  Save these, the API key will not be shown again.    │
 └───────────────────────────────────────────────────────┘
 ```
 
@@ -223,7 +223,7 @@ npm link --workspace=packages/sdk
 npm link @alagappan17/memory-soda
 ```
 
-After changing SDK source, `npm run sdk:build` is enough — the link picks up the
+After changing SDK source, `npm run sdk:build` is enough, the link picks up the
 new `dist`.
 
 Alternatively, pin a file path in your app's `package.json`:
@@ -262,5 +262,5 @@ origins are comma-separated.
 
 ## Next
 
-- [Quickstart](/getting-started/quickstart/) — store and recall your first memory
-- [Configuration](/getting-started/configuration/) — every knob
+- [Quickstart](/getting-started/quickstart/), store and recall your first memory
+- [Configuration](/getting-started/configuration/), every knob

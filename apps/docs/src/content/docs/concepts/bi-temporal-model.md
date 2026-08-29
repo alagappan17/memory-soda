@@ -11,10 +11,10 @@ understanding before you use `asOf`.
 ## The two timelines
 
 ```
-VALID TIME    — when the fact is true in the world
+VALID TIME   , when the fact is true in the world
                 validAt ──────────────────► validUntil
 
-BELIEF TIME   — when we believed it
+BELIEF TIME  , when we believed it
                 createdAt ────────────────► invalidAt
 ```
 
@@ -69,7 +69,7 @@ Three ways a fact leaves the live set:
 | | Cause |
 |---|---|
 | `invalidAt` set | A contradicting fact won, or you deleted it |
-| `validUntil` passed | Its stated window ended — no write required |
+| `validUntil` passed | Its stated window ended, no write required |
 | `validAt` in the future | Not true *yet* |
 
 ### Future-dated facts are invisible
@@ -108,9 +108,9 @@ const { context } = await memory.recall({
 
 Uses:
 
-- **Auditing** — "why did the agent say that on 14 August?"
-- **Debugging** — separate a retrieval bug from a memory that legitimately changed
-- **Compliance** — reconstruct the state that drove a decision
+- **Auditing**, "why did the agent say that on 14 August?"
+- **Debugging**, separate a retrieval bug from a memory that legitimately changed
+- **Compliance**, reconstruct the state that drove a decision
 
 > `asOf` **bypasses hybrid retrieval**. It falls back to keyword and recency
 > ranking, because the vector/entity path assumes the current live set. Results
@@ -122,7 +122,7 @@ Uses:
 ## How valid time gets populated
 
 Extraction sets `validFrom` / `validUntil` **only when the user states them
-explicitly**. Defaulting both to `null` is deliberate — most facts are
+explicitly**. Defaulting both to `null` is deliberate, most facts are
 open-ended, and invented bounds are worse than none.
 
 | The user says | `validAt` | `validUntil` |
@@ -131,11 +131,11 @@ open-ended, and invented bounds are worse than none.
 | "I've used Arch since 2019" | `2019-01-01` | `null` |
 | "I'm on a cut until December" | now | that December |
 | "I'll run daily for the next six months" | now | now + 6 months |
-| "I used to work at Google" | now | *past* — inserted as history, never supersedes anything |
+| "I used to work at Google" | now | *past*, inserted as history, never supersedes anything |
 
 ### Same-day coercion
 
-`validFrom` is date-only, so "today" would resolve to midnight — *hours before*
+`validFrom` is date-only, so "today" would resolve to midnight, *hours before*
 facts recorded earlier the same day. A brand-new statement would look older than
 the fact it supersedes, and the contradiction judge would keep the wrong one.
 
@@ -154,7 +154,7 @@ defaults to keeping both.
 | `new` | The new fact is wrong or adds nothing | a less precise restatement |
 | `neither` | Both are true at once | multiple skills, hobbies, devices |
 
-Exclusive states — one employer, one home city — supersede. Non-exclusive ones
+Exclusive states, one employer, one home city, supersede. Non-exclusive ones
 accumulate. On genuine uncertainty the verdict is `neither`, because destroying
 knowledge is worse than keeping a redundant row.
 
@@ -181,12 +181,12 @@ until March" works even though last year's cut is still on file.
             → lisbon is live; berlin expired on its own, nothing invalidated it
 
 2026-08-16  recall({ asOf: '2026-06-01' })
-            → berlin — on 1 June that was both true and believed
+            → berlin, on 1 June that was both true and believed
 ```
 
 ---
 
 ## Next
 
-- [Point-in-time recall](/guides/point-in-time-recall/) — practical uses of `asOf`
-- [The extraction pipeline](/concepts/extraction-pipeline/) — where contradictions are judged
+- [Point-in-time recall](/guides/point-in-time-recall/), practical uses of `asOf`
+- [The extraction pipeline](/concepts/extraction-pipeline/), where contradictions are judged

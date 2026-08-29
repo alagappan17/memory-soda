@@ -28,11 +28,11 @@ const { threadId } = await memory.createThread({ dataset: 'user_42' });
 // 2. Append a conversation. This is all extraction ever sees.
 await memory.addMessage(threadId, {
   role: 'user',
-  content: "I'm looking for a travel camera under $1000. It has to be small — mirrorless is too bulky for me.",
+  content: "I'm looking for a travel camera under $1000. It has to be small, mirrorless is too bulky for me.",
 });
 await memory.addMessage(threadId, {
   role: 'assistant',
-  content: 'The DJI Osmo Pocket 3 is a great fit — 1-inch sensor, built-in gimbal, pocketable.',
+  content: 'The DJI Osmo Pocket 3 is a great fit, 1-inch sensor, built-in gimbal, pocketable.',
 });
 await memory.addMessage(threadId, {
   role: 'user',
@@ -75,7 +75,7 @@ That `context` string goes straight into your system prompt. That is the whole
 integration.
 
 > **Why the wait?** Extraction runs in the background after a period of
-> inactivity — three LLM calls and two embedding batches. See
+> inactivity, three LLM calls and two embedding batches. See
 > [How it works](/introduction/how-it-works/#the-write-path). To watch it
 > happen live, use the [Playground](/dashboard/playground/).
 
@@ -125,7 +125,7 @@ Extraction normally waits for a lull in conversation. To force it immediately:
 await memory.endThread(threadId);
 ```
 
-Despite the name, this does not close the thread — it remains writable. It just
+Despite the name, this does not close the thread, it remains writable. It just
 queues extraction now instead of on the timer. See
 [`threads.end()`](/sdk/threads/#endthread).
 
@@ -138,7 +138,7 @@ queues extraction now instead of on the timer. See
 | `threads.create` | a row in `threads`, scoped to your project and the `dataset` string |
 | `addMessage` ×3 | three rows in `messages` with sequence numbers 1, 2, 3 |
 | the wait | an `episodes` row, then four `facts` rows and three `entities` rows |
-| `recall` | nothing — a pure read |
+| `recall` | nothing, a pure read |
 
 Open the dashboard's [Datasets](/dashboard/datasets/) page and select
 `user_42` to see all of it.
@@ -147,6 +147,6 @@ Open the dashboard's [Datasets](/dashboard/datasets/) page and select
 
 ## Next
 
-- [Your first integration](/getting-started/your-first-integration/) — a complete chat turn with an LLM
-- [Build a chatbot with memory](/guides/build-a-chatbot/) — the full worked example
-- [Playground](/dashboard/playground/) — watch the pipeline run in real time
+- [Your first integration](/getting-started/your-first-integration/), a complete chat turn with an LLM
+- [Build a chatbot with memory](/guides/build-a-chatbot/), the full worked example
+- [Playground](/dashboard/playground/), watch the pipeline run in real time

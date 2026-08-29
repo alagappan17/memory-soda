@@ -5,7 +5,7 @@ description: "What to do when a fact is wrong."
 What to do when a fact is wrong.
 
 The short version: **memory is derived, not authored.** You cannot write or edit
-a fact — you can only delete one, or say something that supersedes it.
+a fact, you can only delete one, or say something that supersedes it.
 
 ---
 
@@ -31,7 +31,7 @@ user: "Actually I moved to Lisbon last month."
 → new:  user lives in lisbon    validAt = now
 ```
 
-Works well for **exclusive** states — one employer, one home city, one current
+Works well for **exclusive** states, one employer, one home city, one current
 phone. The judge is asked which of the two survives, and the most recent
 statement wins.
 
@@ -69,7 +69,7 @@ curl -X DELETE "$API/v1/memory/semantic/datasets/user_42/facts/$FACT_ID" \
   -H "Authorization: Bearer $KEY"
 ```
 
-A **soft delete** — it stamps `invalidAt`. The fact leaves retrieval immediately
+A **soft delete**, it stamps `invalidAt`. The fact leaves retrieval immediately
 and stays queryable through `includeInvalidated` and `asOf`.
 
 `404` if it does not exist, belongs to another dataset, or is already
@@ -96,7 +96,7 @@ for (const f of facts) {
 }
 ```
 
-Sequential — there is no bulk endpoint.
+Sequential, there is no bulk endpoint.
 
 ---
 
@@ -147,7 +147,7 @@ export async function forget(dataset: string, query: string) {
 }
 ```
 
-`q` is a keyword filter, not semantic search — it matches literal terms in
+`q` is a keyword filter, not semantic search, it matches literal terms in
 subject, predicate or object. To find candidates semantically:
 
 ```ts
@@ -180,7 +180,7 @@ for (const f of facts) {
   const state = f.invalidAt ? 'superseded'
     : f.validUntil && new Date(f.validUntil).getTime() <= now ? 'expired'
     : 'current';
-  console.log(`[${state}] ${f.predicate} ${f.object}  (${f.validAt} → ${f.validUntil ?? '—'})`);
+  console.log(`[${state}] ${f.predicate} ${f.object}  (${f.validAt} → ${f.validUntil ?? '-'})`);
 }
 ```
 
@@ -230,7 +230,7 @@ every future session.
 
 The defences that exist:
 
-- Extraction is fenced — a transcript cannot instruct the extractor.
+- Extraction is fenced, a transcript cannot instruct the extractor.
 - The rendered block is framed as untrusted data in the prompt.
 - Facts are collapsed to one line so they cannot break out of the block.
 
@@ -238,7 +238,7 @@ Those stop injection *through* memory. They do not stop a user asserting
 falsehoods about themselves.
 
 **The only remedy is deletion at the data layer.** Correcting the agent in
-conversation does not work — the poisoned fact is still in the store and gets
+conversation does not work, the poisoned fact is still in the store and gets
 retrieved again next session.
 
 If you accept untrusted input:

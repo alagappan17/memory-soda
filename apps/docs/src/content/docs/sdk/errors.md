@@ -14,7 +14,7 @@ import { ApiError, AuthError, NetworkError, MemorySodaError } from '@alagappan17
 
 ```
 Error
-└── MemorySodaError          base — catch this to catch everything
+└── MemorySodaError          base, catch this to catch everything
     ├── ApiError             the server responded with a non-2xx
     ├── AuthError            401 or 403
     └── NetworkError         the request never completed
@@ -34,7 +34,7 @@ try {
   await memory.getThread(threadId);
 } catch (err) {
   if (err instanceof ApiError && err.status === 404) {
-    // gone, or belongs to another project — indistinguishable by design
+    // gone, or belongs to another project, indistinguishable by design
   }
 }
 ```
@@ -54,7 +54,7 @@ class AuthError extends MemorySodaError {
 ```
 
 Causes: wrong key, revoked key, key not linked to a project, missing
-`Authorization` header. Not retryable — it is a configuration problem.
+`Authorization` header. Not retryable, it is a configuration problem.
 
 ### `NetworkError`
 
@@ -79,12 +79,12 @@ if (err instanceof NetworkError) {
 
 | Status | Error | Means |
 |---|---|---|
-| 400 | `ApiError` | Validation failed — `body.issues` has the zod detail |
+| 400 | `ApiError` | Validation failed, `body.issues` has the zod detail |
 | 401 | `AuthError` | Missing, invalid or revoked key |
-| 403 | `AuthError` | — |
+| 403 | `AuthError` |, |
 | 404 | `ApiError` | Thread, fact or episode not found, or not yours |
 | 409 | `ApiError` | Conflict (dashboard user creation) |
-| 500 | `ApiError` | Server error — safe to retry |
+| 500 | `ApiError` | Server error, safe to retry |
 | 503 | `ApiError` | `/health` when a dependency is down |
 
 Full list: [Errors](/reference/errors/).
@@ -102,7 +102,7 @@ async function safeRecall(dataset: string, query: string): Promise<string> {
     return context;
   } catch (err) {
     if (err instanceof AuthError) {
-      throw err;                                    // config problem — fail loudly
+      throw err;                                    // config problem, fail loudly
     }
     if (err instanceof NetworkError) {
       logger.warn({ err }, 'memory unreachable');
@@ -152,7 +152,7 @@ const { context } = await withRetry(() => memory.recall({ dataset, query }));
 
 | Operation | Safe to retry? |
 |---|---|
-| `recall`, `prepare`, `get`, `list*`, `health` | Yes — pure reads |
+| `recall`, `prepare`, `get`, `list*`, `health` | Yes, pure reads |
 | `threads.create` | Creates a **new thread** each time |
 | `addMessage` | Appends a **duplicate** message |
 | `threads.end` | Creates another episode (harmless, costs 3 LLM calls) |
@@ -160,7 +160,7 @@ const { context } = await withRetry(() => memory.recall({ dataset, query }));
 | `deleteFact` | 404 on the second call |
 
 There are no idempotency keys. For writes, retry only on `NetworkError` where you
-have reason to believe the request never landed — and accept that a timeout after
+have reason to believe the request never landed, and accept that a timeout after
 the server committed will duplicate.
 
 ---
@@ -173,7 +173,7 @@ Set once on the client, applied per request:
 const memory = new MemorySoda({ baseUrl, apiKey, timeout: 15_000 });
 ```
 
-Defaults to 60 seconds — deliberately generous, because two operations are slow:
+Defaults to 60 seconds, deliberately generous, because two operations are slow:
 
 | Operation | Can take |
 |---|---|
@@ -223,11 +223,11 @@ function describe(err: unknown) {
 }
 ```
 
-Do not log `err.body` for reads — it can contain user content.
+Do not log `err.body` for reads, it can contain user content.
 
 ---
 
 ## Next
 
-- [Errors reference](/reference/errors/) — every endpoint's failure modes
+- [Errors reference](/reference/errors/), every endpoint's failure modes
 - [Type reference](/sdk/types/)

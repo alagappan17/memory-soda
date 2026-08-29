@@ -13,7 +13,7 @@ const GRACE_MS = 2000;
  * episode completes → fetch its facts → emit a "facts_extracted" op.
  *
  * Polling GETs are silent (not logged as ops). All async continuations are
- * guarded by a generation counter — bumped on reset — rather than the page's
+ * guarded by a generation counter, bumped on reset, rather than the page's
  * currentRequestId, which guards user-initiated UI state.
  */
 export function useExtractionPoller({
@@ -93,7 +93,7 @@ export function useExtractionPoller({
         for (const e of eps) knownRef.current.add(e.episodeId);
         seededRef.current = true;
       } catch {
-        // Transient — the next attempt will seed.
+        // Transient, the next attempt will seed.
       }
     },
     [fetchEpisodes],
@@ -160,7 +160,7 @@ export function useExtractionPoller({
         stopTimers();
         addOpRef.current('note', {
           message:
-            'Extraction not observed within 90s — check the Episodes tab.',
+            'Extraction not observed within 90s, check the Episodes tab.',
         });
         return;
       }
@@ -194,7 +194,7 @@ export function useExtractionPoller({
           stopTimers();
         }
       } catch {
-        // Transient network error — keep polling until the deadline.
+        // Transient network error, keep polling until the deadline.
       } finally {
         tickingRef.current = false;
       }
@@ -215,7 +215,7 @@ export function useExtractionPoller({
 
   /**
    * Arm polling to begin after the server's inactivity window. Called on each
-   * chat message — re-arming mirrors the server resetting its episode timer.
+   * chat message, re-arming mirrors the server resetting its episode timer.
    */
   const schedule = useCallback(
     (inactivityMs: number) => {
@@ -241,7 +241,7 @@ export function useExtractionPoller({
     })();
   }, [beginPolling, seedBaseline]);
 
-  /** Watch one retried episode — a single precise GET per tick, no list diffing. */
+  /** Watch one retried episode, a single precise GET per tick, no list diffing. */
   const watch = useCallback(
     (episodeId: string) => {
       knownRef.current.delete(episodeId);

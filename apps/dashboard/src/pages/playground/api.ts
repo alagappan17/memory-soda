@@ -9,7 +9,7 @@ import type { OpTrace } from './types';
  *
  * It is the only place we use the client the way a customer does, so it is the
  * only place its ergonomics get tested. The network trace the ops log renders
- * comes from the SDK's own `onRequest`/`onResponse` hooks — a feature users
+ * comes from the SDK's own `onRequest`/`onResponse` hooks, a feature users
  * have too, rather than instrumentation that only exists here.
  */
 
@@ -68,7 +68,7 @@ export async function call<T>(
   }
 }
 
-/** `call` without the trace — for background reads that should not log an op. */
+/** `call` without the trace, for background reads that should not log an op. */
 export async function quiet<T>(
   apiKey: string,
   fn: (memory: MemorySoda) => Promise<T>,
@@ -82,7 +82,7 @@ export async function quiet<T>(
  *
  * Compaction, thread stats, episode retry and delete, and the entity list are
  * operator tools, not things an integration does on a chat turn, so they are
- * not on the SDK. The playground still offers them — and still logs them —
+ * not on the SDK. The playground still offers them, and still logs them,
  * through the session-authenticated `/dashboard/v1` mount, which serves the
  * same memory routes the API key surface does.
  */

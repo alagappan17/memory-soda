@@ -49,7 +49,7 @@ const res = await memory.addMessage(threadId, {
 ```
 
 **`sequenceNumber` is assigned by the server** inside a row-locked transaction.
-Append in order — the sequence reflects insert order, not the order you intended.
+Append in order, the sequence reflects insert order, not the order you intended.
 
 ### Latency
 
@@ -64,14 +64,14 @@ enough that it fires rarely.
 ### Unknown fields are dropped, not rejected
 
 Validation strips unknown keys rather than erroring. Sending the old
-`tokenCount` field returns `201` with the token data silently discarded — the
+`tokenCount` field returns `201` with the token data silently discarded, the
 field is now `tokens`.
 
 ---
 
 ## `prepare()`
 
-The LLM-ready conversation window. Pure SQL — no embeddings, no model calls.
+The LLM-ready conversation window. Pure SQL, no embeddings, no model calls.
 
 ```ts
 prepare(threadId: string, opts?: { messageLimit?: number }): Promise<WMPrepareResponse>
@@ -130,7 +130,7 @@ listMessages(threadId: string, opts?: WMListMessagesQuery): Promise<WMListMessag
 | Option | Default | Notes |
 |---|---|---|
 | `limit` | `20` | 1–100 |
-| `before` | — | Cursor: `sequenceNumber` strictly less than this |
+| `before` |, | Cursor: `sequenceNumber` strictly less than this |
 | `order` | `'asc'` | or `'desc'` |
 
 ```ts
@@ -174,7 +174,7 @@ const result = await memory.compact(threadId);
 ```
 
 When there is nothing to compact the endpoint returns
-`{ ok: true, compacted: false, message: 'Nothing to compact' }` — which does not
+`{ ok: true, compacted: false, message: 'Nothing to compact' }`, which does not
 match `WMCompactResult`. Guard on the field you need:
 
 ```ts
@@ -184,7 +184,7 @@ if ('summaryMessageId' in result) {
 }
 ```
 
-Makes an LLM call; takes seconds. Auto-compaction covers most cases — reach for
+Makes an LLM call; takes seconds. Auto-compaction covers most cases, reach for
 this when you want compaction off the request path.
 
 See [Handling long conversations](/guides/long-conversations/).
@@ -224,5 +224,5 @@ await memory.addMessage(threadId, { role: 'assistant', content: reply });
 
 ## Next
 
-- [Facts and entities](/sdk/semantic-memory/) — reading and curating facts
-- [Handling long conversations](/guides/long-conversations/) — compaction in practice
+- [Facts and entities](/sdk/semantic-memory/), reading and curating facts
+- [Handling long conversations](/guides/long-conversations/), compaction in practice

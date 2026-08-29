@@ -161,7 +161,7 @@ function MessageDetailCard({ msg }: { msg: WMMessage }) {
 const ROLES: { value: MessageRole; hint: string }[] = [
   { value: 'user', hint: 'what the person said' },
   { value: 'assistant', hint: 'a reply your own model produced' },
-  { value: 'system', hint: 'instructions — kept out of extraction' },
+  { value: 'system', hint: 'instructions, kept out of extraction' },
   { value: 'tool', hint: 'a tool result the model saw' },
 ];
 

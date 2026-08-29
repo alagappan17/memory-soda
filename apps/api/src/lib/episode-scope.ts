@@ -5,7 +5,7 @@ import { messages } from '../db/schema.js';
  * The messages a given episode covers.
  *
  * Episodes stamp an inclusive `[startSequence, endSequence]` range when they are
- * opened, and both consumers — summarisation and semantic extraction — must read
+ * opened, and both consumers, summarisation and semantic extraction, must read
  * exactly that window or they describe different conversations. Episodes created
  * before the range existed carry NULLs and fall back to the whole uncompacted
  * thread.

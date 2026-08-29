@@ -4,7 +4,7 @@ description: "Base paths: /auth and /dashboard · Auth: session token"
 ---
 Base paths: `/auth` and `/dashboard` · Auth: [session token](/api/authentication/#dashboard-sessions)
 
-These back the bundled dashboard UI. They are **not an integration surface** —
+These back the bundled dashboard UI. They are **not an integration surface**,
 they are unversioned and may change without notice. Documented so you can script
 administration.
 
@@ -117,7 +117,7 @@ transaction with the rows locked, so concurrent deletes cannot both slip past it
 
 > **Does not cascade in the application layer.** Threads, facts and entities are
 > removed by database-level `ON DELETE CASCADE`; API keys for the project are
-> removed too. This is destructive and irreversible — everything the project
+> removed too. This is destructive and irreversible, everything the project
 > remembered is gone.
 
 ### `GET /dashboard/projects/:id/settings`
@@ -164,7 +164,7 @@ Bounds are in [Project settings](/reference/project-settings/).
                  "lastUsedAt": "…", "revokedAt": null } ] }
 ```
 
-Full key values are never returned — only a preview.
+Full key values are never returned, only a preview.
 
 ### `POST /dashboard/api-keys`
 
@@ -184,7 +184,7 @@ Full key values are never returned — only a preview.
 
 ### `DELETE /dashboard/api-keys/:id`
 
-`204`. Immediate and permanent — `revokedAt` is stamped and the row is kept.
+`204`. Immediate and permanent, `revokedAt` is stamped and the row is kept.
 
 Takes the **key id**, not the key value.
 
@@ -196,8 +196,8 @@ Takes the **key id**, not the key value.
 
 | Param | Required | Default |
 |---|---|---|
-| `projectId` | **yes** | — |
-| `dataset` | no | — |
+| `projectId` | **yes** |, |
+| `dataset` | no |, |
 | `limit` | no | `20` (1–100) |
 | `offset` | no | `0` |
 
@@ -237,8 +237,8 @@ status.
 
 | Param | Required | Default |
 |---|---|---|
-| `projectId` | **yes** | — |
-| `q` | no | — (ILIKE filter on the dataset name) |
+| `projectId` | **yes** |, |
+| `q` | no |, (ILIKE filter on the dataset name) |
 | `limit` | no | `50` (1–100) |
 | `offset` | no | `0` |
 
@@ -260,7 +260,7 @@ status.
 ## The memory routes, under session auth
 
 Everything under `/v1` is mounted a second time at **`/dashboard/v1`**. Same
-router, same handlers, same response shapes — the only difference is the
+router, same handlers, same response shapes, the only difference is the
 credential and where the project comes from.
 
 | | `/v1/…` | `/dashboard/v1/…` |
@@ -279,7 +279,7 @@ curl "$API/dashboard/v1/memory/semantic/datasets/user_42/facts?projectId=$PROJEC
 
 This replaces the parallel set of `/dashboard/datasets/*` endpoints that used to
 exist. They called the same service functions as their `/v1` counterparts and
-had already drifted from them — the dashboard copy never grew `asOf` or
+had already drifted from them, the dashboard copy never grew `asOf` or
 `episodeId`. Mounting one router twice makes that class of drift impossible.
 
 See [Semantic memory](/api/semantic-memory/), [Episodic
@@ -313,7 +313,7 @@ curl -s -X POST $API/auth/logout -H "Authorization: Bearer $TOKEN"
 
 ## Authorization caveat
 
-`/dashboard/*` checks that **a valid session exists** — not that the user owns
+`/dashboard/*` checks that **a valid session exists**, not that the user owns
 the `projectId` they passed. Any signed-in dashboard user can read and modify
 any project.
 

@@ -15,7 +15,7 @@ const STATUS_FILTERS: EpisodeStatus[] = [
 type EpisodeRow = Episode & { relevanceScore?: number };
 
 function fmt(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   return new Date(iso).toLocaleString([], {
     month: 'short',
     day: 'numeric',
@@ -283,7 +283,7 @@ export function EpisodesTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, dataset]);
 
-  // Poller-triggered refresh (silent — the poller already logged the event).
+  // Poller-triggered refresh (silent, the poller already logged the event).
   useEffect(() => {
     if (refreshKey > 0 && loadedOnce.current && !searchMode) {
       void load({ silent: true });
@@ -315,7 +315,7 @@ export function EpisodesTab({
     if (!projectId) return;
     try {
       // Re-running a failed background job is an operator action, so it is not
-      // on the SDK — it goes over the dashboard's own session-authenticated
+      // on the SDK, it goes over the dashboard's own session-authenticated
       // mount of the same route.
       const { trace } = await adminCall(
         projectId,

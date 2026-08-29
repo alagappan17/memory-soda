@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 /**
- * Opaque bearer tokens — API keys and login sessions both.
+ * Opaque bearer tokens, API keys and login sessions both.
  *
  * The plaintext is shown to the caller exactly once and only its SHA-256 is
  * stored, so a database leak does not hand over working credentials. SHA-256

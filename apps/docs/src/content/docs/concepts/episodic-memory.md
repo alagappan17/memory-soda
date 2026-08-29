@@ -7,8 +7,8 @@ about, and what it revealed.
 
 Episodes serve two purposes:
 
-1. **Provenance** — every fact points back to the episode it came from.
-2. **Cross-thread recall** — "what did we talk about last time", retrieved by
+1. **Provenance**, every fact points back to the episode it came from.
+2. **Cross-thread recall**, "what did we talk about last time", retrieved by
    relevance rather than by scanning transcripts.
 
 ---
@@ -51,7 +51,7 @@ Every `addMessage` upserts a row into `scheduled_episodes` with
 `fireAt = now + autoEpisodeIntervalMs` (**default 10 seconds**). A scheduler
 running every 5 seconds drains the due rows.
 
-Because it is an upsert, a burst of messages keeps pushing the deadline out — an
+Because it is an upsert, a burst of messages keeps pushing the deadline out, an
 episode fires once the conversation goes quiet, not once per message.
 
 ```
@@ -67,7 +67,7 @@ msg  msg  msg              (10s idle)
 await memory.endThread(threadId);   // → { threadId, episodeQueued: true }
 ```
 
-Queues extraction immediately. The thread stays writable — this is a checkpoint,
+Queues extraction immediately. The thread stays writable, this is a checkpoint,
 not a close. Use it when you know a conversation has ended and don't want to wait
 out the timer.
 
@@ -84,7 +84,7 @@ episode 2   startSequence 13  endSequence 27
 
 `startSequence` is one past the previous episode's end. Semantic extraction reads
 **only this window**, so successive episodes on one thread never re-extract each
-other's messages — which would otherwise re-judge the same contradictions
+other's messages, which would otherwise re-judge the same contradictions
 repeatedly.
 
 Episode *summarisation* still reads the whole un-compacted thread, which is why
@@ -171,7 +171,7 @@ relevance = cosineSimilarity × similarityWeight  +  1/(1 + daysSince) × recenc
                                     (0.7)                                   (0.3)
 ```
 
-Recency matters more for episodes than for facts — a conversation from yesterday
+Recency matters more for episodes than for facts, a conversation from yesterday
 is usually more relevant than a similar one from a year ago. Without a query,
 episodes fall back to plain recency order.
 
@@ -199,7 +199,7 @@ DELETE /v1/memory/episodic/episodes/:episodeId      // soft delete → archived
 POST /v1/memory/episodic/episodes/:episodeId/retry  // only when status is 'failed'
 ```
 
-These are not exposed on the SDK — use `recall({ include: ['episodes'] })` for
+These are not exposed on the SDK, use `recall({ include: ['episodes'] })` for
 normal reads, or call the endpoints directly for admin work. Full details:
 [Episodic memory API](/api/episodic-memory/).
 
@@ -219,5 +219,5 @@ context that triples cannot express) and provenance, not through `keyLearnings`.
 
 ## Next
 
-- [Semantic memory](/concepts/semantic-memory/) — the durable fact store
-- [The extraction pipeline](/concepts/extraction-pipeline/) — how an episode becomes facts
+- [Semantic memory](/concepts/semantic-memory/), the durable fact store
+- [The extraction pipeline](/concepts/extraction-pipeline/), how an episode becomes facts

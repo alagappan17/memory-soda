@@ -113,7 +113,7 @@ router.patch(
 );
 
 /**
- * Mark a natural break point. The thread stays writable — "end" queues episodic
+ * Mark a natural break point. The thread stays writable, "end" queues episodic
  * extraction over whatever has been said since the last episode.
  */
 router.post(

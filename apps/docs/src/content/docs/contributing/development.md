@@ -39,12 +39,12 @@ apps/
       db/                 schema.ts, postgres.ts
       lib/                gemini.ts, semantic-extraction.ts, password.ts
       middleware/         auth.ts (API key), session.ts, validate.ts
-      routes/             one router per resource — thin, HTTP only
+      routes/             one router per resource, thin, HTTP only
       services/           the logic
       main.ts             wiring, first-boot seed, background jobs
   dashboard/              Vite + React 19 + React Router
 packages/
-  sdk/                    @alagappan17/memory-soda — published
+  sdk/                    @alagappan17/memory-soda, published
   types/                  shared types, type-only at runtime
 developer-docs/           this documentation
 ```
@@ -54,12 +54,12 @@ developer-docs/           this documentation
 **Routes are thin.** Parse, validate with zod, call a service, map the result to
 HTTP. No business logic.
 
-**Services own everything else** — database access, LLM calls, transactions.
+**Services own everything else**, database access, LLM calls, transactions.
 They throw plain errors; routes translate them to status codes.
 
 **`packages/types` is type-only at runtime.** The API cannot import a runtime
 value from it. That is why `ENTITY_TYPES` is duplicated as a `const` in
-`semantic-extraction.ts` — the type union lives in `packages/types`, the runtime
+`semantic-extraction.ts`, the type union lives in `packages/types`, the runtime
 allow-list has to be local.
 
 ---
@@ -88,7 +88,7 @@ result.
 
 ## Working on the API
 
-The dev server restarts on save. Watch its log — extraction happens in the
+The dev server restarts on save. Watch its log, extraction happens in the
 background and only surfaces there.
 
 ```bash
@@ -109,7 +109,7 @@ await memory.createThread({
 
 Or force it: `POST /v1/threads/:id/end`.
 
-The [Playground](/dashboard/playground/) is the fastest loop — it shows every
+The [Playground](/dashboard/playground/) is the fastest loop, it shows every
 call, polls for extraction, and displays the facts that came out.
 
 ### Inspecting state
@@ -133,7 +133,7 @@ DELETE FROM entities WHERE dataset = 'dev_scratch';
 DELETE FROM episodes WHERE dataset = 'dev_scratch';
 ```
 
-Delete facts **before** episodes — `facts.episode_id` is `ON DELETE SET NULL`, so
+Delete facts **before** episodes, `facts.episode_id` is `ON DELETE SET NULL`, so
 the reverse order orphans them.
 
 ---
@@ -144,7 +144,7 @@ The SDK is a thin typed wrapper over `fetch`. Adding a method means:
 
 1. Add or update the type in `packages/types/src/lib/`.
 2. Export it from `packages/sdk/src/index.ts`.
-3. Add the method with a JSDoc block — the docs are generated from reading these.
+3. Add the method with a JSDoc block, the docs are generated from reading these.
 4. Update [the SDK reference](/sdk/).
 
 Testing against a local app:
@@ -156,7 +156,7 @@ npm link --workspace=packages/sdk
 npm link @alagappan17/memory-soda
 ```
 
-After changing SDK source, `npm run sdk:build` is enough — the link picks up the
+After changing SDK source, `npm run sdk:build` is enough, the link picks up the
 new `dist`.
 
 **Keep it dependency-free.** The SDK has zero runtime dependencies and that is
@@ -170,10 +170,10 @@ worth preserving.
 npx nx dev dashboard
 ```
 
-Vite on `:3000`, proxying nothing — it calls the API at `VITE_API_URL` directly,
+Vite on `:3000`, proxying nothing, it calls the API at `VITE_API_URL` directly,
 so `CORS_ORIGIN` on the API must match.
 
-UI components live in `apps/dashboard/src/components/ui/` — shadcn-style wrappers
+UI components live in `apps/dashboard/src/components/ui/`, shadcn-style wrappers
 over Base UI. **Check there before hand-rolling a component.** A dropdown, dialog,
 select, tooltip, table and sheet all already exist.
 
@@ -186,7 +186,7 @@ select, tooltip, table and sheet all already exist.
 ## Conventions
 
 **Comments explain why, not what.** The codebase is dense with rationale
-comments on non-obvious decisions — why thinking is disabled on structured
+comments on non-obvious decisions, why thinking is disabled on structured
 calls, why relationships are demoted rather than dropped, why the correlated
 subquery qualifies `threads.id`. Match that.
 
@@ -202,7 +202,7 @@ subquery qualifies `threads.id`. Match that.
 bare `"id"` binds to the *inner* table:
 
 ```ts
-// wrong — "id" resolves to messages.id, so the predicate is never true
+// wrong, "id" resolves to messages.id, so the predicate is never true
 sql`(select count(*)::int from ${messages} where ${messages.threadId} = ${threads.id})`
 
 // right
@@ -236,7 +236,7 @@ npm run test
 ```
 
 All three must pass. If you touched the extraction pipeline, retrieval or
-compaction, exercise it end to end — typecheck will not catch a query that
+compaction, exercise it end to end, typecheck will not catch a query that
 returns the wrong rows. See [Testing](/contributing/testing/).
 
 ---

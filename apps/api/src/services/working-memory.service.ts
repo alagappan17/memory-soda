@@ -365,7 +365,7 @@ export async function compactThread(
 // ── Prepare ───────────────────────────────────────────────────────────────────
 
 /**
- * Pure working memory: the thread state needed to continue a conversation —
+ * Pure working memory: the thread state needed to continue a conversation,
  * compact summary + recent messages. No embedding or LLM calls; long-term
  * memory (facts/episodes/synthesis) lives in recall.service.ts.
  */
@@ -387,7 +387,7 @@ export async function prepareThread(
   if (!threadRow) return null;
 
   // The active compact summary is always included first and never counts
-  // against messageLimit — shrinking the limit can't drop compacted context.
+  // against messageLimit, shrinking the limit can't drop compacted context.
   const fetchMessages = async () => {
     const realMsgWhere = and(
       eq(messages.threadId, threadId),

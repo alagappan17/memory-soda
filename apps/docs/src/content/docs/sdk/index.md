@@ -1,8 +1,8 @@
 ---
 title: "SDK reference"
-description: "@alagappan17/memory-soda — a typed, zero-dependency TypeScript client."
+description: "@alagappan17/memory-soda, a typed, zero-dependency TypeScript client."
 ---
-`@alagappan17/memory-soda` — a typed, zero-dependency TypeScript client.
+`@alagappan17/memory-soda`, a typed, zero-dependency TypeScript client.
 
 ---
 
@@ -80,11 +80,11 @@ MemorySoda
 └── health()
 ```
 
-Names carry the tiering: the calls a chat turn makes are short — `recall`,
-`prepare`, `addMessage` — and the occasional ones are compound.
+Names carry the tiering: the calls a chat turn makes are short, `recall`,
+`prepare`, `addMessage`, and the occasional ones are compound.
 
 A separate subpath, `@alagappan17/memory-soda/ai`, wires all of this into the
-Vercel AI SDK — see [AI SDK integration](/sdk/ai-sdk/).
+Vercel AI SDK, see [AI SDK integration](/sdk/ai-sdk/).
 
 | Page | Covers |
 |---|---|
@@ -118,7 +118,7 @@ Everything else is inspection, curation or convenience.
 ## Conventions
 
 **Every method returns a promise** and throws on failure. Nothing returns `null`
-to signal an error — a missing thread is an `ApiError` with `status: 404`.
+to signal an error, a missing thread is an `ApiError` with `status: 404`.
 
 **Timeouts are per-call**, derived from the client `timeout` via
 `AbortSignal.timeout`. A timeout surfaces as a `NetworkError`.
@@ -173,7 +173,7 @@ Deliberate omissions. Call the HTTP API directly if you need them.
 | Episodic CRUD | Admin surface. Normal reads go through `recall({ include: ['episodes'] })`. | [Episodic memory](/api/episodic-memory/) |
 | Projects, API keys, users | Session-authenticated dashboard routes, not integration surface. | [Dashboard routes](/api/dashboard/) |
 
-There is also **no `add()`** — facts cannot be written directly, only derived
+There is also **no `add()`**, facts cannot be written directly, only derived
 from messages. See [Known limitations](/introduction/overview/#known-limitations).
 
 ---

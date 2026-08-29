@@ -39,7 +39,7 @@ change.
 | `GET …/episodes/search` | 5 | 20 |
 | `GET /dashboard/browse/threads` | 20 | 100 |
 | `GET /dashboard/browse/datasets` | 50 | 100 |
-| `GET …/entities` | **unpaginated** | — |
+| `GET …/entities` | **unpaginated** |, |
 
 `listEntities` returns every entity for a dataset. Keep it off hot paths.
 
@@ -87,7 +87,7 @@ Full explanations: [Project settings](/reference/project-settings/).
 | Key learnings per episode | 0–5 typical, capped at 20, each 500 characters |
 | Transcript size | `maxMessages`, head 20 + tail, with a marker between |
 
-The fact count is prompt guidance, not enforcement — a model can exceed it.
+The fact count is prompt guidance, not enforcement, a model can exceed it.
 
 ---
 
@@ -103,11 +103,11 @@ hard-coded in `apps/api/src/lib/gemini.ts`.
 | Text call timeout | 30 s | `GEMINI_TIMEOUT_MS` |
 | Structured call timeout | 90 s | `GEMINI_STRUCTURED_TIMEOUT_MS` |
 | Embedding model | `models/gemini-embedding-001` | `GEMINI_EMBED_MODEL` |
-| Embedding dimensions | **768** | `GEMINI_EMBED_DIM` — but see below |
+| Embedding dimensions | **768** | `GEMINI_EMBED_DIM`, but see below |
 | API base URL | `…googleapis.com/v1beta` | `GEMINI_API_BASE_URL` |
-| Embedding timeout | 30 s | — |
-| Embedding batch size | 100 texts per request | — |
-| Thinking budget (structured calls) | 0 — disabled | — |
+| Embedding timeout | 30 s |, |
+| Embedding batch size | 100 texts per request |, |
+| Thinking budget (structured calls) | 0, disabled |, |
 
 > Embedding dimensionality is an environment variable but not really a runtime
 > setting: the pgvector columns are `vector(768)`, so any other value is rejected
@@ -140,7 +140,7 @@ All hard-coded in `main.ts` and the services.
 | Idle timeout | 30 s |
 | Connection timeout | 2 s |
 | Session lifetime | 7 days |
-| scrypt parameters | `N=2^15, r=8, p=3` — 32 MiB per derivation |
+| scrypt parameters | `N=2^15, r=8, p=3`, 32 MiB per derivation |
 
 Provision at least 25 Postgres connections for the API, plus headroom for
 migrations and tooling.
@@ -152,7 +152,7 @@ migrations and tooling.
 ### The one to watch
 
 > **The extraction pipeline loads every live fact for a dataset into process
-> memory — embeddings included — on each run.**
+> memory, embeddings included, on each run.**
 
 At 768 dimensions, a fact embedding is ~3 KB.
 
@@ -167,8 +167,8 @@ Two costs compound: the memory, and the JS-side cosine comparison of every
 candidate against every live fact during deduplication and contradiction
 detection.
 
-Real datasets grow slowly — extraction emits 1–6 facts per episode and
-deduplicates aggressively — so most stay in the low hundreds. Watch the outliers:
+Real datasets grow slowly, extraction emits 1–6 facts per episode and
+deduplicates aggressively, so most stay in the low hundreds. Watch the outliers:
 
 ```sql
 SELECT dataset, count(*) AS live_facts
@@ -180,12 +180,12 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
 
 | Dimension | Notes |
 |---|---|
-| Datasets per project | Effectively unlimited — a string in a `WHERE` clause, no per-dataset provisioning |
+| Datasets per project | Effectively unlimited, a string in a `WHERE` clause, no per-dataset provisioning |
 | Threads per dataset | Unlimited |
 | Messages per thread | Unlimited; use compaction to bound the context window |
 | Episodes per thread | One `completed` at a time; older ones are archived |
 | Entities per dataset | Unlimited, but `listEntities` is unpaginated |
-| Concurrent API instances | **One** — see [Background jobs](/operations/background-jobs/#single-instance) |
+| Concurrent API instances | **One**, see [Background jobs](/operations/background-jobs/#single-instance) |
 
 ---
 
@@ -199,9 +199,9 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
 | `recall` with a query | 200–500 ms |
 | `recall` without a query | 20–50 ms |
 | `recall` with `synthesis` | 1.5–3.5 s |
-| `compact` | seconds — one LLM call |
+| `compact` | seconds, one LLM call |
 | Message → fact retrievable | **20–60 s** |
-| Login | ~200 ms — scrypt, deliberately |
+| Login | ~200 ms, scrypt, deliberately |
 
 ---
 
@@ -209,7 +209,7 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
 
 | Unit | LLM calls | Embedding batches |
 |---|---|---|
-| One episode | 3 — summary, extraction, contradiction judging | 3 — summary, entity names, fact strings |
+| One episode | 3, summary, extraction, contradiction judging | 3, summary, entity names, fact strings |
 | One compaction | 1 | 0 |
 | One `recall` with a query | 0 | 1 |
 | One `recall` with `synthesis` | 1 | 1 |
@@ -226,7 +226,7 @@ per-episode cost each time.
 | | Approximate |
 |---|---|
 | One message | content + ~200 bytes |
-| One fact | ~3.2 KB — dominated by the embedding |
+| One fact | ~3.2 KB, dominated by the embedding |
 | One entity | ~3.1 KB |
 | One episode | summary + ~3.1 KB |
 
@@ -241,7 +241,7 @@ Limits that do not exist, and might surprise you:
 
 | | |
 |---|---|
-| Facts per dataset | No cap. Memory never shrinks — no forgetting, decay or consolidation |
+| Facts per dataset | No cap. Memory never shrinks, no forgetting, decay or consolidation |
 | Retention | Nothing expires |
 | Message size | Only the 1 MB body limit |
 | Concurrent requests | No queueing or shedding |
@@ -252,5 +252,5 @@ Limits that do not exist, and might surprise you:
 ## Next
 
 - [Project settings](/reference/project-settings/)
-- [Self-hosting](/operations/self-hosting/) — sizing
-- [Background jobs](/operations/background-jobs/) — monitoring
+- [Self-hosting](/operations/self-hosting/), sizing
+- [Background jobs](/operations/background-jobs/), monitoring

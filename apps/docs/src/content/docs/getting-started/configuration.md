@@ -4,8 +4,8 @@ description: "Two independent layers:"
 ---
 Two independent layers:
 
-1. **Environment variables** — how the server runs. Set once, at boot.
-2. **Project settings** — how memory behaves. Editable at runtime, per project,
+1. **Environment variables**, how the server runs. Set once, at boot.
+2. **Project settings**, how memory behaves. Editable at runtime, per project,
    with optional per-thread overrides.
 
 ---
@@ -20,7 +20,7 @@ read from it.
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | Postgres connection string. The database must have the `vector` extension. |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Gemini key. Required to boot — the module throws at import without it. |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Gemini key. Required to boot, the module throws at import without it. |
 
 ### Optional
 
@@ -108,7 +108,7 @@ await memory.createThread({
 ```
 
 ```ts
-// Ephemeral thread — never becomes long-term memory
+// Ephemeral thread, never becomes long-term memory
 await memory.createThread({
   dataset: 'user_42',
   settings: { episodic: { enabled: false } },
@@ -122,7 +122,7 @@ built-in defaults  ─►  project.settings  ─►  thread.episodicSettings
 ```
 
 > Semantic settings are resolved the same way in the service layer, but there is
-> currently **no API to set them per thread** — only episodic overrides are
+> currently **no API to set them per thread**, only episodic overrides are
 > accepted by `POST /v1/threads`.
 
 ---
@@ -161,7 +161,7 @@ Settings are validated on write. Requests outside these ranges return `400`.
 | `autoCompactThreshold` | `>= 2` |
 
 > **Known inconsistency.** The default `autoEpisodeIntervalMs` is `10000`, but
-> the project-settings endpoint enforces a minimum of `60000` — so the default
+> the project-settings endpoint enforces a minimum of `60000`, so the default
 > cannot be set through the API that manages it. Thread-level overrides accept
 > `>= 1000`.
 
@@ -169,5 +169,5 @@ Settings are validated on write. Requests outside these ranges return `400`.
 
 ## Next
 
-- [Project settings reference](/reference/project-settings/) — every field explained
-- [Tuning retrieval quality](/guides/tuning-retrieval/) — how to change these safely
+- [Project settings reference](/reference/project-settings/), every field explained
+- [Tuning retrieval quality](/guides/tuning-retrieval/), how to change these safely

@@ -37,7 +37,7 @@ Each signal scans `max(limit × 4, 20)` candidates.
 
 ---
 
-## Signal 1 — vector
+## Signal 1, vector
 
 Plain cosine similarity over `facts.embedding`, ordered ascending by distance.
 
@@ -50,12 +50,12 @@ Fact embeddings are enriched with their anchor before embedding:
 This makes the anchor prominent in vector space and measurably improves
 entity-centric retrieval over embedding the bare triple.
 
-Skipped when the query embedding is unavailable — a failed embedding call
+Skipped when the query embedding is unavailable, a failed embedding call
 degrades to keyword and recency rather than failing the request.
 
 ---
 
-## Signal 2 — entity anchor
+## Signal 2, entity anchor
 
 **The reliability net**, and the least conventional part of the design.
 
@@ -67,7 +67,7 @@ Two ways an entity becomes an anchor for a query:
    entities whose embedding similarity to the query is at least
    `anchorVectorMin` (default 0.75).
 
-Then *every live fact touching those names* — as subject or object — is pulled
+Then *every live fact touching those names*, as subject or object, is pulled
 in.
 
 ### Why it matters
@@ -92,7 +92,7 @@ memory feel like it *knows* someone rather than pattern-matching their words.
 
 ---
 
-## Signal 3 — keyword
+## Signal 3, keyword
 
 Postgres full-text search:
 
@@ -102,8 +102,8 @@ to_tsvector('english', subject || ' ' || predicate || ' ' || object)
 ORDER BY ts_rank(…) DESC
 ```
 
-Backed by a GIN index. Catches exact terms — product names, place names, numbers
-— that embeddings blur.
+Backed by a GIN index. Catches exact terms, product names, place names, numbers
+that embeddings blur.
 
 > The index expression and the query expression must stay byte-identical or the
 > planner silently stops using the index.
@@ -146,7 +146,7 @@ Before ranking, candidates must satisfy:
 `recall()` without a `query` skips all three signals and returns the most recent
 live facts by `validAt`, each with `relevanceScore: 1`.
 
-Right for a session opener — "what do I know about this person" — where there is
+Right for a session opener, "what do I know about this person", where there is
 no message to be relevant to yet.
 
 ```ts
@@ -174,7 +174,7 @@ Known facts about the user, most relevant first.
 - berlin (PLACE)
 ```
 
-Rendering is **deterministic** — no LLM on the read path. Fact text is collapsed
+Rendering is **deterministic**, no LLM on the read path. Fact text is collapsed
 to a single line so it cannot break out of the block.
 
 `context` is `""` when nothing matched. Always guard for it.
@@ -196,9 +196,9 @@ await memory.recall({
 
 | `include` | Adds | Cost |
 |---|---|---|
-| `episodes` | `episodes` — cross-thread summaries | one vector search |
-| `synthesis` | `synthesis` — an LLM prose summary of the block | **one LLM call, 1–3 s** |
-| `raw` | `facts[]` and `groups[]` — structured, with scores and quotes | free |
+| `episodes` | `episodes`, cross-thread summaries | one vector search |
+| `synthesis` | `synthesis`, an LLM prose summary of the block | **one LLM call, 1–3 s** |
+| `raw` | `facts[]` and `groups[]`, structured, with scores and quotes | free |
 
 `synthesis` is the only thing that puts a model call on the read path. Use it
 when a paragraph reads better than a bullet list, and measure the latency first.
@@ -240,7 +240,7 @@ See [Tuning retrieval quality](/guides/tuning-retrieval/).
 | with `synthesis` | 1.5–3.5 s |
 
 The embedding round trip dominates. If you already have an embedding of the
-user's message, there is currently no way to pass it in — every `recall()`
+user's message, there is currently no way to pass it in, every `recall()`
 embeds again.
 
 ---
@@ -248,4 +248,4 @@ embeds again.
 ## Next
 
 - [Tuning retrieval quality](/guides/tuning-retrieval/)
-- [Recall API](/api/recall/) — full request and response reference
+- [Recall API](/api/recall/), full request and response reference

@@ -55,7 +55,7 @@ Must match the dashboard origin exactly, **including port**. A dashboard on
 #### `MIGRATE_ON_START`
 
 `true` is right for a single instance. With several replicas booting together
-they race — safely, because Drizzle takes a lock, but slowly. For a fleet, set it
+they race, safely, because Drizzle takes a lock, but slowly. For a fleet, set it
 to `false` and migrate as a deploy step. See [Migrations](/operations/migrations/).
 
 #### `ADMIN_PASSWORD`
@@ -63,11 +63,11 @@ to `false` and migrate as a deploy step. See [Migrations](/operations/migrations
 Only used on an empty database, when the first admin user is seeded.
 
 **Leave it unset in production.** A random password is generated and printed once
-— safer than a value that ends up in your deployment config and shell history.
+safer than a value that ends up in your deployment config and shell history.
 
 ```
 Login:    admin / kR7v-2mQxPd1
-          (generated — set ADMIN_PASSWORD to choose)
+          (generated, set ADMIN_PASSWORD to choose)
 ```
 
 Neither the generated password nor the API key is recoverable after the log
@@ -96,7 +96,7 @@ A malformed numeric value logs a warning and falls back to the default rather
 than failing silently:
 
 ```
-[gemini] GEMINI_TIMEOUT_MS="soon" is not a positive number — using 30000
+[gemini] GEMINI_TIMEOUT_MS="soon" is not a positive number, using 30000
 ```
 
 > **`GEMINI_EMBED_DIM` is not really a runtime setting.** The `facts`, `entities`
@@ -106,12 +106,12 @@ than failing silently:
 >
 > ```
 > [gemini] GEMINI_EMBED_DIM=1536 does not match the vector(768) columns in the
-> database — embedding writes will fail until the schema is migrated.
+> database, embedding writes will fail until the schema is migrated.
 > ```
 
 > Switching `GEMINI_EMBED_MODEL` has the same consequence whenever the new model
 > emits a different number of dimensions, and existing vectors were produced by
-> the old model — mixing them in one index gives meaningless similarities even
+> the old model, mixing them in one index gives meaningless similarities even
 > when the dimensions happen to match.
 
 ---
@@ -132,7 +132,7 @@ VITE_API_URL=https://api.memory.example.com npm run build
 > This is the browser's view, not the server's. `http://api:3004` works inside a
 > Docker network and is useless to a user's browser.
 >
-> Changing it requires a **rebuild** — it is not read at runtime.
+> Changing it requires a **rebuild**, it is not read at runtime.
 
 `DASHBOARD_PORT` is the exception: it is a dev-server setting, not a bundled
 value. Move the dashboard off `3000` and `CORS_ORIGIN` on the API has to follow,
@@ -154,7 +154,7 @@ Read by `new MemorySoda()` in your app, not by the server.
 const memory = new MemorySoda();
 ```
 
-Throws a plain `Error` if either is missing — a startup misconfiguration, not a
+Throws a plain `Error` if either is missing, a startup misconfiguration, not a
 runtime failure.
 
 ---
@@ -171,7 +171,7 @@ CORS_ORIGIN=http://localhost:3000
 MIGRATE_ON_START=true
 
 # ── PostgreSQL ───────────────────────────────────────────────────────
-# Requires the pgvector extension — `CREATE EXTENSION vector;`
+# Requires the pgvector extension, `CREATE EXTENSION vector;`
 DATABASE_URL=postgresql://memory_user:memory_pass@localhost:5432/memory_db
 
 # ── Google Gemini ────────────────────────────────────────────────────
@@ -219,7 +219,7 @@ Hard-coded in the source. Changing them means editing code.
 
 ## Precedence and loading
 
-Every variable is read in exactly one place — `apps/api/src/config.ts` — parsed
+Every variable is read in exactly one place, `apps/api/src/config.ts`, parsed
 and validated once at import. Nothing else in the API touches `process.env`.
 
 That means a misconfigured deployment fails on boot with **every** problem listed
@@ -233,7 +233,7 @@ Error: Invalid environment configuration:
 See .env.example for the full list of supported variables.
 ```
 
-A malformed value is an error too, not a silent fallback — `PORT=not-a-port`
+A malformed value is an error too, not a silent fallback, `PORT=not-a-port`
 stops the boot instead of quietly reverting to 3004.
 
 The API does **not** load `.env` itself; that comes from the Nx dev server during
@@ -243,7 +243,7 @@ container runtime or secret store.
 A `.env` file sitting next to a production build is ignored.
 
 A `.env` written by `npm create memory-soda@latest` sets only the values the
-installer asks for — `DATABASE_URL`, the Gemini key, and the admin login.
+installer asks for, `DATABASE_URL`, the Gemini key, and the admin login.
 Everything else stays on the defaults in `config.ts` rather than being pinned to
 a copy of them, so the file does not go stale when a default changes.
 
@@ -266,6 +266,6 @@ curl -fsS "http://$HOST:$PORT/health" | jq
 
 ## Next
 
-- [Configuration](/getting-started/configuration/) — runtime settings
+- [Configuration](/getting-started/configuration/), runtime settings
 - [Self-hosting](/operations/self-hosting/)
 - [Project settings](/reference/project-settings/)

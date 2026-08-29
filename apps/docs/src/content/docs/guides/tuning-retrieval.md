@@ -10,7 +10,7 @@ How to change retrieval settings without making things quietly worse.
 
 Most tuning goes wrong because it is done blind. Before changing anything:
 
-1. **Build a fixture.** One dataset with a realistic profile — 15–30 facts across
+1. **Build a fixture.** One dataset with a realistic profile, 15–30 facts across
    several entities. A throwaway `dataset` in the
    [Playground](/dashboard/playground/) is ideal.
 2. **Write down the queries you care about**, with the facts you expect back.
@@ -54,7 +54,7 @@ How many facts land in the block.
 | `8` | Sensible middle |
 | `15–20` | Better recall; more tokens; more chance of irrelevant facts distracting the model |
 
-Facts are short — twenty of them is still only a few hundred tokens. **Raising
+Facts are short, twenty of them is still only a few hundred tokens. **Raising
 this is usually the first thing to try**, and usually safe.
 
 ```ts
@@ -67,14 +67,14 @@ The floor on the extraction model's self-rated confidence.
 
 | Value | Effect |
 |---|---|
-| `0.3` | Recalls weak inferences — noisier, more complete |
+| `0.3` | Recalls weak inferences, noisier, more complete |
 | `0.5` | Drops the model's own low-confidence guesses |
 | `0.8` | Only explicitly stated facts. Safe but forgetful |
 
 > Confidence is **self-reported and poorly calibrated**. Treat it as a coarse
 > filter, not a probability.
 
-It also gates **invalidation** — a fact below the floor can never supersede an
+It also gates **invalidation**, a fact below the floor can never supersede an
 existing one. Raising it makes memory more conservative in both directions:
 fewer facts recalled, and fewer corrections applied.
 
@@ -87,8 +87,8 @@ fewer facts recalled, and fewer corrections applied.
 | Relevant facts exist but aren't recalled | Raise `factsInContext`; lower `retrievalMinConfidence` |
 | Irrelevant facts crowd the block | Lower `factsInContext`; raise `retrievalMinConfidence` |
 | Query mentions an entity but its facts don't surface | Lower `anchorVectorMin`; raise `anchorVectorTopK` |
-| Two entities that should be one | Lower `entityResolutionThreshold` — **for future writes only** |
-| One entity that should be two | Raise `entityResolutionThreshold` — existing merges stand |
+| Two entities that should be one | Lower `entityResolutionThreshold`, **for future writes only** |
+| One entity that should be two | Raise `entityResolutionThreshold`, existing merges stand |
 | Near-duplicate facts accumulating | Lower `factDedupThreshold` |
 | Contradictions not being caught | Lower `contradictionBandMin` |
 | Facts wrongly superseding each other | Raise `contradictionBandMin` |
@@ -111,7 +111,7 @@ anchorVectorMin 0.75   "trip to thailand" → thailand ✓   food ✗
 anchorVectorMin 0.60   "trip to thailand" → thailand ✓   food ✓   travel ✓
 ```
 
-Lowering admits more anchors, which pulls in every fact touching them — powerful,
+Lowering admits more anchors, which pulls in every fact touching them, powerful,
 and quick to flood the block with tangential material. Move it in steps of `0.05`
 and watch what appears.
 
@@ -160,7 +160,7 @@ contradictions caught. These two settings are not independent.
 ### `contradictionBandMin` (0.80)
 
 Lower bound of that band. Facts in it are sent to the LLM judge even when their
-predicates differ — this is what catches `works at` vs `is employed by`.
+predicates differ, this is what catches `works at` vs `is employed by`.
 
 | | |
 |---|---|
@@ -181,10 +181,10 @@ predicates differ — this is what catches `works at` vs `is employed by`.
 relevance = similarity × similarityWeight + 1/(1 + daysSince) × recencyWeight
 ```
 
-The weights are **not normalised** — they are used as given. `0.7/0.3` favours
+The weights are **not normalised**, they are used as given. `0.7/0.3` favours
 topical match; `0.4/0.6` favours "what did we talk about lately".
 
-### `autoEpisodeIntervalMs` (10000) — the cost lever
+### `autoEpisodeIntervalMs` (10000), the cost lever
 
 Each episode costs three LLM calls and three embedding batches. This is the
 setting that decides your bill.
@@ -214,8 +214,8 @@ await memory.recall({
 });
 ```
 
-Useful for varying behaviour by surface — a wide net for a profile page, a tight
-one for a chat turn — without maintaining two projects.
+Useful for varying behaviour by surface, a wide net for a profile page, a tight
+one for a chat turn, without maintaining two projects.
 
 ---
 
@@ -241,7 +241,7 @@ Some problems are structural, not parametric:
 
 | | |
 |---|---|
-| Facts about anything other than the user | Extraction discards them by design — [why](/concepts/semantic-memory/#every-fact-is-about-the-user) |
+| Facts about anything other than the user | Extraction discards them by design, [why](/concepts/semantic-memory/#every-fact-is-about-the-user) |
 | Memory lagging 30 seconds behind | Inherent to async extraction; only `autoEpisodeIntervalMs` moves it |
 | Anchor ranks being arbitrary | A known bug, not a setting |
 | Facts accumulating forever | There is no forgetting or consolidation pass |
@@ -250,6 +250,6 @@ Some problems are structural, not parametric:
 
 ## Next
 
-- [Retrieval](/concepts/retrieval/) — how ranking works
-- [Project settings](/reference/project-settings/) — bounds and validation
-- [Playground](/dashboard/playground/) — where to experiment
+- [Retrieval](/concepts/retrieval/), how ranking works
+- [Project settings](/reference/project-settings/), bounds and validation
+- [Playground](/dashboard/playground/), where to experiment

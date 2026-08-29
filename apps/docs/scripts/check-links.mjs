@@ -29,7 +29,7 @@ function resolves(href) {
 }
 
 if (!existsSync(DIST)) {
-  console.error('dist/ not found — run `astro build` first.');
+  console.error('dist/ not found, run `astro build` first.');
   process.exit(1);
 }
 

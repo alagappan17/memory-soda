@@ -4,8 +4,8 @@
 
     The brand files in apps/dashboard/public are ~150 KB each and are really a
     base64 PNG in an SVG wrapper, so they cannot be recoloured and are far too
-    heavy for a nav bar. This traces the same artwork — measured off that
-    original's alpha mask — as one stroked path plus fifteen bubbles, in under
+    heavy for a nav bar. This traces the same artwork, measured off that
+    original's alpha mask, as one stroked path plus fifteen bubbles, in under
     1.5 KB, in a single colour the page can set.
   -->
   <g fill="#171717">

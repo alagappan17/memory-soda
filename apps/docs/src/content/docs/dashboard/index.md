@@ -47,8 +47,8 @@ does goes through [`/dashboard/*` and `/auth/*`](/api/dashboard/).
 
 The sidebar splits into two groups:
 
-- **Application** — global. Projects, dashboard users, service health.
-- **Project** — scoped to whichever project is selected in the switcher at the
+- **Application**, global. Projects, dashboard users, service health.
+- **Project**, scoped to whichever project is selected in the switcher at the
   bottom.
 
 The footer holds your **account avatar** (click for sign-out) and the **project
@@ -61,7 +61,7 @@ switcher**. Changing the project changes what every Project-group page shows.
 The first admin user is created on first boot with a randomly generated password,
 printed once to the API log. See [Users and sign-in](/dashboard/users-and-auth/).
 
-Sessions last 7 days and are revocable server-side. Deep links survive sign-in —
+Sessions last 7 days and are revocable server-side. Deep links survive sign-in,
 visiting `/datasets?q=abc` while signed out returns you there afterwards.
 
 ---
@@ -78,7 +78,7 @@ visiting `/datasets?q=abc` while signed out returns you there afterwards.
 
 It is a **single-page app**, not server-rendered. `VITE_API_URL` (default
 `http://localhost:3004`) is baked in at build time and must match what the
-browser can reach — not what the server can reach.
+browser can reach, not what the server can reach.
 
 ---
 
@@ -86,14 +86,14 @@ browser can reach — not what the server can reach.
 
 ### Home
 A launcher grid over the same links as the sidebar, plus a greeting and the
-current project. It shows no system state — no fact counts, no extraction
+current project. It shows no system state, no fact counts, no extraction
 backlog, no failures.
 
 ### [Projects](/dashboard/projects/)
 Create, rename and delete projects; jump to their settings.
 
 ### [Users and sign-in](/dashboard/users-and-auth/)
-Dashboard login accounts. Unrelated to `dataset` — these are operators, not the
+Dashboard login accounts. Unrelated to `dataset`, these are operators, not the
 people being remembered.
 
 ### [Datasets](/dashboard/datasets/)
@@ -125,11 +125,11 @@ Worth knowing before you go looking:
 
 | | Where to go instead |
 |---|---|
-| See failed episodes or extraction errors | Query `episodes` in SQL — `semanticStatus` is not surfaced anywhere |
+| See failed episodes or extraction errors | Query `episodes` in SQL, `semanticStatus` is not surfaced anywhere |
 | Delete an entire dataset | No UI and no endpoint. [Privacy and data deletion](/operations/privacy-and-deletion/) |
 | Change your password | Create a new user and delete the old one |
 | See which facts drove a past reply | Only the Playground, and only for the current session |
-| View the knowledge graph as a graph | Not implemented — facts and entities are flat lists |
+| View the knowledge graph as a graph | Not implemented, facts and entities are flat lists |
 | Per-user project permissions | Any signed-in user can see every project |
 
 ---
@@ -150,5 +150,5 @@ See [Self-hosting](/operations/self-hosting/).
 
 ## Next
 
-- [Datasets](/dashboard/datasets/) — inspect what was learned
-- [Playground](/dashboard/playground/) — watch the pipeline run
+- [Datasets](/dashboard/datasets/), inspect what was learned
+- [Playground](/dashboard/playground/), watch the pipeline run

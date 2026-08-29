@@ -8,8 +8,8 @@ interface ScryptParams {
 }
 
 /**
- * `promisify(scrypt)` cannot pick the right overload — the callback form has
- * one signature with options and one without — so it resolves to a shape that
+ * `promisify(scrypt)` cannot pick the right overload, the callback form has
+ * one signature with options and one without, so it resolves to a shape that
  * has to be asserted back. Wrapping the callback directly keeps the types
  * honest for the cost of five lines.
  */
@@ -52,7 +52,7 @@ const PREFIX = 'scrypt';
 
 /**
  * Hash a plaintext password. Output is
- * `scrypt$N$r$p$saltHex$derivedHex` — self-describing, so the parameters can be
+ * `scrypt$N$r$p$saltHex$derivedHex`, self-describing, so the parameters can be
  * raised later without invalidating existing hashes.
  *
  * Async: scryptSync blocks the event loop for the whole derivation, which at
@@ -77,7 +77,7 @@ interface ParsedHash {
 
 /**
  * Strict hex decode. `Buffer.from` silently truncates at the first invalid
- * character, so `Buffer.from('b', 'hex')` is empty — and an empty derived key
+ * character, so `Buffer.from('b', 'hex')` is empty, and an empty derived key
  * compares equal to the empty key scrypt returns for keylen 0, which would make
  * a malformed stored hash accept *any* password. Reject anything that is not a
  * full-length key.
@@ -115,7 +115,7 @@ function parseHash(stored: string): ParsedHash | null {
  * Verify a plaintext password against a stored hash, in constant time with
  * respect to the derived key.
  *
- * @returns `ok` — whether the password matches. `needsRehash` — whether the
+ * @returns `ok`, whether the password matches. `needsRehash`, whether the
  *   stored hash used weaker parameters than the current ones, so the caller can
  *   transparently upgrade it after a successful login.
  */

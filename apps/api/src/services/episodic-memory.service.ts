@@ -51,7 +51,7 @@ export async function getProjectEpisodicSettings(
  * Effective episodic settings for a thread: project defaults with the thread's
  * override layered on top.
  *
- * A thread override is a patch, not a replacement — reading it directly would
+ * A thread override is a patch, not a replacement, reading it directly would
  * silently drop every project default the caller did not restate.
  */
 export async function getEffectiveEpisodicSettings(
@@ -136,7 +136,7 @@ const toDate = (value: string | null | undefined): Date | null =>
  * comes from folding the previous episode's summary into the new one
  * ({@link processEpisode}), not from re-reading the whole transcript.
  *
- * Returns null when no new messages have arrived — the auto-episode timer
+ * Returns null when no new messages have arrived, the auto-episode timer
  * re-arms on every message, so firing on an unchanged thread is routine and
  * must not archive the good episode to replace it with an empty one.
  */
@@ -183,7 +183,7 @@ export async function createPendingEpisode(payload: {
         ),
       );
 
-    // Only one episode per thread is retrievable — the newest. Older ones are
+    // Only one episode per thread is retrievable, the newest. Older ones are
     // archived but keep their facts and their window stamp.
     await tx
       .update(episodes)
@@ -236,7 +236,7 @@ export async function processEpisode(episodeId: string): Promise<void> {
 
   if (!episode) return;
 
-  // Only this episode's window — the same messages semantic extraction will
+  // Only this episode's window, the same messages semantic extraction will
   // read. Continuity with earlier windows comes from `previousSummary` below,
   // which keeps the cost of an episode proportional to the new turns rather
   // than to the length of the thread.
@@ -258,7 +258,7 @@ export async function processEpisode(episodeId: string): Promise<void> {
       .update(episodes)
       .set({
         status: 'completed',
-        // Nothing to extract — keep semantic state from sticking at 'pending'.
+        // Nothing to extract, keep semantic state from sticking at 'pending'.
         semanticStatus: 'skipped',
         summary: 'No messages in this thread.',
         keyLearnings: [],
@@ -363,7 +363,7 @@ export async function processEpisode(episodeId: string): Promise<void> {
  * Spend one retry from the project's budget and move the episode back to
  * pending.
  *
- * Every retry — automatic or operator-triggered — goes through here, so the
+ * Every retry, automatic or operator-triggered, goes through here, so the
  * count is incremented exactly once per attempt and the budget is enforced on
  * both paths. The compare-and-set on `retryCount` is what makes it exactly
  * once when several workers see the same failed row.

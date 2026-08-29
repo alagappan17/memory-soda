@@ -66,7 +66,7 @@ router.post(
       ]);
       if (!prepared) throw AppError.notFound('Thread');
 
-      // Synthesis leads, then the structured fact block — both are user-derived
+      // Synthesis leads, then the structured fact block, both are user-derived
       // semantic memory and share the same framing in the system prompt.
       const contextBlock = [recalled.synthesis, recalled.context]
         .filter((part): part is string => Boolean(part))

@@ -15,7 +15,7 @@ and no separate worker.
 | **120 s** | `retryFailedEpisodes` | Retries up to 20 failed episodes, bounded by `maxRetries` |
 | **120 s** | `sweepSemanticMemory` | Picks up episodes whose fact extraction is pending, failed or orphaned |
 
-All are `setInterval(...).unref()` — they never keep the process alive.
+All are `setInterval(...).unref()`, they never keep the process alive.
 
 ---
 
@@ -25,7 +25,7 @@ The main path from conversation to memory.
 
 Every `addMessage` upserts a row into `scheduled_episodes` with
 `fireAt = now + autoEpisodeIntervalMs`. Because it is an upsert, a burst of
-messages keeps pushing the deadline out — extraction fires when the conversation
+messages keeps pushing the deadline out, extraction fires when the conversation
 goes quiet, not once per message.
 
 The job claims due rows atomically:
@@ -64,15 +64,15 @@ Episodes past the cap are left alone permanently. Retry them by hand with
 ## `sweepSemanticMemory` (120 s)
 
 The backstop for fact extraction. Normally `processEpisode` fires
-`processSemanticMemory` directly on completion; if that trigger is missed — a
-crash between the two, a restart, a migration reset — this catches it.
+`processSemanticMemory` directly on completion; if that trigger is missed, a
+crash between the two, a restart, a migration reset, this catches it.
 
 Picks up to 20 episodes that are `completed` or `archived` **and** whose
 `semanticStatus` is:
 
-- `pending` — the trigger never ran
-- `failed` — under `MAX_SEMANTIC_RETRIES` (3)
-- `processing` **and older than 10 minutes** — orphaned by a dead worker
+- `pending`, the trigger never ran
+- `failed`, under `MAX_SEMANTIC_RETRIES` (3)
+- `processing` **and older than 10 minutes**, orphaned by a dead worker
 
 > `archived` is included deliberately. An episode can be archived by the next
 > episode on its thread before its semantic pass ran; without this its message
@@ -114,7 +114,7 @@ invalidate-and-insert.
 
 > **Run one API process.**
 
-Nothing coordinates the timers across replicas — no leader election, no
+Nothing coordinates the timers across replicas, no leader election, no
 distributed lock around the ticks. Atomic claims mean duplicates do not corrupt
 data, but N replicas do N times the polling for no benefit.
 
@@ -261,6 +261,6 @@ facts are protected by deduplication, so it is safe, just not free.
 
 ## Next
 
-- [The extraction pipeline](/concepts/extraction-pipeline/) — what these jobs run
+- [The extraction pipeline](/concepts/extraction-pipeline/), what these jobs run
 - [Self-hosting](/operations/self-hosting/)
-- [Episodic memory API](/api/episodic-memory/) — manual retries
+- [Episodic memory API](/api/episodic-memory/), manual retries

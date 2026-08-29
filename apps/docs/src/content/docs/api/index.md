@@ -39,7 +39,7 @@ Details: [Authentication](/api/authentication/).
 
 - `Content-Type: application/json` on every request with a body
 - Bodies are capped at **1 MB**
-- Unknown fields are **stripped, not rejected** — a typo in an optional field
+- Unknown fields are **stripped, not rejected**, a typo in an optional field
   name is silently ignored
 - Path parameters containing `/` or other reserved characters must be
   percent-encoded (`dataset` in particular)
@@ -48,7 +48,7 @@ Details: [Authentication](/api/authentication/).
 
 ## Responses
 
-Success bodies are JSON objects. There is **no envelope** — the resource is the
+Success bodies are JSON objects. There is **no envelope**, the resource is the
 body:
 
 ```json
@@ -68,8 +68,8 @@ Collections use a named key plus counts:
 | Code | When |
 |---|---|
 | `200` | Success |
-| `201` | Created — `POST /v1/threads`, `POST …/messages` |
-| `204` | Success, no body — logout, delete |
+| `201` | Created, `POST /v1/threads`, `POST …/messages` |
+| `204` | Success, no body, logout, delete |
 | `400` | Validation failed |
 | `401` | Missing, invalid or revoked credential |
 | `404` | Not found, or not yours |
@@ -98,7 +98,7 @@ Validation failures add the raw zod issues:
 ```
 
 > There is no machine-readable error code and no request ID. Branch on HTTP
-> status, not on the `error` string — the strings are not stable.
+> status, not on the `error` string, the strings are not stable.
 > [Errors reference](/reference/errors/).
 
 ---
@@ -109,7 +109,7 @@ You never pass a project ID to `/v1/*`. It is resolved from your API key on
 every request, and every query filters on it.
 
 `dataset` is a path or body parameter you choose. It is created implicitly on
-first write — there is no provisioning call.
+first write, there is no provisioning call.
 
 ```
 /v1/memory/semantic/datasets/user_42/facts
@@ -122,28 +122,28 @@ first write — there is no provisioning call.
 
 Two styles, depending on the endpoint.
 
-**Cursor** — messages, keyed on `sequenceNumber`:
+**Cursor**, messages, keyed on `sequenceNumber`:
 
 ```
 GET /v1/memory/working/threads/:id/messages?limit=50&before=120&order=desc
 → { messages, total, hasMore }
 ```
 
-**Cursor by timestamp** — episodes:
+**Cursor by timestamp**, episodes:
 
 ```
 GET /v1/memory/episodic/datasets/:dataset/episodes?limit=10&before=2026-08-01T00:00:00Z
 → { episodes, total, hasMore }
 ```
 
-**Offset** — dashboard lists only:
+**Offset**, dashboard lists only:
 
 ```
 GET /dashboard/browse/threads?projectId=…&limit=20&offset=40
 → { threads, total }
 ```
 
-Facts and entities are **not paginated** — `listFacts` caps at `limit` (max 100)
+Facts and entities are **not paginated**, `listFacts` caps at `limit` (max 100)
 with a `total`, and `listEntities` returns everything.
 
 ---
@@ -188,7 +188,7 @@ Controlled by `CORS_ORIGIN`, default `http://localhost:3000`. Comma-separated fo
 multiple origins.
 
 Only the dashboard should call this API from a browser. Your application's calls
-belong on a server — an API key in client-side code grants full access to every
+belong on a server, an API key in client-side code grants full access to every
 dataset in its project.
 
 ---
@@ -229,7 +229,7 @@ curl http://localhost:3004/health
 ```
 
 Returns `200` when everything is `ok`, `503` otherwise. It checks that Postgres
-answers `SELECT 1` — it does **not** check Gemini reachability, migration state,
+answers `SELECT 1`, it does **not** check Gemini reachability, migration state,
 or whether background jobs are keeping up.
 
 ---

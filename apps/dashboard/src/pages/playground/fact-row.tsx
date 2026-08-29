@@ -127,7 +127,7 @@ export function FactRow({
             <div className="rounded-md border border-border p-2 space-y-1">
               <p className="font-mono">
                 episode {episode.episodeId.slice(0, 8)}… ·{' '}
-                {episode.startedAt ? day(episode.startedAt) : '—'}
+                {episode.startedAt ? day(episode.startedAt) : '-'}
               </p>
               <p className="text-foreground/80">{episode.summary}</p>
             </div>

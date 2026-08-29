@@ -5,7 +5,7 @@ import { ENTITY_TYPES, type EntityType } from '@memory-soda/types';
  *
  * These run after the LLM and before anything is stored, so they are the last
  * line of defence against a model that ignores the prompt. Pure and
- * dependency-free on purpose — this is the behaviour worth testing.
+ * dependency-free on purpose, this is the behaviour worth testing.
  */
 
 /** Caps applied post-LLM so one runaway fact can't bloat every context block. */
@@ -59,7 +59,7 @@ export function normalizeName(value: string): string {
   return value.toLowerCase().trim().slice(0, MAX_OBJECT_LEN);
 }
 
-/** Confidence is stored, never used to drop — clamp to [0, 1] for sanity. */
+/** Confidence is stored, never used to drop, clamp to [0, 1] for sanity. */
 export function clampConfidence(c: number): number {
   return Number.isFinite(c) ? Math.min(1, Math.max(0, c)) : 1;
 }

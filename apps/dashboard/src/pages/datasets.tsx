@@ -50,7 +50,7 @@ interface Message {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function relTime(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'just now';
@@ -61,7 +61,7 @@ function relTime(iso: string | null): string {
 }
 
 const dateTime = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleString() : '—';
+  iso ? new Date(iso).toLocaleString() : '-';
 
 // ── Page ────────────────────────────────────────────────────────────────────────
 
@@ -128,7 +128,7 @@ export default function DatasetsPage() {
 
   return (
     <div className="flex h-full min-h-0">
-      {/* Left rail — dataset list */}
+      {/* Left rail, dataset list */}
       <aside className="w-72 shrink-0 border-r border-border flex flex-col min-h-0">
         <div className="p-3 border-b border-border">
           <div className="flex items-center justify-between mb-2">
@@ -182,7 +182,7 @@ export default function DatasetsPage() {
         </div>
       </aside>
 
-      {/* Right pane — detail */}
+      {/* Right pane, detail */}
       <section className="flex-1 flex flex-col min-h-0">
         {error && (
           <div className="m-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -386,7 +386,7 @@ function DossierTab({
       )}
       {facts.length === 0 && !loading && (
         <p className="text-sm text-muted-foreground">
-          No facts yet — they extract automatically after conversations.
+          No facts yet, they extract automatically after conversations.
         </p>
       )}
       {[...groups.entries()].map(([anchor, items]) => (
@@ -725,7 +725,7 @@ function EpisodesTab({
                   {/* Identifying metadata */}
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono">
                     <Meta label="episodeId" value={ep.episodeId} />
-                    <Meta label="threadId" value={ep.threadId ?? '—'} />
+                    <Meta label="threadId" value={ep.threadId ?? '-'} />
                     <Meta label="status" value={ep.status} />
                     <Meta label="messages" value={String(ep.messageCount)} />
                     <Meta
@@ -733,7 +733,7 @@ function EpisodesTab({
                       value={
                         ep.tokenCount != null
                           ? ep.tokenCount.toLocaleString()
-                          : '—'
+                          : '-'
                       }
                     />
                     <Meta label="retries" value={String(ep.retryCount)} />

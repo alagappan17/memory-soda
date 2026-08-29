@@ -17,13 +17,13 @@ Every dataset in the selected project, newest activity first:
 |---|---|
 | Dataset | The identifier you passed as `dataset` |
 | Threads | Conversations recorded for them |
-| Facts | **Live** facts only — superseded and expired ones are not counted |
+| Facts | **Live** facts only, superseded and expired ones are not counted |
 | Last activity | Most recent message across all their threads |
 
 Search filters by dataset name (a substring match).
 
-> The list is derived from **threads**. A dataset with facts but no threads —
-> possible if threads were deleted in SQL — will not appear here even though its
+> The list is derived from **threads**. A dataset with facts but no threads,
+> possible if threads were deleted in SQL, will not appear here even though its
 > memory still exists.
 
 ---
@@ -44,7 +44,7 @@ Use it to answer: *what did the user actually say?*
 
 ### Episodes
 
-Every [episode](/concepts/episodic-memory/) for the dataset — the summary,
+Every [episode](/concepts/episodic-memory/) for the dataset, the summary,
 its key learnings, the message count, and the window it covered.
 
 Use it to answer: *what did the system think this conversation was about?*
@@ -65,7 +65,7 @@ Each row shows subject, predicate, object, the validity window, and the state:
 | **superseded** | A contradicting fact won, or someone deleted it |
 | **expired** | Its `validUntil` passed |
 
-A toggle includes superseded and expired facts. Leave it on when debugging —
+A toggle includes superseded and expired facts. Leave it on when debugging,
 "the memory is wrong" is usually "the memory changed and you are seeing the new
 one".
 
@@ -75,11 +75,11 @@ retrieval immediately, and stays queryable by history and `asOf`. See
 
 ### Entities
 
-The resolved canonical nouns — name and type (`PERSON`, `ORG`, `PLACE`,
+The resolved canonical nouns, name and type (`PERSON`, `ORG`, `PLACE`,
 `PRODUCT`, …), most recently mentioned first.
 
 Use it to check [entity resolution](/concepts/semantic-memory/#resolution).
-Two entities that should be one — `dji osmo pocket 3` and `pocket 3` — means the
+Two entities that should be one, `dji osmo pocket 3` and `pocket 3`, means the
 similarity threshold did not merge them, and the user's memory is split.
 
 > Entities are shown as a flat list. There is no graph visualisation.
@@ -90,9 +90,9 @@ similarity threshold did not merge them, and the user's memory is split.
 
 ### "The assistant doesn't know something the user told it"
 
-1. **Conversations** — is the message actually recorded?
-2. **Episodes** — did an episode cover it? Extraction only runs on episodes.
-3. **Facts** with history on — was it extracted and then superseded?
+1. **Conversations**, is the message actually recorded?
+2. **Episodes**, did an episode cover it? Extraction only runs on episodes.
+3. **Facts** with history on, was it extracted and then superseded?
 4. If the episode exists but the fact does not, extraction dropped it. Common
    reasons: the subject was not the user, it was judged transient task chatter,
    or it was merged into a more specific fact.
@@ -101,14 +101,14 @@ similarity threshold did not merge them, and the user's memory is split.
 
 1. **Facts** with history on. Find both versions.
 2. Check `validAt` on each. The newer statement should have superseded the older.
-3. If both are current, the contradiction judge returned `neither` — it did not
+3. If both are current, the contradiction judge returned `neither`, it did not
    consider them mutually exclusive. Delete the stale one.
 
 ### "Memory is duplicated"
 
 Check **Entities**. Near-duplicate entities split facts across two anchors and
 weaken retrieval. Raising or lowering `entityResolutionThreshold` changes the
-merge behaviour — see [Tuning retrieval](/guides/tuning-retrieval/).
+merge behaviour, see [Tuning retrieval](/guides/tuning-retrieval/).
 
 ### When facts are missing
 
@@ -129,11 +129,11 @@ LIMIT 20;
 
 | | Alternative |
 |---|---|
-| Delete a whole dataset | No UI, no endpoint — [Privacy and data deletion](/operations/privacy-and-deletion/) |
+| Delete a whole dataset | No UI, no endpoint, [Privacy and data deletion](/operations/privacy-and-deletion/) |
 | Edit or add a fact | Delete only; facts are derived |
 | See extraction failures | SQL, as above |
 | See which facts a past reply used | [Playground](/dashboard/playground/), current session only |
-| Export | No export button — use the API or `pg_dump` |
+| Export | No export button, use the API or `pg_dump` |
 | Visualise the graph | Not implemented |
 
 ---
@@ -152,13 +152,13 @@ Everything here is available programmatically:
 | Entities | `GET /dashboard/browse/datasets/:dataset/entities?projectId=` |
 | Delete a fact | `DELETE /dashboard/v1/memory/semantic/datasets/:dataset/facts/:factId?projectId=` |
 
-The `/v1` equivalents do the same with an API key —
+The `/v1` equivalents do the same with an API key,
 [Semantic memory API](/api/semantic-memory/).
 
 ---
 
 ## Next
 
-- [Playground](/dashboard/playground/) — watch extraction happen live
+- [Playground](/dashboard/playground/), watch extraction happen live
 - [Curating and correcting memory](/guides/curating-memory/)
 - [Semantic memory](/concepts/semantic-memory/)

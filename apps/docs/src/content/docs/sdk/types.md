@@ -198,7 +198,7 @@ interface WMThreadStatsResponse {
 ```
 
 > `compact()` may resolve to `{ ok: true, compacted: false, message: string }`
-> when there is nothing to compact — which does not match `WMCompactResult`.
+> when there is nothing to compact, which does not match `WMCompactResult`.
 > Narrow before use.
 
 ---

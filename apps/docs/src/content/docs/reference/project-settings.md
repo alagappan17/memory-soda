@@ -10,7 +10,7 @@ built-in defaults  ─►  project.settings  ─►  thread override (episodic o
 ```
 
 - Read: `GET /dashboard/projects/:id/settings`
-- Write: `PATCH /dashboard/projects/:id/settings` — partial, deep-merged
+- Write: `PATCH /dashboard/projects/:id/settings`, partial, deep-merged
 - UI: [Project settings](/dashboard/project-settings/)
 
 ---
@@ -19,7 +19,7 @@ built-in defaults  ─►  project.settings  ─►  thread override (episodic o
 
 | Field | Type | Default | Bounds (project) | Bounds (thread) |
 |---|---|---|---|---|
-| `enabled` | boolean | `true` | — | — |
+| `enabled` | boolean | `true` |, |, |
 | `autoEpisodeIntervalMs` | number \| null | `10000` | `>= 60000` or `null` | `>= 1000` or `null` |
 | `maxMessages` | integer | `100` | 10–1000 | 1–1000 |
 | `maxRetries` | integer | `3` | 0–10 | 0–10 |
@@ -28,7 +28,7 @@ built-in defaults  ─►  project.settings  ─►  thread override (episodic o
 | `recencyWeight` | number | `0.3` | 0–1 | 0–1 |
 
 ### `enabled`
-Off means no episodes — and therefore **no facts**, because semantic extraction
+Off means no episodes, and therefore **no facts**, because semantic extraction
 runs off episodes. Messages are still stored and `prepare()` still works.
 
 ### `autoEpisodeIntervalMs`
@@ -66,7 +66,7 @@ Episodes returned by `recall({ include: ['episodes'] })`.
 relevance = cosineSimilarity × similarityWeight + 1/(1 + daysSince) × recencyWeight
 ```
 
-**Not normalised** — used as given. `0.7/0.3` favours topical match; `0.4/0.6`
+**Not normalised**, used as given. `0.7/0.3` favours topical match; `0.4/0.6`
 favours recent conversations.
 
 ---
@@ -75,7 +75,7 @@ favours recent conversations.
 
 | Field | Type | Default | Bounds |
 |---|---|---|---|
-| `enabled` | boolean | `true` | — |
+| `enabled` | boolean | `true` |, |
 | `retrievalMinConfidence` | number | `0.5` | 0–1 |
 | `factsInContext` | integer | `8` | 1–100 |
 | `entityResolutionThreshold` | number | `0.88` | 0–1 |
@@ -94,7 +94,7 @@ Two roles:
 1. Facts below it are **excluded from retrieval**.
 2. A new fact below it can **never invalidate** an existing one.
 
-Confidence is the extraction model's self-rating and is poorly calibrated —
+Confidence is the extraction model's self-rating and is poorly calibrated,
 a coarse filter, not a probability.
 
 ### `factsInContext`
@@ -207,7 +207,7 @@ await memory.recall({ dataset, query, limit: 20, minConfidence: 0.7 });
 
 | Setting | Applies to |
 |---|---|
-| `factsInContext`, `retrievalMinConfidence`, `anchorVectorMin`, `anchorVectorTopK`, `contextEpisodes`, weights | Immediately — read path |
+| `factsInContext`, `retrievalMinConfidence`, `anchorVectorMin`, `anchorVectorTopK`, `contextEpisodes`, weights | Immediately, read path |
 | `entityResolutionThreshold`, `factDedupThreshold`, `contradictionBandMin` | New extractions only |
 | `autoEpisodeIntervalMs`, `maxMessages`, `maxRetries` | Newly scheduled work |
 | `enabled: false` | Stops new work; existing data remains and is still recalled |
@@ -224,14 +224,14 @@ WHERE dataset = 'user_42' AND status = 'completed';
 
 ## Which to touch
 
-**Safe** — read path, revert freely: `factsInContext`, `retrievalMinConfidence`,
+**Safe**, read path, revert freely: `factsInContext`, `retrievalMinConfidence`,
 `anchorVectorMin`, `anchorVectorTopK`, `contextEpisodes`, `similarityWeight`,
 `recencyWeight`.
 
-**Careful** — changes stored data, not retroactive:
+**Careful**, changes stored data, not retroactive:
 `entityResolutionThreshold`, `factDedupThreshold`, `contradictionBandMin`.
 
-**Cost** — `autoEpisodeIntervalMs`.
+**Cost**, `autoEpisodeIntervalMs`.
 
 Method for changing them without guessing:
 [Tuning retrieval quality](/guides/tuning-retrieval/).

@@ -2,7 +2,7 @@
  * Monochrome syntax themes.
  *
  * Filtering a colour theme to greyscale collapses most tokens onto the same
- * value — strings, keywords and identifiers all land within a few percent of
+ * value, strings, keywords and identifiers all land within a few percent of
  * each other and code reads as an undifferentiated block. So the ramp is
  * authored directly: hue carries nothing, *lightness* carries everything.
  *

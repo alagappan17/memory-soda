@@ -148,13 +148,13 @@ export function WorkingMemoryPanel({
       {settings.autoCompactEnabled &&
         settings.messageLimit < settings.autoCompactThreshold && (
           <p className="text-[10px] text-destructive bg-destructive/10 rounded px-2 py-1">
-            Message limit is below the compact threshold — messages between the
+            Message limit is below the compact threshold, messages between the
             summary and the tail will be skipped by prepare.
           </p>
         )}
       {hasThread && (
         <p className="text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1">
-          Thread active — start a new thread to change auto-compact.
+          Thread active, start a new thread to change auto-compact.
         </p>
       )}
     </PanelShell>
@@ -322,7 +322,7 @@ export function EpisodicPanel({
 
       {hasThread && (
         <p className="text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1">
-          Thread active — settings frozen at creation.
+          Thread active, settings frozen at creation.
         </p>
       )}
     </PanelShell>
@@ -340,7 +340,7 @@ const SEMANTIC_ROWS: {
   {
     key: 'retrievalMinConfidence',
     label: 'Min confidence',
-    hint: 'retrieval floor — all facts stored',
+    hint: 'retrieval floor, all facts stored',
   },
   { key: 'factsInContext', label: 'Facts in context', hint: 'recall limit' },
   {
@@ -383,7 +383,7 @@ export function SemanticPanel({
     getProjectSettings(projectId)
       .then((res) => onLoaded(res.settings.semantic))
       .catch(() => setError(true));
-    // onLoaded is a state setter from the parent — stable across renders.
+    // onLoaded is a state setter from the parent, stable across renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
@@ -413,7 +413,7 @@ export function SemanticPanel({
             </div>
           ))}
           <p className="text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1">
-            Project-level — edit in{' '}
+            Project-level, edit in{' '}
             <Link
               to={`/projects/${projectId}/settings`}
               className="underline hover:text-foreground"

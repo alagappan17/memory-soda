@@ -7,7 +7,7 @@ import { AppError } from './errors.js';
  *
  * A handler declares the schemas for the parts of the request it reads and
  * receives the parsed values as arguments. Nothing round-trips through `req`,
- * so nothing has to be cast back to the type the schema already proved — which
+ * so nothing has to be cast back to the type the schema already proved, which
  * is what `req.body as z.infer<typeof schema>` was doing at every call site.
  *
  * Handlers return their response body and throw {@link AppError} for anything
@@ -81,7 +81,7 @@ async function send(res: Response, result: unknown): Promise<void> {
 }
 
 /**
- * A route with no project context — auth, user administration, health.
+ * A route with no project context, auth, user administration, health.
  */
 export function route<S extends Schemas>(
   schemas: S,
@@ -104,7 +104,7 @@ export function route<S extends Schemas>(
 /**
  * A route scoped to one project.
  *
- * `projectId` is resolved by whichever guard the router was mounted behind —
+ * `projectId` is resolved by whichever guard the router was mounted behind,
  * the API key for `/v1`, the query parameter for `/dashboard`. Its absence is a
  * mounting mistake rather than a client error, so it fails loudly as a 500
  * instead of being asserted away with `!`.

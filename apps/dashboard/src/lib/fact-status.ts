@@ -8,7 +8,7 @@ export type FactStatus =
   | 'invalidated'
   | 'below threshold';
 
-/** Status dot color per bi-temporal state — shared by every fact list. */
+/** Status dot color per bi-temporal state, shared by every fact list. */
 export const FACT_STATUS_DOT: Record<FactStatus, string> = {
   valid: 'bg-foreground',
   expired: 'bg-muted-foreground',

@@ -1,8 +1,8 @@
 ---
 title: "Authentication"
-description: "Two independent credentials for two independent surfaces. They never mix — an API key cannot reach /dashboard/, and a session token cannot reach /v1/."
+description: "Two independent credentials for two independent surfaces. They never mix, an API key cannot reach /dashboard/, and a session token cannot reach /v1/."
 ---
-Two independent credentials for two independent surfaces. They never mix — an
+Two independent credentials for two independent surfaces. They never mix, an
 API key cannot reach `/dashboard/*`, and a session token cannot reach `/v1/*`.
 
 | Surface | Credential | Grants |
@@ -17,7 +17,7 @@ API key cannot reach `/dashboard/*`, and a session token cannot reach `/v1/*`.
 ### Format and storage
 
 ```
-ms_3f9a4c2e…                 'ms_' + 32 random bytes, hex — 67 characters
+ms_3f9a4c2e…                 'ms_' + 32 random bytes, hex, 67 characters
 ```
 
 Stored as a **SHA-256 hash**. The plaintext is shown once, at creation, and
@@ -69,7 +69,7 @@ curl -X DELETE http://localhost:3004/dashboard/api-keys/$KEY_ID \
   -H "Authorization: Bearer $SESSION_TOKEN"
 ```
 
-Immediate — in-flight requests using it start failing at once. Revocation is
+Immediate, in-flight requests using it start failing at once. Revocation is
 permanent; `revokedAt` is stamped and the row is kept.
 
 ### Failure modes
@@ -79,7 +79,7 @@ permanent; `revokedAt` is stamped and the row is kept.
 | `401 Missing or invalid Authorization header` | No header, or not `Bearer ` |
 | `401 Invalid API key` | No matching hash |
 | `401 API key has been revoked` | `revokedAt` is set |
-| `401 API key is not linked to a project` | Orphaned row — recreate the key |
+| `401 API key is not linked to a project` | Orphaned row, recreate the key |
 
 The SDK surfaces all of these as [`AuthError`](/sdk/errors/#autherror).
 
@@ -97,7 +97,7 @@ not be able to reach each other's data even by accident, give each tenant its ow
 - Server-side only. Never in a browser, mobile app or anything shipped to a user.
 - Environment variable, not source control.
 - One key per environment and per service, so revoking one is surgical.
-- `lastUsedAt` is updated on every request — useful for spotting a key nobody
+- `lastUsedAt` is updated on every request, useful for spotting a key nobody
   uses any more.
 
 ---
@@ -122,7 +122,7 @@ curl -X POST http://localhost:3004/auth/login \
 ```
 
 `401 Invalid username or password` covers both an unknown user and a wrong
-password — deliberately indistinguishable, and the two paths take the same time
+password, deliberately indistinguishable, and the two paths take the same time
 so latency cannot enumerate usernames.
 
 ### Session properties
@@ -131,7 +131,7 @@ so latency cannot enumerate usernames.
 |---|---|
 | Lifetime | 7 days from creation |
 | Storage | SHA-256 hash of the token; plaintext shown once |
-| Revocation | Server-side, immediate — `POST /auth/logout` |
+| Revocation | Server-side, immediate, `POST /auth/logout` |
 | `lastUsedAt` | Updated on every request |
 
 Because sessions are database rows rather than JWTs, signing out actually
@@ -175,7 +175,7 @@ scrypt$32768$8$3$<salt hex>$<derived key hex>
 ```
 
 The parameters are recorded in the hash, so they can be raised later without
-invalidating existing passwords. `N=2^15, r=8, p=3` is 32 MiB per derivation —
+invalidating existing passwords. `N=2^15, r=8, p=3` is 32 MiB per derivation,
 one of the configurations on OWASP's list, chosen over the 128 MiB option so a
 small self-hosted box is not exposed to memory exhaustion under concurrent
 sign-ins.
@@ -193,13 +193,13 @@ On an empty database, the API seeds one of each and prints them once:
 
 ```
 ┌───────────────────────────────────────────────────────┐
-│  Memory Soda — First-time setup                       │
+│  Memory Soda, First-time setup                       │
 │                                                       │
 │  API Key:  ms_3f9a…                                   │
 │  Login:    admin / kR7v-2mQxPd1                       │
-│            (generated — set ADMIN_PASSWORD to choose) │
+│            (generated, set ADMIN_PASSWORD to choose) │
 │                                                       │
-│  Save these — the API key will not be shown again.    │
+│  Save these, the API key will not be shown again.    │
 └───────────────────────────────────────────────────────┘
 ```
 

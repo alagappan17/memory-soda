@@ -1,20 +1,20 @@
 ---
 title: "Testing"
-description: "Coverage is thin. One suite exists — apps/api/src/lib/password.test.ts — and it covers password hashing only."
+description: "Coverage is thin. One suite exists, apps/api/src/lib/password.test.ts, and it covers password hashing only."
 ---
 ---
 
 ## Current state
 
-Coverage is thin. One suite exists — `apps/api/src/lib/password.test.ts` — and it
+Coverage is thin. One suite exists, `apps/api/src/lib/password.test.ts`, and it
 covers password hashing only.
 
 The pieces that most need tests and do not have them:
 
 - bi-temporal predicates (`isLiveFact`, `isLiveFactAsOf`)
-- fact deduplication — exact, near-duplicate, within-batch
+- fact deduplication, exact, near-duplicate, within-batch
 - contradiction reconciliation (`old` / `new` / `neither`)
-- compaction — rolling summaries, the `messageLimit` interaction
+- compaction, rolling summaries, the `messageLimit` interaction
 - RRF fusion ordering
 - entity resolution and merging
 
@@ -89,7 +89,7 @@ test('falls back to the subject for literal facts', () => {
 
 ### Test the edges
 
-The password suite caught a real authentication bypass — `Buffer.from('b','hex')`
+The password suite caught a real authentication bypass, `Buffer.from('b','hex')`
 truncates to an empty buffer, `scrypt` returns an empty key for `keylen: 0`, and
 `timingSafeEqual(<empty>, <empty>)` is `true`. A malformed stored hash would have
 accepted any password.
@@ -120,7 +120,7 @@ psql -d memory_test -c "CREATE EXTENSION vector;"
 DATABASE_URL=postgresql://…/memory_test npm run --workspace=apps/api db:migrate
 ```
 
-Use a distinct `dataset` prefix per test and clean up — there is no bulk delete,
+Use a distinct `dataset` prefix per test and clean up, there is no bulk delete,
 so test data accumulates.
 
 ```ts
@@ -134,7 +134,7 @@ test.after(async () => {
 });
 ```
 
-Delete facts **before** episodes — `facts.episode_id` is `ON DELETE SET NULL`.
+Delete facts **before** episodes, `facts.episode_id` is `ON DELETE SET NULL`.
 
 ### Testing around async extraction
 
@@ -174,7 +174,7 @@ const { facts } = await waitFor(
 );
 ```
 
-**These tests call Gemini and cost money.** Keep them out of the default suite —
+**These tests call Gemini and cost money.** Keep them out of the default suite,
 gate on an env var:
 
 ```ts
@@ -224,7 +224,7 @@ check:
 
 | Bug | Only visible by |
 |---|---|
-| A correlated subquery binding to the wrong table — every count returned `0` | Running the query |
+| A correlated subquery binding to the wrong table, every count returned `0` | Running the query |
 | Drizzle wrapping pg errors, so a `23505` check never matched and returned 500 instead of 409 | Concurrent requests |
 | A Base UI component throwing because it was used outside its required parent | Clicking it |
 | The entity-anchor signal contributing arbitrary ranks to fusion | Reading results |

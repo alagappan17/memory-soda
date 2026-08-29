@@ -93,13 +93,13 @@ curl -X POST http://localhost:3004/v1/threads \
 }
 ```
 
-> No `messageCount` — use [`GET …/stats`](/api/working-memory/#get-v1memoryworkingthreadsthreadidstats).
+> No `messageCount`, use [`GET …/stats`](/api/working-memory/#get-v1memoryworkingthreadsthreadidstats).
 
 ### Errors
 
 | Code | Body |
 |---|---|
-| `404` | `{ "error": "Thread not found" }` — missing, or belongs to another project |
+| `404` | `{ "error": "Thread not found" }`, missing, or belongs to another project |
 
 ---
 
@@ -113,7 +113,7 @@ Merge-update metadata. Existing keys are preserved.
 { "metadata": { "resolved": true } }
 ```
 
-`metadata` is required. Nothing else is patchable — `tags`,
+`metadata` is required. Nothing else is patchable, `tags`,
 `autoCompactThreshold` and `settings` are fixed at creation.
 
 ### Response `200`
@@ -129,7 +129,7 @@ curl -X PATCH http://localhost:3004/v1/threads/$THREAD \
 # after:  { "channel": "web", "ticketId": "T-1094", "resolved": true }
 ```
 
-Implemented as a JSONB merge (`||`), so it is **one level deep** — a nested
+Implemented as a JSONB merge (`||`), so it is **one level deep**, a nested
 object is replaced wholesale. Removing a key requires reading, deleting locally
 and writing the whole object back.
 
@@ -157,7 +157,7 @@ project.
    a crash.
 2. It archives every prior episode on the thread.
 3. It stamps the message range it covers.
-4. Summarisation and extraction run asynchronously — three LLM calls.
+4. Summarisation and extraction run asynchronously, three LLM calls.
 
 Calling it repeatedly is harmless but costs three LLM calls each time.
 
@@ -173,12 +173,12 @@ curl -X POST http://localhost:3004/v1/threads/$THREAD/end \
 | Operation | Status |
 |---|---|
 | Delete a thread | No endpoint. Deleting the row in SQL cascades to messages. |
-| List threads | Dashboard only — [`GET /dashboard/browse/threads`](/api/dashboard/). |
+| List threads | Dashboard only, [`GET /dashboard/browse/threads`](/api/dashboard/). |
 | Reassign a thread to another dataset | Not supported. |
 
 ---
 
 ## Next
 
-- [Working memory API](/api/working-memory/) — appending and reading messages
+- [Working memory API](/api/working-memory/), appending and reading messages
 - [`memory.threads`](/sdk/threads/)

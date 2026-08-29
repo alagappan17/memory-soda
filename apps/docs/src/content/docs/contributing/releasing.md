@@ -26,7 +26,7 @@ SDK's declarations.
 ```
 
 Built with `tsup` into dual ESM/CJS plus declarations. **Zero runtime
-dependencies** — it uses global `fetch` and `AbortSignal.timeout`, which is why
+dependencies**, it uses global `fetch` and `AbortSignal.timeout`, which is why
 Node 18 is the floor.
 
 ```bash
@@ -72,7 +72,7 @@ field has been broken.
 
 ## Versioning
 
-Semver, pre-1.0 — so a minor bump may still break.
+Semver, pre-1.0, so a minor bump may still break.
 
 | Change | Bump |
 |---|---|
@@ -154,7 +154,7 @@ not exist. It has happened here before.
 
 ## Deprecating
 
-While `0.x`, removal in a minor is permitted — but be kind:
+While `0.x`, removal in a minor is permitted, but be kind:
 
 ```ts
 /**
@@ -172,7 +172,7 @@ Keep the alias for one minor release, note it in the changelog, then remove it.
 
 ## Releasing the API and dashboard
 
-Not published to a registry — deployed from source.
+Not published to a registry, deployed from source.
 
 ```bash
 git pull && npm ci && npm run build

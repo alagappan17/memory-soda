@@ -118,7 +118,7 @@ export async function exportDataset(
 
 /**
  * Erase a dataset. Hard deletes, not the soft `invalidAt` stamp used for
- * curation — "forget me" has to actually remove the rows.
+ * curation, "forget me" has to actually remove the rows.
  *
  * One transaction so a partial erase is impossible. Messages and scheduled
  * episodes go with their threads via ON DELETE CASCADE; facts reference

@@ -34,7 +34,7 @@ time it is true for, so a contradiction supersedes rather than accumulates.
 
 ## What you get
 
-**A prompt-ready context block.** Not embeddings, not JSON you have to format —
+**A prompt-ready context block.** Not embeddings, not JSON you have to format,
 a string you paste into your system prompt.
 
 ```
@@ -52,7 +52,7 @@ Known facts about the user, most relevant first.
 
 **Contradiction handling.** When a user says something that conflicts with a
 stored fact, an LLM judge decides which one survives. The loser is marked
-superseded, not deleted — the history stays queryable.
+superseded, not deleted, the history stays queryable.
 
 **Time-travel queries.** `asOf` returns what the system believed at any past
 instant. Useful for auditing, debugging and "why did the agent say that?".
@@ -85,13 +85,13 @@ Be clear about this before adopting it.
 - A support agent that should not re-ask what it was told last week
 - Anything where user preferences, constraints and decisions accumulate over
   many sessions
-- Cases where you need to explain *why* the model knew something — provenance is
+- Cases where you need to explain *why* the model knew something, provenance is
   stored for every fact
 
 **Poor fit today**
 
 - Multi-agent workflows that need to record what an *agent* learned, not what a
-  *user* said — every extracted fact must have the user as its subject
+  *user* said, every extracted fact must have the user as its subject
 - Anything needing sub-second write-to-readable latency; extraction is
   asynchronous and takes tens of seconds
 - Knowledge-base search over documents
@@ -148,5 +148,5 @@ Superseded facts stay in the table indefinitely.
 
 ## Next
 
-- [How it works](/introduction/how-it-works/) — the write path and the read path in detail
-- [Installation](/getting-started/installation/) — get it running
+- [How it works](/introduction/how-it-works/), the write path and the read path in detail
+- [Installation](/getting-started/installation/), get it running

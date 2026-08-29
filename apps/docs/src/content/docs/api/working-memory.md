@@ -29,7 +29,7 @@ Append a message. `sequenceNumber` is assigned by the server.
 |---|---|---|---|
 | `role` | `user` \| `assistant` \| `system` \| `tool` | yes | |
 | `content` | string | yes | Non-empty |
-| `tokens` | object | no | `input`, `output`, `total` — non-negative integers |
+| `tokens` | object | no | `input`, `output`, `total`, non-negative integers |
 | `model` | string | no | |
 | `latencyMs` | integer | no | Non-negative |
 | `metadata` | object | no | Only `stopReason` and `agentName` are accepted |
@@ -77,7 +77,7 @@ Raw message rows, including compacted ones.
 | Param | Default | Notes |
 |---|---|---|
 | `limit` | `20` | 1–100 |
-| `before` | — | Cursor: `sequenceNumber` strictly less than this |
+| `before` |, | Cursor: `sequenceNumber` strictly less than this |
 | `order` | `asc` | or `desc` |
 
 ### Response `200`
@@ -115,7 +115,7 @@ curl "http://localhost:3004/v1/memory/working/threads/$THREAD/messages?limit=50&
 
 ## `POST /v1/memory/working/threads/:threadId/prepare`
 
-The LLM-ready conversation window. Pure SQL — no embeddings, no model calls.
+The LLM-ready conversation window. Pure SQL, no embeddings, no model calls.
 
 ### Request
 
@@ -217,7 +217,7 @@ calls Gemini, appends the reply.
 Recall runs with `include: ['episodes','synthesis','raw']`, so this endpoint
 makes **two or three LLM calls** per turn.
 
-Recall failure is non-fatal — the user message is already persisted, so the turn
+Recall failure is non-fatal, the user message is already persisted, so the turn
 proceeds without long-term memory rather than returning 500.
 
 ---
@@ -272,7 +272,7 @@ Makes an LLM call; takes seconds. See
 }
 ```
 
-- `tokenUsage` is `null` unless you supplied `tokens` on messages — nothing is
+- `tokenUsage` is `null` unless you supplied `tokens` on messages, nothing is
   counted for you.
 - `sessionDuration` is `null` for threads with fewer than two real messages.
 - `messageCount` counts un-compacted messages including the summary row.
@@ -281,5 +281,5 @@ Makes an LLM call; takes seconds. See
 
 ## Next
 
-- [Recall API](/api/recall/) — long-term memory
-- [Working memory](/concepts/working-memory/) — the concepts
+- [Recall API](/api/recall/), long-term memory
+- [Working memory](/concepts/working-memory/), the concepts

@@ -12,7 +12,7 @@ import { getThreadEpisodes } from '../../services/episodic-memory.service.js';
 /**
  * Read-only views that exist only for the dashboard.
  *
- * Unlike everything under the memory router, these have no SDK counterpart —
+ * Unlike everything under the memory router, these have no SDK counterpart,
  * they are cross-dataset admin listings ("who does this project know about",
  * "show me that conversation"), not memory operations an agent would perform.
  */

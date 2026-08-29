@@ -20,11 +20,11 @@ SDK equivalent: [`memory.facts`](/sdk/semantic-memory/)
 
 | Param | Type | Default | Notes |
 |---|---|---|---|
-| `q` | string | — | Full-text filter over subject + predicate + object. Max 1000 chars. |
+| `q` | string |, | Full-text filter over subject + predicate + object. Max 1000 chars. |
 | `limit` | integer | `50` | 1–100 |
 | `includeInvalidated` | boolean | `false` | Include superseded and soft-deleted |
-| `asOf` | date | — | Point-in-time. **Overrides `includeInvalidated`.** |
-| `episodeId` | uuid | — | Only facts extracted from this episode |
+| `asOf` | date |, | Point-in-time. **Overrides `includeInvalidated`.** |
+| `episodeId` | uuid |, | Only facts extracted from this episode |
 
 ### Response `200`
 
@@ -49,7 +49,7 @@ SDK equivalent: [`memory.facts`](/sdk/semantic-memory/)
 }
 ```
 
-Ordered by `validAt` descending. No `relevanceScore` — these are not ranked.
+Ordered by `validAt` descending. No `relevanceScore`, these are not ranked.
 `total` is the count matching the filter, ignoring `limit`.
 
 ### Examples
@@ -71,7 +71,7 @@ curl "http://localhost:3004/v1/memory/semantic/datasets/user_42/facts?includeInv
 curl "http://localhost:3004/v1/memory/semantic/datasets/user_42/facts?asOf=2026-06-01" \
   -H "Authorization: Bearer $KEY"
 
-# Provenance — everything one episode produced
+# Provenance, everything one episode produced
 curl "http://localhost:3004/v1/memory/semantic/datasets/user_42/facts?episodeId=8b21…" \
   -H "Authorization: Bearer $KEY"
 ```
@@ -82,7 +82,7 @@ curl "http://localhost:3004/v1/memory/semantic/datasets/user_42/facts?episodeId=
 
 ## `DELETE /v1/memory/semantic/datasets/:dataset/facts/:factId`
 
-Soft delete — stamps `invalidAt`.
+Soft delete, stamps `invalidAt`.
 
 ### Response `200`
 
@@ -105,7 +105,7 @@ curl -X DELETE "http://localhost:3004/v1/memory/semantic/datasets/user_42/facts/
 ```
 
 > **This is the only write operation on `/v1`.** Facts cannot be created or
-> edited — see [Curating memory](/guides/curating-memory/).
+> edited, see [Curating memory](/guides/curating-memory/).
 
 ---
 
@@ -123,7 +123,7 @@ curl -X DELETE "http://localhost:3004/v1/memory/semantic/datasets/user_42/facts/
 }
 ```
 
-Ordered by `updatedAt` descending — most recently mentioned first.
+Ordered by `updatedAt` descending, most recently mentioned first.
 
 > **Unpaginated.** Returns every entity for the dataset.
 
@@ -150,7 +150,7 @@ Every **live** fact touching a named entity, as subject or object.
 ```
 
 The name is lower-cased server-side, so `Berlin` and `berlin` both work.
-Otherwise it must match exactly — this is a lookup, not a search. An unknown
+Otherwise it must match exactly, this is a lookup, not a search. An unknown
 entity returns `{ "facts": [] }`, not `404`.
 
 Superseded and expired facts are excluded; there is no `includeInvalidated` here.
@@ -176,9 +176,9 @@ A fact is in exactly one state at any time:
 | State | Condition |
 |---|---|
 | **live** | `invalidAt` null, `validAt <= now`, `validUntil` null or future |
-| **superseded** | `invalidAt` set — a contradiction won, or you deleted it |
+| **superseded** | `invalidAt` set, a contradiction won, or you deleted it |
 | **expired** | `invalidAt` null but `validUntil` in the past |
-| **future** | `validAt` in the future — stored but not yet true |
+| **future** | `validAt` in the future, stored but not yet true |
 
 Only **live** facts appear in `recall()` and in entity-facts. `includeInvalidated`
 and `asOf` reach the rest.
@@ -194,7 +194,7 @@ See [The bi-temporal model](/concepts/bi-temporal-model/).
 | Create a fact | No write API |
 | Edit a fact | Delete and let extraction re-derive |
 | Pin / protect a fact | No immutability flag |
-| Bulk delete a dataset | No endpoint — see [Privacy and data deletion](/operations/privacy-and-deletion/) |
+| Bulk delete a dataset | No endpoint, see [Privacy and data deletion](/operations/privacy-and-deletion/) |
 | Paginate entities | Returns everything |
 | Delete an entity | No endpoint |
 
@@ -202,6 +202,6 @@ See [The bi-temporal model](/concepts/bi-temporal-model/).
 
 ## Next
 
-- [Recall API](/api/recall/) — ranked, prompt-ready reads
+- [Recall API](/api/recall/), ranked, prompt-ready reads
 - [Curating and correcting memory](/guides/curating-memory/)
 - [Semantic memory](/concepts/semantic-memory/)

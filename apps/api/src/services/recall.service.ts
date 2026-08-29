@@ -18,7 +18,7 @@ import type {
 } from '@memory-soda/types';
 
 /**
- * Long-term memory retrieval for a dataset — the read-side counterpart to the
+ * Long-term memory retrieval for a dataset, the read-side counterpart to the
  * async extraction pipeline. Thread-free by design: callers personalize any
  * request (chat turn, search page, agent tool) with just a dataset key.
  *
@@ -36,13 +36,13 @@ export async function recall(
   const factLimit = limit ?? settings.factsInContext;
   const confidenceFloor = minConfidence ?? settings.retrievalMinConfidence;
 
-  // Embed the query once (best-effort — retrieval falls back to keyword/recency).
+  // Embed the query once (best-effort, retrieval falls back to keyword/recency).
   let queryEmbedding: number[] | null = null;
   if (query && query.trim().length >= 3) {
     try {
       queryEmbedding = await embedText(query);
     } catch (err) {
-      console.warn('[recall] query embed failed — falling back to keyword/recency:', err);
+      console.warn('[recall] query embed failed, falling back to keyword/recency:', err);
     }
   }
 
@@ -51,7 +51,7 @@ export async function recall(
     try {
       if (asOf) {
         // Point-in-time recall: liveness evaluated at `asOf` (keyword/recency
-        // retrieval — hybrid retrieval assumes the current live set).
+        // retrieval, hybrid retrieval assumes the current live set).
         const { facts } = await querySemanticFacts(dataset, projectId, {
           q: query,
           limit: factLimit,
@@ -120,7 +120,7 @@ export async function recall(
     }
   }
 
-  // Counts and lengths only — the context block is the user's own data.
+  // Counts and lengths only, the context block is the user's own data.
   console.log(
     `[recall] dataset=${dataset} facts=${factList.length} ` +
       `contextChars=${context.length} synthesis=${Boolean(synthesis)} ` +

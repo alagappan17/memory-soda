@@ -4,7 +4,7 @@ description: "The live conversation window: threads, messages, and automatic com
 ---
 The live conversation window: threads, messages, and automatic compaction.
 
-Working memory is **pure state**. Reading it costs three SQL queries — no
+Working memory is **pure state**. Reading it costs three SQL queries, no
 embeddings, no model calls. It is what you send to the model as chat history.
 
 ---
@@ -30,7 +30,7 @@ const thread = await memory.createThread({
 | `metadata` | `object` | Arbitrary JSON. Merge-updated by `threads.update()`. |
 | `autoCompactThreshold` | `number \| null` | `null` disables compaction. |
 | `createdAt`, `lastActivityAt` | ISO string | `lastActivityAt` bumps on every message. |
-| `lastCompactedAt`, `lastCompactedSequence` | — | Compaction watermarks. |
+| `lastCompactedAt`, `lastCompactedSequence` |, | Compaction watermarks. |
 
 **Threads never end.** `threads.end()` is a misleading name: it triggers
 extraction and the thread stays writable. There is no closed or archived state.
@@ -82,7 +82,7 @@ That run happens **inline**, so this particular call may take up to 30 seconds
 
 ---
 
-## `prepare()` — the read
+## `prepare()`, the read
 
 ```ts
 const result = await memory.prepare(threadId, { messageLimit: 20 });
@@ -107,7 +107,7 @@ const result = await memory.prepare(threadId, { messageLimit: 20 });
 |---|---|
 | `messages` | Ready to spread into a chat-completion request. Oldest first. |
 | `messageCount` | Total **un-compacted, non-summary** messages in the thread. |
-| `truncated` | `messageCount > messageLimit` — older messages were left out. |
+| `truncated` | `messageCount > messageLimit`, older messages were left out. |
 | `compacted` | An active compact summary is present and is the first element. |
 | `warning` | Present when `messageLimit < autoCompactThreshold`. Read it. |
 
@@ -174,7 +174,7 @@ threshold 30, messageLimit 10
 
 ## Listing raw messages
 
-`prepare()` is for the model. `listMessages()` is for you — it returns full rows
+`prepare()` is for the model. `listMessages()` is for you, it returns full rows
 including compacted ones.
 
 ```ts
@@ -189,7 +189,7 @@ const { messages, total, hasMore } = await memory.listMessages(threadId, {
 
 ## Thread stats
 
-Counts and token totals for a thread live on the HTTP API rather than the SDK —
+Counts and token totals for a thread live on the HTTP API rather than the SDK,
 they are arithmetic over the `tokens` you supplied, so the client would only be
 handing your own numbers back to you.
 
@@ -209,7 +209,7 @@ GET /v1/memory/working/threads/:threadId/stats
 }
 ```
 
-`tokenUsage` is `null` unless you supplied `tokens` on messages — Memory Soda
+`tokenUsage` is `null` unless you supplied `tokens` on messages, Memory Soda
 does not count tokens for you.
 
 ---
@@ -223,13 +223,13 @@ messages ──► episode summary (episodic) ──► facts + entities (semant
 ```
 
 Compaction and extraction are independent. Compacting does not delete anything
-extraction needs — episodes record the sequence range they cover, and
+extraction needs, episodes record the sequence range they cover, and
 extraction reads raw message rows within that range.
 
 ---
 
 ## Next
 
-- [Episodic memory](/concepts/episodic-memory/) — what happens to a finished chunk of conversation
-- [`memory.working`](/sdk/working-memory/) — full method reference
+- [Episodic memory](/concepts/episodic-memory/), what happens to a finished chunk of conversation
+- [`memory.working`](/sdk/working-memory/), full method reference
 - [Handling long conversations](/guides/long-conversations/)

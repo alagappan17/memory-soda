@@ -8,7 +8,7 @@ import { monoDark, monoLight } from './src/styles/code-themes.mjs';
 /**
  * The sidebar is generated from nav.json rather than the filesystem: order is
  * meaningful (installation before quickstart) and alphabetical would be wrong.
- * One source of truth — adding a page means editing nav.json, not two places.
+ * One source of truth, adding a page means editing nav.json, not two places.
  *
  * @typedef {{ title: string, path: string, slug: string }} NavPage
  * @typedef {{ title: string, slug: string, pages: NavPage[] }} NavSection
@@ -45,8 +45,8 @@ export default defineConfig({
       },
       lastUpdated: true,
       customCss: ['./src/styles/custom.css'],
-      // Only the token colours are set here. The frame — size, padding,
-      // background, border — is styled in custom.css: Expressive Code's
+      // Only the token colours are set here. The frame, size, padding,
+      // background, border, is styled in custom.css: Expressive Code's
       // styleOverrides silently no-op'd (--ec-* custom properties came back
       // empty), and plain CSS is verifiable.
       expressiveCode: {

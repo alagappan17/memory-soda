@@ -40,8 +40,8 @@ router.post(
   route({ body: loginBody }, async ({ body }) => {
     const row = await getUserByUsername(body.username);
 
-    // Verification always runs — against the user's hash, or a dummy of the
-    // same cost — then rejects uniformly.
+    // Verification always runs, against the user's hash, or a dummy of the
+    // same cost, then rejects uniformly.
     const { ok, needsRehash } = await verifyPassword(
       body.password,
       row?.passwordHash ?? (await getDummyHash()),

@@ -5,7 +5,7 @@ import { z } from 'zod';
  *
  * Everything is parsed once, at import, so a misconfigured deployment fails on
  * boot with every problem listed at once rather than surfacing one variable at
- * a time — or, worse, silently running with a default the operator did not
+ * a time, or, worse, silently running with a default the operator did not
  * intend. Nothing else in `apps/api` should touch `process.env`.
  *
  * Note this deliberately does not cover `packages/sdk` (its `fromEnv()` reads
@@ -78,7 +78,7 @@ const SCHEMA_EMBED_DIM = 768;
 if (env.GEMINI_EMBED_DIM !== SCHEMA_EMBED_DIM) {
   console.warn(
     `[config] GEMINI_EMBED_DIM=${env.GEMINI_EMBED_DIM} does not match the ` +
-      `vector(${SCHEMA_EMBED_DIM}) columns in the database — embedding writes ` +
+      `vector(${SCHEMA_EMBED_DIM}) columns in the database, embedding writes ` +
       'will fail unless the schema has been migrated to match.',
   );
 }

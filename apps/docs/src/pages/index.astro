@@ -73,7 +73,7 @@ const features = [
   },
   {
     title: 'Time travel',
-    body: 'asOf answers what the system believed at any past instant — because nothing is ever really deleted. Useful for auditing a decision, and for telling a retrieval bug apart from a memory that legitimately changed.',
+    body: 'asOf answers what the system believed at any past instant, because nothing is ever really deleted. Useful for auditing a decision, and for telling a retrieval bug apart from a memory that legitimately changed.',
     href: '/guides/point-in-time-recall/',
   },
   {
@@ -88,7 +88,7 @@ const features = [
   },
   {
     title: 'A pipeline you can watch',
-    body: 'The bundled playground shows every request, every extracted triple and every contradiction verdict as it happens — so “why was that not remembered?” is a question with an answer.',
+    body: 'The bundled playground shows every request, every extracted triple and every contradiction verdict as it happens, so “why was that not remembered?” is a question with an answer.',
     href: '/dashboard/playground/',
   },
 ];
@@ -99,7 +99,7 @@ const features = [
     title: 'Memory Soda',
     template: 'splash',
     head: [
-      { tag: 'title', content: 'Memory Soda — a memory layer for AI agents' },
+      { tag: 'title', content: 'Memory Soda, a memory layer for AI agents' },
     ],
   }}
   hasSidebar={false}
@@ -130,7 +130,7 @@ const features = [
         <h2>Two calls per turn.</h2>
         <p class="band-lede">
           One before the model to fetch what is known, one after to hand over
-          what was said. Extraction runs in the background — you never wait for it.
+          what was said. Extraction runs in the background, you never wait for it.
         </p>
       </header>
       <div class="split">
@@ -142,7 +142,7 @@ const features = [
           <p class="col-label">What <code>context</code> contains</p>
           <Code code={contextBlock} lang="text" />
           <p class="col-note">
-            A string. It goes straight into your system prompt — no formatting,
+            A string. It goes straight into your system prompt, no formatting,
             no embeddings to handle, no JSON to walk.
           </p>
         </div>
@@ -197,8 +197,8 @@ const features = [
       <div class="honest">
         <p class="eyebrow">Before you adopt it</p>
         <p>
-          Memory Soda is pre-1.0. Facts can only be derived from conversation —
-          there is no write API yet — every fact must be about the user, and a
+          Memory Soda is pre-1.0. Facts can only be derived from conversation,
+          there is no write API yet, every fact must be about the user, and a
           statement takes tens of seconds to become retrievable. Those limits are
           written down rather than glossed over.
         </p>
@@ -224,7 +224,7 @@ const features = [
   /*
    * `template: splash` still renders the frontmatter title as an <h1> above the
    * slot. The landing page supplies its own headline, so that would be two h1s
-   * — bad for the outline and for the document. Scoped by :has() so only this
+   *, bad for the outline and for the document. Scoped by :has() so only this
    * page is affected.
    */
   body:has(.landing) .sl-container > h1#_top {
@@ -261,7 +261,7 @@ const features = [
     padding-block: 4.5rem 4rem;
   }
 
-  /* The dark-theme flip lives in custom.css, next to the nav mark's — one rule
+  /* The dark-theme flip lives in custom.css, next to the nav mark's, one rule
      covers both marks. */
   .hero-mark {
     height: 2.75rem;

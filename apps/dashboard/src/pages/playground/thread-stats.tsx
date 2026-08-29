@@ -6,7 +6,7 @@ function formatSeconds(s: number): string {
   return `${m}m ${s % 60}s`;
 }
 
-/** Compact strip surfacing GET /threads/:id/stats — tokens + session duration. */
+/** Compact strip surfacing GET /threads/:id/stats, tokens + session duration. */
 export function ThreadStats({
   stats,
   onRefresh,

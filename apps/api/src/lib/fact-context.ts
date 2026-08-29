@@ -112,7 +112,7 @@ function oneLine(value: string): string {
 }
 
 /**
- * Render grouped facts into a prompt-ready text block — the primary recall()
+ * Render grouped facts into a prompt-ready text block, the primary recall()
  * output. Deterministic, no LLM.
  */
 export function renderContext(

@@ -22,7 +22,7 @@ const recallBody = z.object({
 const datasetParams = z.object({ dataset: datasetKey });
 
 /**
- * Retrieve long-term memory for a dataset — facts always, episodes and a prose
+ * Retrieve long-term memory for a dataset, facts always, episodes and a prose
  * synthesis on request. Thread-free: usable from any request that knows the
  * dataset key.
  */

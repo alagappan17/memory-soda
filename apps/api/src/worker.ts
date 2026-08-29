@@ -11,8 +11,8 @@ import { sweepSemanticMemory } from './services/semantic-memory.service.js';
  * All background work, on one clock.
  *
  * There used to be three independent intervals firing into four overlapping
- * paths to the same job. One tick makes the ordering explicit — due episodes
- * first, then the two backstops — and means a slow sweep delays the next tick
+ * paths to the same job. One tick makes the ordering explicit, due episodes
+ * first, then the two backstops, and means a slow sweep delays the next tick
  * instead of stacking up behind itself.
  *
  * Every job claims its own rows atomically, so running several API instances is
@@ -57,7 +57,7 @@ async function run(name: string, job: () => Promise<void>): Promise<void> {
 }
 
 /**
- * Expired and revoked sessions are dead weight — they are rejected on read, so
+ * Expired and revoked sessions are dead weight, they are rejected on read, so
  * keeping them only grows the table.
  */
 async function purgeExpiredSessions(): Promise<void> {

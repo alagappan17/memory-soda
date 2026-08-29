@@ -23,8 +23,8 @@ new MemorySoda(config: MemorySodaConfig)
 
 | Option | Type | Default | Notes |
 |---|---|---|---|
-| `baseUrl` | `string` | — | Required. Trailing slash is stripped. |
-| `apiKey` | `string` | — | Required. `ms_…`, sent as `Authorization: Bearer`. |
+| `baseUrl` | `string` |, | Required. Trailing slash is stripped. |
+| `apiKey` | `string` |, | Required. `ms_…`, sent as `Authorization: Bearer`. |
 | `timeout` | `number` | `60000` | Per-request timeout in ms. |
 
 ### `new MemorySoda()`
@@ -34,11 +34,11 @@ const memory = new MemorySoda();
 ```
 
 Reads `MEMORY_SODA_BASE_URL` and `MEMORY_SODA_API_KEY`. Throws a plain `Error`
-if either is missing — this is a startup misconfiguration, not a runtime failure.
+if either is missing, this is a startup misconfiguration, not a runtime failure.
 
 ### Where the rest of the surface lives
 
-Every method is on the client itself — there are no sub-clients to reach
+Every method is on the client itself, there are no sub-clients to reach
 through. The pages below group them by what you are doing.
 
 | Doing | Methods | Page |
@@ -53,7 +53,7 @@ through. The pages below group them by what you are doing.
 
 ## `recall()`
 
-Long-term memory for a dataset. **No thread required** — usable from a chat
+Long-term memory for a dataset. **No thread required**, usable from a chat
 turn, a search page, or an agent tool call.
 
 ```ts
@@ -64,18 +64,18 @@ recall(req: RecallRequest): Promise<RecallResponse>
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
-| `dataset` | `string` | — | **Required.** 1–256 chars. |
-| `query` | `string` | — | Drives ranking. Omit for most-recent facts. Max 2000 chars. |
+| `dataset` | `string` |, | **Required.** 1–256 chars. |
+| `query` | `string` |, | Drives ranking. Omit for most-recent facts. Max 2000 chars. |
 | `include` | `('episodes' \| 'synthesis' \| 'raw')[]` | `[]` | Opt-in extras. |
 | `limit` | `number` | `factsInContext` (8) | 1–100. |
 | `minConfidence` | `number` | `retrievalMinConfidence` (0.5) | 0–1. |
-| `asOf` | `string` | — | ISO datetime or date. Point-in-time. |
+| `asOf` | `string` |, | ISO datetime or date. Point-in-time. |
 
 ### Response
 
 ```ts
 interface RecallResponse {
-  context: string;                       // always — the prompt-ready block, "" if nothing
+  context: string;                       // always, the prompt-ready block, "" if nothing
   factCount: number;                     // always
   synthesis: string | null;              // only with include: ['synthesis']
   facts: SemanticFact[] | null;          // only with include: ['raw']
@@ -90,7 +90,7 @@ interface RecallResponse {
 // The common case
 const { context } = await memory.recall({ dataset: 'user_42', query: userMessage });
 
-// Session opener — no query, most recent facts
+// Session opener, no query, most recent facts
 const { context } = await memory.recall({ dataset: 'user_42' });
 
 // Everything, for a debug view
@@ -135,7 +135,7 @@ const { prepared, recalled } = await memory.prepareAndRecall(threadId, {
 ```
 
 **Pass `dataset` if you have it.** With it, both requests run in parallel.
-Without it, `recall` has to wait for `prepare` to return the thread's dataset —
+Without it, `recall` has to wait for `prepare` to return the thread's dataset,
 correct, but serial.
 
 ```ts
@@ -155,7 +155,7 @@ const [prepared, recalled] = await Promise.all([
 ]);
 ```
 
-Use the explicit form when you want independent error handling — as written,
+Use the explicit form when you want independent error handling, as written,
 one failure rejects both.
 
 ---
@@ -171,14 +171,14 @@ health(): Promise<HealthResponse>
 ```
 
 Returns HTTP `503` when a service is down, which the SDK surfaces as an
-`ApiError`. It does **not** require a valid API key — the endpoint is public.
+`ApiError`. It does **not** require a valid API key, the endpoint is public.
 
 ```ts
 try {
   await memory.health();
 } catch (err) {
   if (err instanceof ApiError && err.status === 503) {
-    // degraded — the body still has per-service status
+    // degraded, the body still has per-service status
   }
 }
 ```

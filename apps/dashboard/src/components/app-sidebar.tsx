@@ -221,7 +221,7 @@ export default function AppSidebar() {
       <SidebarFooter className="pb-4">
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col">
-            {/* Profile circle — click to reveal the sign-out option. */}
+            {/* Profile circle, click to reveal the sign-out option. */}
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Account"
@@ -239,7 +239,7 @@ export default function AppSidebar() {
                   <DropdownMenuLabel>
                     <span className="block">Signed in as</span>
                     <span className="block truncate text-sm font-medium text-foreground">
-                      {user?.username ?? '—'}
+                      {user?.username ?? '-'}
                     </span>
                   </DropdownMenuLabel>
                 </DropdownMenuGroup>

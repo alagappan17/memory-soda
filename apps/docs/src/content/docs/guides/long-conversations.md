@@ -9,7 +9,7 @@ Compaction keeps the message window bounded without losing what was said.
 ## The problem
 
 Send the whole history and cost grows linearly. Send a fixed tail and you lose
-everything before it — including decisions and constraints that still apply.
+everything before it, including decisions and constraints that still apply.
 
 Compaction folds older messages into a running summary:
 
@@ -58,7 +58,7 @@ threshold 40, messageLimit 10
                                 messages 40–45 lost
 ```
 
-The summary covers 1–39. The tail covers 46–55. Nothing covers 40–45 — the model
+The summary covers 1–39. The tail covers 46–55. Nothing covers 40–45, the model
 never sees them.
 
 `prepare()` detects this and returns a `warning`:
@@ -103,7 +103,7 @@ verbatim (`keepLast: 1`), so the next turn sees the user's actual words rather
 than a paraphrase.
 
 **Summary is never truncated.** The active summary is always first in
-`prepare()` and never counts against `messageLimit` — lowering the limit cannot
+`prepare()` and never counts against `messageLimit`, lowering the limit cannot
 drop compacted context.
 
 **Does not affect extraction.** Episodes record the sequence range they cover and
@@ -175,11 +175,11 @@ between.
 ## What a summary loses
 
 Summarisation is lossy by design. The prompt instructs the model never to drop a
-decision, fact, constraint or unresolved question that is still relevant — but
+decision, fact, constraint or unresolved question that is still relevant, but
 exact wording, tone and incidental detail go.
 
-If exact phrasing matters — quoting a user back to themselves, legal or medical
-context — either:
+If exact phrasing matters, quoting a user back to themselves, legal or medical
+context, either:
 
 - raise the threshold so more stays verbatim, or
 - read the originals with `listMessages()`, which still has everything.
@@ -227,5 +227,5 @@ is the easiest way to see what a summary replaced.
 
 ## Next
 
-- [Working memory](/concepts/working-memory/) — the mechanics
+- [Working memory](/concepts/working-memory/), the mechanics
 - [Build a chatbot with memory](/guides/build-a-chatbot/)

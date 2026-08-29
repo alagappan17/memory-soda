@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Already authenticated — carry on to wherever they were headed.
+  // Already authenticated, carry on to wherever they were headed.
   if (!loading && user) {
     return <Navigate to={from} replace />;
   }

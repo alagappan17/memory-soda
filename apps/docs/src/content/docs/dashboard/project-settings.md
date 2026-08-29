@@ -22,7 +22,7 @@ Full field reference with bounds: [Project settings](/reference/project-settings
 | `episodic.enabled` / `semantic.enabled` | `true` | Turn a whole layer off. |
 
 Everything else is internal retrieval tuning. Changing those without measuring
-usually makes results worse — see [below](#the-other-eleven).
+usually makes results worse, see [below](#the-other-eleven).
 
 ---
 
@@ -30,7 +30,7 @@ usually makes results worse — see [below](#the-other-eleven).
 
 | Field | Default | Notes |
 |---|---|---|
-| `enabled` | `true` | Off means no episodes and therefore **no facts** — semantic memory depends on episodes |
+| `enabled` | `true` | Off means no episodes and therefore **no facts**, semantic memory depends on episodes |
 | `autoEpisodeIntervalMs` | `10000` | Idle time before extraction. `null` disables the timer (explicit `end()` still works) |
 | `maxMessages` | `100` | Transcript cap for extraction. Longer conversations are head+tail truncated |
 | `maxRetries` | `3` | Retry cap for failed episodes |
@@ -53,7 +53,7 @@ episodes and pays that each time.
 
 > The form here enforces a minimum of **60000**, so the shipped default of
 > `10000` cannot be re-entered once changed. Per-thread overrides accept values
-> down to `1000` — use those for experiments.
+> down to `1000`, use those for experiments.
 
 ---
 
@@ -80,7 +80,7 @@ The one to tune first.
 | `8` (default) | Sensible middle |
 | `15–20` | Better recall, more tokens, more chance of irrelevant facts distracting the model |
 
-Facts are short — a block of 20 is still only a few hundred tokens. Raising this
+Facts are short, a block of 20 is still only a few hundred tokens. Raising this
 is usually safe; measure the answers, not the token count.
 
 ### `retrievalMinConfidence`
@@ -90,7 +90,7 @@ calibrated. Treat it as a coarse filter.
 
 | Value | Effect |
 |---|---|
-| `0.3` | Recalls weak inferences — noisier |
+| `0.3` | Recalls weak inferences, noisier |
 | `0.5` (default) | Drops the model's own low-confidence guesses |
 | `0.8` | Only explicitly stated facts. Safe but forgetful |
 
@@ -103,8 +103,8 @@ memory becomes more conservative in both directions.
 
 `entityResolutionThreshold`, `factDedupThreshold`, `contradictionBandMin`,
 `anchorVectorMin`, `anchorVectorTopK`, `maxMessages`, `maxRetries`,
-`contextEpisodes`, `similarityWeight`, `recencyWeight` — plus the two `enabled`
-flags — are internal constants exposed in the UI.
+`contextEpisodes`, `similarityWeight`, `recencyWeight`, plus the two `enabled`
+flags, are internal constants exposed in the UI.
 
 They interact. Two examples:
 
@@ -112,7 +112,7 @@ They interact. Two examples:
   contradiction band, because the band is `[contradictionBandMin,
   factDedupThreshold)`. Fewer duplicates, fewer contradictions caught.
 - Lowering `entityResolutionThreshold` merges more aggressively. Too low and
-  distinct entities collapse into one, silently corrupting a user's memory —
+  distinct entities collapse into one, silently corrupting a user's memory,
   irreversibly, because the merge happens at write time.
 
 If you change them: change **one at a time**, on a throwaway dataset in the
@@ -152,8 +152,8 @@ Settings affect **future** work only.
 
 | Change | Effect on existing data |
 |---|---|
-| `factsInContext` | Immediate — it is a read-path setting |
-| `retrievalMinConfidence` | Immediate — read-path filter |
+| `factsInContext` | Immediate, it is a read-path setting |
+| `retrievalMinConfidence` | Immediate, read-path filter |
 | `entityResolutionThreshold` | Only new entities. Existing merges stand |
 | `factDedupThreshold` | Only new extractions |
 | `autoEpisodeIntervalMs` | Only newly scheduled episodes |
@@ -174,13 +174,13 @@ curl -X PATCH http://localhost:3004/dashboard/projects/$PROJECT_ID/settings \
   -d '{"semantic":{"factsInContext":12,"retrievalMinConfidence":0.6}}'
 ```
 
-Partial and deep-merged — omitted fields are untouched. Returns the full merged
+Partial and deep-merged, omitted fields are untouched. Returns the full merged
 settings.
 
 ---
 
 ## Next
 
-- [Project settings reference](/reference/project-settings/) — bounds and validation
-- [Tuning retrieval quality](/guides/tuning-retrieval/) — how to change these safely
-- [Playground](/dashboard/playground/) — where to experiment
+- [Project settings reference](/reference/project-settings/), bounds and validation
+- [Tuning retrieval quality](/guides/tuning-retrieval/), how to change these safely
+- [Playground](/dashboard/playground/), where to experiment

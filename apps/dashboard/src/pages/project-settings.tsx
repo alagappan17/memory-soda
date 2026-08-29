@@ -59,7 +59,7 @@ function readField(settings: ProjectSettings, f: NumberField): number {
 
 /**
  * Episode ranking splits one budget between relevance and recency, so setting
- * either weight sets both — two independent inputs that must sum to one is a
+ * either weight sets both, two independent inputs that must sum to one is a
  * trap, not a control.
  */
 function writeField(
@@ -370,7 +370,7 @@ export default function ProjectSettingsPage() {
         </button>
         <p className="text-xs text-muted-foreground mt-1 max-w-prose">
           Similarity thresholds. The defaults were chosen by measuring retrieval
-          quality — change them the same way, not by intuition, and check the
+          quality, change them the same way, not by intuition, and check the
           Playground&apos;s recall inspector afterwards.
         </p>
         {showAdvanced && <div className="mt-2">{ADVANCED.map(field)}</div>}

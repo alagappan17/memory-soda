@@ -181,7 +181,7 @@ body {
 }
 
 @layer base {
-  /* Tailwind v4 dropped cursor:pointer on buttons — restore sane defaults */
+  /* Tailwind v4 dropped cursor:pointer on buttons, restore sane defaults */
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   [role="menuitem"]:not([aria-disabled="true"]),

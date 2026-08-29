@@ -43,9 +43,9 @@ const { text } = await generateText({ model, prompt: 'What should I cook?' });
 
 | Option | Default | What it does |
 |---|---|---|
-| `memory` | — | The client to use. Required. |
-| `dataset` | — | Whose memory this is. Required. |
-| `threadId` | — | Thread to append to. A string, or a function resolving one per call. Omit it and the middleware only reads. |
+| `memory` |, | The client to use. Required. |
+| `dataset` |, | Whose memory this is. Required. |
+| `threadId` |, | Thread to append to. A string, or a function resolving one per call. Omit it and the middleware only reads. |
 | `recall` | `true` | Inject recalled context into the system prompt. |
 | `write` | `true` when a thread is available | Record the finished turn. |
 | `limit` | project setting | Facts to retrieve. |
@@ -65,7 +65,7 @@ regardless, because a slow answer with context is worse than a fast one without.
 
 **The write-back never blocks the response.** It is fired and forgotten, with
 failures routed to `onError`. On `streamText` only the prompt is recorded at
-call time — the assistant's reply arrives on the next turn's prompt, so the
+call time, the assistant's reply arrives on the next turn's prompt, so the
 write stays off the streaming path entirely.
 
 ### Resolving a thread lazily
@@ -87,7 +87,7 @@ memoryMiddleware({
 });
 ```
 
-Cache it as shown — a function that creates a thread on every call produces one
+Cache it as shown, a function that creates a thread on every call produces one
 thread per turn, and each thread's episode then sees a single message.
 
 ---
@@ -96,7 +96,7 @@ thread per turn, and each thread's episode then sees a single message.
 
 The middleware recalls on every turn, which is right for a chat assistant and
 wasteful for an agent that mostly runs tools. A tool inverts it: the model
-decides when a lookup is worth a round trip, and says what it is looking for —
+decides when a lookup is worth a round trip, and says what it is looking for,
 usually a better retrieval query than the raw user message.
 
 ```ts
@@ -110,7 +110,7 @@ const { text } = await generateText({
 ```
 
 The tool returns the rendered context block as a string. When nothing matches
-it returns a plain sentence saying so, rather than an error — "nothing known" is
+it returns a plain sentence saying so, rather than an error, "nothing known" is
 an answer the model should act on, not a failure it should retry.
 
 You can use both: the middleware for ambient personalisation, the tool for
@@ -130,7 +130,7 @@ await memory.addMessages(threadId, toMemoryMessages(messages));
 ```
 
 The middleware uses this internally; call it directly when you are writing to
-memory yourself — from an `onFinish` handler, say.
+memory yourself, from an `onFinish` handler, say.
 
 **Tool calls and results are kept, not dropped.** A turn where the agent looked
 something up and got an answer back is often the only durable fact in it, and an
@@ -138,8 +138,8 @@ agent that silently forgets its own tool use is the failure this package exists
 to prevent. They render as `[called getProfile({"id":"42"})]` and
 `[getProfile returned {"tier":"gold"}]`.
 
-Messages that flatten to nothing — a bare file attachment, an empty assistant
-turn — are skipped rather than stored blank, and roles memory does not model are
+Messages that flatten to nothing, a bare file attachment, an empty assistant
+turn, are skipped rather than stored blank, and roles memory does not model are
 skipped rather than coerced.
 
 ---

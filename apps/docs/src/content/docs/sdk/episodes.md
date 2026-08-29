@@ -3,7 +3,7 @@ title: "Episodes"
 description: "Inspect what the system made of a conversation."
 ---
 An episode is one summarised stretch of conversation, and the unit the
-extraction pipeline works in. You rarely need this client to build something —
+extraction pipeline works in. You rarely need this client to build something,
 [`recall()`](/sdk/client/) already folds episodes into context on request. You
 need them to see what happened.
 
@@ -72,7 +72,7 @@ DELETE /v1/memory/episodic/episodes/:episodeId
 ```
 
 Archiving leaves the facts an episode produced in place. An episode is
-provenance, not the memory itself — removing the record of a conversation does
+provenance, not the memory itself, removing the record of a conversation does
 not un-learn what the conversation taught. To retire a fact use
 [`deleteFact()`](/sdk/semantic-memory/), and to erase everything use
 [`forgetDataset()`](/sdk/datasets/).

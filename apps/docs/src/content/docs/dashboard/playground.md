@@ -44,9 +44,9 @@ Using a throwaway dataset keeps experiments out of real users' memory.
 
 The centrepiece. Every API call the playground makes is recorded with:
 
-- **operation type** — `thread_created`, `message_added`, `prepare`, `recall`,
+- **operation type**, `thread_created`, `message_added`, `prepare`, `recall`,
   `auto_compacted`, `episode_scheduled`, `facts_extracted`, `error`, …
-- **relative timestamp** — `+0.0s`, `+1.4s`, `+12.8s` from the start of the thread
+- **relative timestamp**, `+0.0s`, `+1.4s`, `+12.8s` from the start of the thread
 - **duration**
 - the full **request body**, **response body** and **HTTP status**
 
@@ -83,7 +83,7 @@ So the normal loop is:
 3. Wait out `autoEpisodeIntervalMs` (default 10s) plus the scheduler tick.
 4. Watch `facts_extracted` land, ~20–60 seconds later.
 
-The polling GETs are deliberately **not** logged as ops — they would drown the
+The polling GETs are deliberately **not** logged as ops, they would drown the
 signal.
 
 To skip the wait, use the **End thread** action, which calls
@@ -128,7 +128,7 @@ Working, episodic and semantic settings for the session.
 
 | Panel | Notes |
 |---|---|
-| **Working memory** | `autoCompactThreshold`, `messageLimit` — applied to threads created here |
+| **Working memory** | `autoCompactThreshold`, `messageLimit`, applied to threads created here |
 | **Episodic** | `autoEpisodeIntervalMs`, `contextEpisodes`, weights |
 | **Semantic** | `factsInContext`, thresholds |
 
@@ -137,7 +137,7 @@ Working, episodic and semantic settings for the session.
 > [Project Settings](/dashboard/project-settings/).
 
 Lowering `autoEpisodeIntervalMs` to a second or two makes experimenting much
-faster — thread-level overrides accept values down to `1000`.
+faster, thread-level overrides accept values down to `1000`.
 
 ---
 
@@ -153,7 +153,7 @@ which runs the whole turn server-side against Gemini.
 
 Each message shows its sequence number, timestamp, and any token/model/latency
 metadata. There is a manual message form for injecting `system` and `tool` roles
-and arbitrary metadata — useful for testing how extraction handles non-user
+and arbitrary metadata, useful for testing how extraction handles non-user
 turns.
 
 Replies are **not streamed**; they appear when the call completes.
@@ -165,7 +165,7 @@ Replies are **not streamed**; they appear when the call completes.
 | Question | How |
 |---|---|
 | Why wasn't that extracted? | Send it, wait for `facts_extracted`, inspect the response |
-| What will my prompt contain? | Recall tab — read the rendered `context` |
+| What will my prompt contain? | Recall tab, read the rendered `context` |
 | Is the pipeline working at all? | Ops log shows every call and its status |
 | How long does extraction really take? | Relative timestamps between `message_added` and `facts_extracted` |
 | Does raising `factsInContext` help? | Change it in the semantic panel, re-run recall, compare |
@@ -188,6 +188,6 @@ Replies are **not streamed**; they appear when the call completes.
 
 ## Next
 
-- [Datasets](/dashboard/datasets/) — the durable view of the same data
-- [The extraction pipeline](/concepts/extraction-pipeline/) — what you are watching
+- [Datasets](/dashboard/datasets/), the durable view of the same data
+- [The extraction pipeline](/concepts/extraction-pipeline/), what you are watching
 - [Tuning retrieval quality](/guides/tuning-retrieval/)

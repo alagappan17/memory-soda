@@ -19,7 +19,7 @@ are the data controller and these obligations are yours.
 | `users`, `sessions` | Dashboard operator accounts. Not end-user data. |
 
 Embeddings of all of the above are also stored. **An embedding is derived
-personal data** — treat it with the same care as the text.
+personal data**, treat it with the same care as the text.
 
 ---
 
@@ -28,7 +28,7 @@ personal data** — treat it with the same care as the text.
 | Destination | What |
 |---|---|
 | **Google Gemini** | Full conversation transcripts, for summarisation, extraction and contradiction judging. Fact text, for embedding. |
-| **Your logs** | See below — this one surprises people. |
+| **Your logs** | See below, this one surprises people. |
 
 ### Logging
 
@@ -48,7 +48,7 @@ calls, or filter at the collector.
 ### Gemini
 
 Conversation content is sent to Google. Under a paid Gemini API tier, data is not
-used to train models — verify the current terms for your account and region.
+used to train models, verify the current terms for your account and region.
 
 If your users must not have their data leave your infrastructure, Memory Soda is
 not currently usable: the provider is hard-wired and there is no local-model
@@ -62,7 +62,7 @@ option.
 await memory.deleteFact('user_42', factId);
 ```
 
-A **soft delete** — it stamps `invalidAt`. The fact leaves retrieval but the row,
+A **soft delete**, it stamps `invalidAt`. The fact leaves retrieval but the row,
 its `sourceQuote` and its embedding remain in the database.
 
 > **Soft delete is not erasure.** For a GDPR Article 17 request it is not
@@ -98,7 +98,7 @@ dataset, in one transaction, scoped to the API key's project. The counts come
 back so you can log what was removed against the request that asked for it.
 
 This is not the soft `invalidAt` stamp used for
-[correcting a fact](#deleting-one-fact) — nothing survives, and
+[correcting a fact](#deleting-one-fact), nothing survives, and
 [point-in-time recall](/guides/point-in-time-recall/) will not report the erased
 facts as having ever been true. A deletion request is not satisfied by a flag.
 
@@ -177,7 +177,7 @@ being believed), and resolved entities.
 ```
 
 Superseded facts carry `invalidAt`, and `sourceQuote` carries the user's own
-words that produced each fact — between them a subject access request can be
+words that produced each fact, between them a subject access request can be
 answered with provenance rather than a list of assertions.
 
 It is a single full read with no pagination. For a dataset with a long history
@@ -205,7 +205,7 @@ WHERE invalid_at IS NOT NULL
 ```
 
 Run on a schedule. Deleting threads does **not** delete the facts derived from
-them — facts are scoped to the dataset, not the thread, and outlive it.
+them, facts are scoped to the dataset, not the thread, and outlive it.
 
 ---
 
@@ -233,13 +233,13 @@ never be stored, filter before calling `addMessage`.
 
 ## The extraction prompt as a control
 
-Extraction is deliberately narrow — it discards task chatter, assistant
+Extraction is deliberately narrow, it discards task chatter, assistant
 explanations, and anything whose subject is not the user. That reduces incidental
 retention, but it is a **quality heuristic, not a privacy control**. It is an LLM
 following instructions; do not rely on it to suppress a category of data.
 
-If a user states a special-category fact about themselves — health, religion,
-sexuality — it will be extracted and stored like any other.
+If a user states a special-category fact about themselves, health, religion,
+sexuality, it will be extracted and stored like any other.
 
 ---
 
@@ -274,7 +274,7 @@ See [Curating memory](/guides/curating-memory/).
 - [ ] Payload logging patched out or filtered at the collector
 - [ ] Backups covered by the same retention and deletion policy
 - [ ] Postgres encrypted at rest; TLS in transit
-- [ ] Dashboard access limited — every operator can read every dataset
+- [ ] Dashboard access limited, every operator can read every dataset
 - [ ] Gemini terms reviewed for your account tier and region
 
 > **Backups.** Deleting a row does not remove it from yesterday's `pg_dump`. An
@@ -294,7 +294,7 @@ See [Curating memory](/guides/curating-memory/).
 
 Three gaps that used to be on this list are now closed: erasure and export are
 first-class endpoints rather than SQL you write under time pressure, and the
-API no longer logs message content — `prepare` and `recall` emit counts and
+API no longer logs message content, `prepare` and `recall` emit counts and
 IDs only.
 
 ---

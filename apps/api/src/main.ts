@@ -105,7 +105,7 @@ async function printFirstRunCredentials(): Promise<void> {
     await createUser(config.admin.username, password);
     lines.push(`Login:    ${config.admin.username} / ${password}`);
     if (generated) {
-      lines.push('          (generated — set ADMIN_PASSWORD to choose)');
+      lines.push('          (generated, set ADMIN_PASSWORD to choose)');
     }
   }
 
@@ -114,11 +114,11 @@ async function printFirstRunCredentials(): Promise<void> {
   // Width derived from the content so the box can't drift out of alignment
   // when a credential line changes length.
   const rows = [
-    'Memory Soda — First-time setup',
+    'Memory Soda, First-time setup',
     '',
     ...lines,
     '',
-    'Save these — the API key will not be shown again.',
+    'Save these, the API key will not be shown again.',
   ];
   const inner = Math.max(...rows.map((r) => r.length)) + 4;
   const bar = '─'.repeat(inner);
