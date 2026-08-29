@@ -225,7 +225,7 @@ export default function AppSidebar() {
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Account"
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-xs select-none shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold text-xs select-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {userInitial}
               </DropdownMenuTrigger>
@@ -260,7 +260,7 @@ export default function AppSidebar() {
             >
               <SelectTrigger
                 showChevron={false}
-                className="flex w-full flex-1 min-w-0 items-center gap-2 rounded-xl px-3 py-2 text-left text-sm bg-white border border-border shadow-xs hover:bg-muted/50 dark:bg-zinc-950 dark:border-zinc-800 outline-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:shadow-none"
+                className="flex w-full flex-1 min-w-0 items-center gap-2 rounded-xl px-3 py-2 text-left text-sm bg-white border border-border hover:bg-muted/50 dark:bg-zinc-950 dark:border-zinc-800 outline-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:shadow-none"
               >
                 {/* Expanded state */}
                 <div className="flex flex-col gap-0.5 leading-none min-w-0 flex-1 text-left group-data-[collapsible=icon]:hidden">
@@ -273,7 +273,7 @@ export default function AppSidebar() {
                 <ChevronsUpDown className="shrink-0 h-4 w-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
 
                 {/* Collapsed state (Avatar) */}
-                <div className="hidden group-data-[collapsible=icon]:flex items-center justify-center size-8 rounded-full bg-primary text-primary-foreground font-semibold text-xs select-none shadow-xs">
+                <div className="hidden group-data-[collapsible=icon]:flex items-center justify-center size-8 rounded-full bg-primary text-primary-foreground font-semibold text-xs select-none">
                   {loading ? '…' : projectInitial}
                 </div>
               </SelectTrigger>
@@ -364,9 +364,9 @@ export default function AppSidebar() {
       {/* Floating Sonner-Style Toast Notification */}
       {toast.visible &&
         createPortal(
-          <div className="fixed top-6 right-6 z-[9999] flex items-center gap-3.5 px-4 py-3 rounded-xl border border-border bg-card text-card-foreground shadow-lg animate-in fade-in-0 slide-in-from-top-5 duration-300 min-w-[300px] select-none font-sans">
+          <div className="fixed top-6 right-6 z-[9999] flex items-center gap-3.5 px-4 py-3 rounded-xl border border-border bg-card text-card-foreground animate-in fade-in-0 slide-in-from-top-5 duration-300 min-w-[300px] select-none font-sans">
             {toast.type === 'success' ? (
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
                 <Check className="h-3.5 w-3.5 stroke-[3]" />
               </div>
             ) : (

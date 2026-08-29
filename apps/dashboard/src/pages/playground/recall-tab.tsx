@@ -341,9 +341,8 @@ export function RecallTab({
                   <FactRow
                     key={f.factId}
                     fact={f}
-                    threshold={
-                      controls.minConfidence ?? defaultMinConfidence
-                    }
+                    apiKey={apiKey}
+                    threshold={controls.minConfidence ?? defaultMinConfidence}
                   />
                 ))}
               </ul>

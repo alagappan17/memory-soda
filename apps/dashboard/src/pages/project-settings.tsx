@@ -33,7 +33,11 @@ interface FieldCommon {
 type NumberField =
   | (FieldCommon & {
       layer: 'episodic';
-      key: 'maxMessages' | 'maxRetries' | 'contextEpisodes' | 'similarityWeight';
+      key:
+        | 'maxMessages'
+        | 'maxRetries'
+        | 'contextEpisodes'
+        | 'similarityWeight';
     })
   | (FieldCommon & {
       layer: 'semantic';
@@ -219,7 +223,9 @@ export default function ProjectSettingsPage() {
   }, [id]);
 
   const isDirty =
-    settings && saved ? JSON.stringify(settings) !== JSON.stringify(saved) : false;
+    settings && saved
+      ? JSON.stringify(settings) !== JSON.stringify(saved)
+      : false;
 
   function setEnabled(layer: Layer, value: boolean) {
     setSettings((prev) =>
@@ -379,17 +385,15 @@ export default function ProjectSettingsPage() {
           {saving ? 'Saving…' : 'Save changes'}
         </button>
         {isDirty && (
-          <span className="text-xs text-muted-foreground">
-            Unsaved changes
-          </span>
+          <span className="text-xs text-muted-foreground">Unsaved changes</span>
         )}
       </div>
 
       {toast.visible &&
         createPortal(
-          <div className="fixed bottom-6 right-6 flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm shadow-lg">
+          <div className="fixed bottom-6 right-6 flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm">
             {toast.type === 'success' ? (
-              <Check className="size-4 text-emerald-500" />
+              <Check className="size-4 text-foreground" />
             ) : (
               <AlertCircle className="size-4 text-destructive" />
             )}

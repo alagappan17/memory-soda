@@ -76,7 +76,7 @@ function ProtectedLayout() {
 }
 
 const scroll = (el: React.ReactNode) => (
-  <div className="flex-1 overflow-y-auto">{el}</div>
+  <div className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">{el}</div>
 );
 
 export default function App() {

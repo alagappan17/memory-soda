@@ -1,11 +1,14 @@
 import { useMemo, useRef, useState } from 'react';
 import type {
-  ProjectEpisodicSettings,
   ProjectSemanticSettings,
   WMAddMessageRequest,
   WMChatRequest,
   WMMessage,
   WMThreadStatsResponse,
+} from '@memory-soda/types';
+import {
+  DEFAULT_EPISODIC_SETTINGS,
+  type ProjectEpisodicSettings,
 } from '@memory-soda/types';
 import { call, quiet, chatTurn, adminCall, describeError } from './api';
 import { CopyButton } from '../../components/copy-button';
@@ -23,21 +26,13 @@ import { OpsTab } from './ops-tab';
 import { RecallTab } from './recall-tab';
 import { FactsTab } from './facts-tab';
 import { EpisodesTab } from './episodes-tab';
+import { PromptTab } from './prompt-tab';
 
-
-const DEFAULT_EPISODIC: ProjectEpisodicSettings = {
-  enabled: true,
-  autoEpisodeIntervalMs: 10_000,
-  maxMessages: 100,
-  maxRetries: 3,
-  contextEpisodes: 3,
-  similarityWeight: 0.7,
-  recencyWeight: 0.3,
-};
+const DEFAULT_EPISODIC = DEFAULT_EPISODIC_SETTINGS;
 
 let requestIdSeq = 0;
 
-type RightTab = 'ops' | 'episodes' | 'recall' | 'facts';
+type RightTab = 'ops' | 'prompt' | 'episodes' | 'recall' | 'facts';
 
 export default function PlaygroundPage() {
   const [apiKey, setApiKey] = useState('');
@@ -74,6 +69,8 @@ export default function PlaygroundPage() {
   const { ops, addOp, clearOps } = useOps();
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  /** Facts the model has already been shown on this thread — drives the "new" markers. */
+  const seenFactIds = useRef<Set<string>>(new Set());
 
   const poller = useExtractionPoller({
     apiKey,
@@ -236,16 +233,26 @@ export default function PlaygroundPage() {
         trace,
         { prepare: chatRes.prepare },
       );
+      const recalledIds = (chatRes.recall?.facts ?? []).map((f) => f.factId);
+      const newFactIds = recalledIds.filter(
+        (id) => !seenFactIds.current.has(id),
+      );
+      for (const id of recalledIds) seenFactIds.current.add(id);
       addOp(
         'recall',
         {
           factCount: chatRes.recallSummary.factCount,
+          newFacts: newFactIds.length,
+          newFactIds,
           contextChars: chatRes.recall?.context.length ?? 0,
           synthesis: chatRes.recallSummary.hasSynthesis,
           episodes: chatRes.recallSummary.episodeCount,
         },
         trace,
-        { recallSummary: chatRes.recallSummary, recall: chatRes.recall ?? null },
+        {
+          recallSummary: chatRes.recallSummary,
+          recall: chatRes.recall ?? null,
+        },
       );
       addOp(
         'ai_replied',
@@ -354,17 +361,19 @@ export default function PlaygroundPage() {
 
       // Compacting a thread with nothing to fold answers a different shape.
       if (!('summaryMessageId' in result)) {
-        addOp('compacted', { compacted: false, summary: result.message }, compactTrace);
+        addOp(
+          'compacted',
+          { compacted: false, summary: result.message },
+          compactTrace,
+        );
         return;
       }
 
       // The summary text itself comes back through prepare.
-      const { data: prepRes, trace: prepTrace } = await call(
-        apiKey,
-        (memory) =>
-          memory.prepare(threadId, {
-            messageLimit: settings.messageLimit,
-          }),
+      const { data: prepRes, trace: prepTrace } = await call(apiKey, (memory) =>
+        memory.prepare(threadId, {
+          messageLimit: settings.messageLimit,
+        }),
       );
 
       const summary = prepRes.messages.find((m) => m.role === 'system');
@@ -446,6 +455,7 @@ export default function PlaygroundPage() {
     setThreadStartedAt(null);
     setMessages([]);
     clearOps();
+    seenFactIds.current = new Set();
     setStats(null);
     setError(null);
     setSending(false);
@@ -465,6 +475,7 @@ export default function PlaygroundPage() {
     setThreadStartedAt(null);
     setMessages([]);
     clearOps();
+    seenFactIds.current = new Set();
     setStats(null);
     setError(null);
     setSending(false);
@@ -581,6 +592,7 @@ export default function PlaygroundPage() {
             {(
               [
                 ['ops', 'Ops'],
+                ['prompt', 'Prompt'],
                 ['episodes', 'Episodes'],
                 ['recall', 'Recall'],
                 ['facts', 'Facts'],
@@ -603,10 +615,21 @@ export default function PlaygroundPage() {
           {/* Tabs stay mounted so their state (filters, results) survives
               switching; each hides itself when inactive. */}
           <div
-            className={rightTab === 'ops' ? 'flex-1 flex flex-col min-h-0' : 'hidden'}
+            className={
+              rightTab === 'ops' ? 'flex-1 flex flex-col min-h-0' : 'hidden'
+            }
           >
-            <OpsTab ops={ops} relTime={relTime} />
+            <OpsTab ops={ops} relTime={relTime} onClear={clearOps} />
           </div>
+          <PromptTab
+            apiKey={apiKey}
+            threadId={threadId}
+            dataset={dataset}
+            messageLimit={settings.messageLimit}
+            active={rightTab === 'prompt'}
+            addOp={addOp}
+            refreshKey={messages.length}
+          />
           <EpisodesTab
             apiKey={apiKey}
             projectId={projectId}

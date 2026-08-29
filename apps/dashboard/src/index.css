@@ -180,6 +180,32 @@ body {
   color: var(--foreground);
 }
 
+@layer base {
+  /* Tailwind v4 dropped cursor:pointer on buttons — restore sane defaults */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  label[for],
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  code,
+  pre {
+    cursor: text;
+  }
+}
+
 .font-geist {
   font-family: "Geist Variable", sans-serif;
 }

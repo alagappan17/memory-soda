@@ -143,7 +143,7 @@ export default function ProjectsPage() {
         </button>
       </div>
 
-      <div className="rounded-md border border-border overflow-hidden bg-card shadow-sm">
+      <div className="rounded-md border border-border overflow-hidden bg-card">
         {loading ? (
           <div className="px-4 py-6 text-sm text-muted-foreground text-center">
             Loading...
@@ -179,7 +179,7 @@ export default function ProjectsPage() {
                     <TableCell className="font-semibold text-foreground flex items-center gap-2">
                       <span>{p.name}</span>
                       {isActive && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-500/10 select-none">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full border border-border text-muted-foreground font-medium select-none">
                           Active
                         </span>
                       )}
@@ -338,9 +338,9 @@ export default function ProjectsPage() {
       {/* Floating Sonner-Style Toast Notification */}
       {toast.visible &&
         createPortal(
-          <div className="fixed top-6 right-6 z-[9999] flex items-center gap-3.5 px-4 py-3 rounded-xl border border-border bg-card text-card-foreground shadow-lg animate-in fade-in-0 slide-in-from-top-5 duration-300 min-w-[300px] select-none font-sans">
+          <div className="fixed top-6 right-6 z-[9999] flex items-center gap-3.5 px-4 py-3 rounded-xl border border-border bg-card text-card-foreground animate-in fade-in-0 slide-in-from-top-5 duration-300 min-w-[300px] select-none font-sans">
             {toast.type === 'success' ? (
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
                 <Check className="h-3.5 w-3.5 stroke-[3]" />
               </div>
             ) : (

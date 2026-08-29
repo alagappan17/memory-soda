@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type {
-  Episode,
-  EpisodeStatus,
-} from '@memory-soda/types';
+import type { Episode, EpisodeStatus } from '@memory-soda/types';
 import { EPISODE_STATUS_STYLES } from '../../lib/episode-status';
 import { call, adminCall, describeError } from './api';
 import { CopyButton } from '../../components/copy-button';
@@ -143,7 +140,8 @@ function EpisodeCard({
             <span>
               {fmt(episode.processingStartedAt)} →{' '}
               {fmt(episode.processingCompletedAt)}
-              {processingMs !== null && ` (${(processingMs / 1000).toFixed(1)}s)`}
+              {processingMs !== null &&
+                ` (${(processingMs / 1000).toFixed(1)}s)`}
             </span>
             {episode.retryCount > 0 && (
               <>
@@ -154,7 +152,9 @@ function EpisodeCard({
             {episode.error && (
               <>
                 <span>error</span>
-                <span className="text-red-500 break-all">{episode.error}</span>
+                <span className="text-destructive break-all">
+                  {episode.error}
+                </span>
               </>
             )}
           </div>
@@ -254,7 +254,10 @@ export function EpisodesTab({
           );
         }
       } catch (err) {
-        const { message, trace } = describeError(err, 'Failed to load episodes');
+        const { message, trace } = describeError(
+          err,
+          'Failed to load episodes',
+        );
         setError(message);
         addOp('error', { message }, trace);
       } finally {
@@ -298,11 +301,7 @@ export function EpisodesTab({
       );
       setEpisodes(data);
       setSearchMode(true);
-      addOp(
-        'episode_search',
-        { q: searchQ.trim(), count: data.length },
-        trace,
-      );
+      addOp('episode_search', { q: searchQ.trim(), count: data.length }, trace);
     } catch (err) {
       const { message, trace } = describeError(err, 'Search failed');
       setError(message);
