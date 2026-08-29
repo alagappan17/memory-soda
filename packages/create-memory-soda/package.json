@@ -1,6 +1,6 @@
 {
   "name": "create-memory-soda",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Scaffold a self-hosted Memory Soda instance — API, dashboard, and Postgres",
   "keywords": [
     "ai",
@@ -36,6 +36,7 @@
     }
   },
   "dependencies": {
+    "@clack/prompts": "^1.7.0",
     "chalk": "^5.6.2"
   }
 }
