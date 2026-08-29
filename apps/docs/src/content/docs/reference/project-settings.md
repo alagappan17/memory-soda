@@ -104,7 +104,7 @@ Facts in the rendered block. The main quality/token dial. Per-call override:
 ### `entityResolutionThreshold`
 Cosine above which two **same-type** entities merge during resolution.
 
-- Too high → `dji osmo pocket 3` and `pocket 3` stay separate, splitting a user's
+- Too high → `toyota corolla hybrid` and `corolla hybrid` stay separate, splitting a user's
   memory across two anchors.
 - Too low → distinct entities collapse. **Irreversible.**
 

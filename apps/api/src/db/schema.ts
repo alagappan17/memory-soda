@@ -320,7 +320,7 @@ export type ScheduledEpisodeRow = typeof scheduledEpisodes.$inferSelect;
 // ── Semantic Memory ───────────────────────────────────────────────────────────
 //
 // A single `facts` table holds both literal facts (objectIsEntity=false, e.g.
-// "user likes mango sticky rice") and entity↔entity relationships
+// "user likes breaking bad") and entity↔entity relationships
 // (objectIsEntity=true, e.g. "user works_at memory-soda"). This keeps
 // multi-hop traversal possible later (recursive CTE over objectIsEntity rows)
 // without a second store.

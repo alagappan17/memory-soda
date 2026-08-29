@@ -91,9 +91,9 @@ const { messages, messageCount, truncated, compacted, warning } =
   "threadId": "f2cb…",
   "dataset": "user_42",
   "messages": [
-    { "role": "system", "content": "Earlier: the user is choosing a camera…" },
-    { "role": "user", "content": "what about low light?" },
-    { "role": "assistant", "content": "The 1-inch sensor handles it well…" }
+    { "role": "system", "content": "Earlier: the user is choosing a car…" },
+    { "role": "user", "content": "what about resale value?" },
+    { "role": "assistant", "content": "Hybrids hold their value well…" }
   ],
   "messageCount": 42,
   "truncated": true,

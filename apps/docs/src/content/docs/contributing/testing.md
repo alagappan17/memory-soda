@@ -74,14 +74,14 @@ import { anchorFor, buildFactEmbedString } from './semantic-memory.service.ts';
 
 test('anchors on the object when it is an entity', () => {
   assert.equal(
-    anchorFor({ subject: 'user', object: 'berlin', objectIsEntity: true }),
-    'berlin',
+    anchorFor({ subject: 'user', object: 'honda civic', objectIsEntity: true }),
+    'honda civic',
   );
 });
 
 test('falls back to the subject for literal facts', () => {
   assert.equal(
-    anchorFor({ subject: 'user', object: 'under $1000', objectIsEntity: false }),
+    anchorFor({ subject: 'user', object: 'under $30k', objectIsEntity: false }),
     'user',
   );
 });
@@ -204,7 +204,7 @@ THREAD=$(curl -s -X POST localhost:3004/v1/threads -H "Authorization: Bearer $KE
   -H 'Content-Type: application/json' -d '{"dataset":"manual_test"}' | jq -r .threadId)
 curl -s -X POST localhost:3004/v1/memory/working/threads/$THREAD/messages \
   -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
-  -d '{"role":"user","content":"I moved to Berlin and I am learning German."}'
+  -d '{"role":"user","content":"I bought a Tesla Model 3 and I am still learning Autopilot."}'
 curl -s -X POST localhost:3004/v1/threads/$THREAD/end -H "Authorization: Bearer $KEY"
 sleep 30
 curl -s -X POST localhost:3004/v1/memory/recall -H "Authorization: Bearer $KEY" \

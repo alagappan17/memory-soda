@@ -20,8 +20,8 @@ msg 1   user      "budget $1000"    msg 1–39   compactedAt set,
 msg 2   assistant "…"                          excluded from prepare()
 …                                   msg 40     user  ← kept verbatim
 msg 39  assistant "…"               msg 41     system "The user is choosing a
-msg 40  user      "what about…"                camera under $1000, rejected
-                                               mirrorless, interested in…"
+msg 40  user      "what about…"                car under $30k, rejected
+                                               SUVs, interested in…"
 ```
 
 ---

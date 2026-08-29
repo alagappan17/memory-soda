@@ -44,12 +44,12 @@ historical questions.
 { validAt: '2026-08-16', validUntil: '2026-12-01', invalidAt: null }
 // Stops being live on 1 December, automatically. Nothing had to invalidate it.
 
-// The user says: "I moved from Berlin to Lisbon."
+// The user says: "I traded in my Honda Civic for a Tesla Model 3."
 // old fact:
-{ object: 'berlin', validAt: '2026-03-01', validUntil: null, invalidAt: '2026-08-16' }
+{ object: 'honda civic', validAt: '2026-03-01', validUntil: null, invalidAt: '2026-08-16' }
 // new fact:
-{ object: 'lisbon', validAt: '2026-08-16', validUntil: null, invalidAt: null }
-// The Berlin fact was true and we believed it. Now we don't. `validUntil` stays null.
+{ object: 'tesla model 3', validAt: '2026-08-16', validUntil: null, invalidAt: null }
+// The Honda Civic fact was true and we believed it. Now we don't. `validUntil` stays null.
 ```
 
 ---
@@ -74,7 +74,7 @@ Three ways a fact leaves the live set:
 
 ### Future-dated facts are invisible
 
-"I start at Anthropic in September" is extracted, stored with
+"I pick up my Model 3 in September" is extracted, stored with
 `validAt = 2026-09-01`, and **cannot be recalled until September**. This is
 correct bi-temporal behaviour and surprising the first time you hit it.
 
@@ -103,7 +103,7 @@ const { context } = await memory.recall({
   dataset: 'user_42',
   asOf: '2026-06-01T00:00:00Z',
 });
-// → "- user lives in berlin"   (the Lisbon fact didn't exist yet)
+// → "- user drives honda civic"   (the Tesla Model 3 fact didn't exist yet)
 ```
 
 Uses:
@@ -127,7 +127,7 @@ open-ended, and invented bounds are worse than none.
 
 | The user says | `validAt` | `validUntil` |
 |---|---|---|
-| "I like mango sticky rice" | now | `null` |
+| "I like Breaking Bad" | now | `null` |
 | "I've used Arch since 2019" | `2019-01-01` | `null` |
 | "I'm on a cut until December" | now | that December |
 | "I'll run daily for the next six months" | now | now + 6 months |
@@ -170,18 +170,18 @@ until March" works even though last year's cut is still on file.
 ## Worked example
 
 ```
-2026-03-01  "I live in Berlin."
-            → berlin   validAt 03-01  validUntil null  invalidAt null
+2026-03-01  "I drive a Honda Civic."
+            → honda civic   validAt 03-01  validUntil null  invalidAt null
 
-2026-05-10  "I'm in Berlin until August, then Lisbon."
-            → berlin   validAt 03-01  validUntil 08-01  invalidAt null      (updated window)
-            → lisbon   validAt 08-01  validUntil null   invalidAt null      (future-dated)
+2026-05-10  "I'm keeping the Civic until August, then a Model 3."
+            → honda civic   validAt 03-01  validUntil 08-01  invalidAt null      (updated window)
+            → tesla model 3   validAt 08-01  validUntil null   invalidAt null      (future-dated)
 
 2026-08-16  recall()
-            → lisbon is live; berlin expired on its own, nothing invalidated it
+            → tesla model 3 is live; honda civic expired on its own, nothing invalidated it
 
 2026-08-16  recall({ asOf: '2026-06-01' })
-            → berlin, on 1 June that was both true and believed
+            → honda civic, on 1 June that was both true and believed
 ```
 
 ---

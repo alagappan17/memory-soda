@@ -42,7 +42,7 @@ extraction and the thread stays writable. There is no closed or archived state.
 ```ts
 await memory.addMessage(threadId, {
   role: 'user',            // 'user' | 'assistant' | 'system' | 'tool'
-  content: 'I moved to Berlin.',
+  content: 'I drive a Honda Civic.',
   tokens: { input: 12, output: 0, total: 12 },  // optional telemetry
   model: 'gpt-4o',                              // optional
   latencyMs: 640,                               // optional
@@ -93,9 +93,9 @@ const result = await memory.prepare(threadId, { messageLimit: 20 });
   "threadId": "f2cb…",
   "dataset": "user_42",
   "messages": [
-    { "role": "system", "content": "Earlier: the user is choosing a camera…" },
-    { "role": "user", "content": "what about low light?" },
-    { "role": "assistant", "content": "The 1-inch sensor handles it well…" }
+    { "role": "system", "content": "Earlier: the user is choosing a car…" },
+    { "role": "user", "content": "what about resale value?" },
+    { "role": "assistant", "content": "Hybrids hold their value well…" }
   ],
   "messageCount": 42,
   "truncated": true,

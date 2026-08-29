@@ -24,7 +24,7 @@ An LLM has no memory between calls. The usual fixes both break down:
 - **Send the whole history every turn.** Costs grow linearly, latency grows with
   them, and past a few thousand turns it stops fitting at all.
 - **Embed everything and do RAG over the transcript.** You retrieve *messages*,
-  not *knowledge*. "I moved to Berlin" and "I moved to Lisbon last month" both
+  not *knowledge*. "I drive a Honda Civic" and "I switched to a Model 3 last month" both
   come back with similar scores, and the model has to guess which is current.
 
 Memory Soda stores **claims, not transcripts**. Each claim carries the window of
@@ -41,13 +41,13 @@ a string you paste into your system prompt.
 Known facts about the user, most relevant first.
 
 # FACTS  (format: fact (valid: from – to))
-- user is interested in dji osmo pocket 3  (valid: 2026-08-15 – present)
-- user finds too bulky mirrorless cameras  (valid: 2026-08-15 – present)
-- user lives in berlin  (valid: 2026-03-01 – present)
+- user is interested in toyota corolla hybrid  (valid: 2026-08-15 – present)
+- user finds too big suvs  (valid: 2026-08-15 – present)
+- user drives honda civic  (valid: 2026-03-01 – present)
 
 # ENTITIES
-- dji osmo pocket 3 (PRODUCT)
-- berlin (PLACE)
+- toyota corolla hybrid (PRODUCT)
+- honda civic (PRODUCT)
 ```
 
 **Contradiction handling.** When a user says something that conflicts with a

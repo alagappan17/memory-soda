@@ -17,7 +17,7 @@ Append a message. `sequenceNumber` is assigned by the server.
 ```json
 {
   "role": "assistant",
-  "content": "The DJI Osmo Pocket 3 is a great fit.",
+  "content": "The Toyota Corolla Hybrid is a great fit.",
   "tokens": { "input": 512, "output": 128, "total": 640 },
   "model": "gpt-4o",
   "latencyMs": 840,
@@ -89,7 +89,7 @@ Raw message rows, including compacted ones.
       "messageId": "1abc…",
       "threadId": "f2cb…",
       "role": "user",
-      "content": "I'm looking for a travel camera.",
+      "content": "I'm looking for a family car.",
       "sequenceNumber": 1,
       "tokens": { "input": 11, "output": 22, "total": 33 },
       "model": null,
@@ -136,9 +136,9 @@ An empty body `{}` is valid.
   "threadId": "f2cb…",
   "dataset": "user_42",
   "messages": [
-    { "role": "system", "content": "Earlier: the user is choosing a camera…" },
-    { "role": "user", "content": "what about low light?" },
-    { "role": "assistant", "content": "The 1-inch sensor handles it well…" }
+    { "role": "system", "content": "Earlier: the user is choosing a car…" },
+    { "role": "user", "content": "what about resale value?" },
+    { "role": "assistant", "content": "Hybrids hold their value well…" }
   ],
   "messageCount": 42,
   "truncated": true,
@@ -186,8 +186,8 @@ calls Gemini, appends the reply.
 
 ```json
 {
-  "content": "what about low light?",
-  "systemPrompt": "You are a camera shopping assistant.",
+  "content": "what about resale value?",
+  "systemPrompt": "You are a car shopping assistant.",
   "messageLimit": 20,
   "verbose": false
 }
@@ -206,7 +206,7 @@ calls Gemini, appends the reply.
 {
   "userMessage": { "messageId": "…", "sequenceNumber": 7, "role": "user", "createdAt": "…" },
   "assistantMessage": { "messageId": "…", "sequenceNumber": 8, "role": "assistant",
-                        "content": "The 1-inch sensor…", "createdAt": "…" },
+                        "content": "Hybrids hold their value…", "createdAt": "…" },
   "compacted": false,
   "prepare": { "messageCount": 8, "truncated": false, "compacted": false },
   "recallSummary": { "episodeCount": 2, "factCount": 4, "hasContext": true, "hasSynthesis": true },

@@ -278,7 +278,7 @@ Extraction is asynchronous, which makes tests awkward. Force it:
 const { threadId } = await memory.createThread({ dataset: 'test_user_1' });
 
 await memory.addMessage(threadId, {
-  role: 'user', content: 'I am vegetarian and allergic to peanuts.',
+  role: 'user', content: 'I love sci-fi movies and cannot stand horror.',
 });
 
 await memory.endThread(threadId);          // queue extraction now
@@ -290,7 +290,7 @@ const facts = await waitFor(
   { timeout: 60_000, interval: 2_000 },
 );
 
-expect(facts.facts.map((f) => f.object)).toContain('vegetarian');
+expect(facts.facts.map((f) => f.object)).toContain('sci-fi movies');
 ```
 
 Or set `autoEpisodeIntervalMs: 1000` on the test thread and skip `end()`.

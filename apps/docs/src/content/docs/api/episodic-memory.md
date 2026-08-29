@@ -36,10 +36,10 @@ Concepts: [Episodic memory](/concepts/episodic-memory/)
       "dataset": "user_42",
       "projectId": "ea43…",
       "status": "completed",
-      "summary": "The user is choosing a compact travel camera under $1000…",
+      "summary": "The user is choosing a compact family car under $30k…",
       "keyLearnings": [
-        "user wants a travel camera under $1000",
-        "user finds mirrorless cameras too bulky"
+        "user wants a family car under $30k",
+        "user finds suvs too big"
       ],
       "messageCount": 6,
       "tokenCount": null,
@@ -103,7 +103,7 @@ Only `completed` episodes are searched. Embeds `q`, so it costs one embedding
 call.
 
 ```bash
-curl "http://localhost:3004/v1/memory/episodic/datasets/user_42/episodes/search?q=cameras&limit=5" \
+curl "http://localhost:3004/v1/memory/episodic/datasets/user_42/episodes/search?q=cars&limit=5" \
   -H "Authorization: Bearer $KEY"
 ```
 

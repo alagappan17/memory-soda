@@ -35,10 +35,10 @@ SDK equivalent: [`memory.facts`](/sdk/semantic-memory/)
       "factId": "3a91…",
       "subject": "user",
       "predicate": "is interested in",
-      "object": "dji osmo pocket 3",
+      "object": "toyota corolla hybrid",
       "objectIsEntity": true,
       "confidence": 0.9,
-      "sourceQuote": "yeah the pcoket 3 looks great",
+      "sourceQuote": "yeah the corola hybrid looks great",
       "validAt": "2026-08-16T09:14:02.000Z",
       "validUntil": null,
       "invalidAt": null,
@@ -60,7 +60,7 @@ curl "http://localhost:3004/v1/memory/semantic/datasets/user_42/facts" \
   -H "Authorization: Bearer $KEY"
 
 # Keyword filter
-curl "http://localhost:3004/v1/memory/semantic/datasets/user_42/facts?q=camera&limit=20" \
+curl "http://localhost:3004/v1/memory/semantic/datasets/user_42/facts?q=car&limit=20" \
   -H "Authorization: Bearer $KEY"
 
 # Full history, including superseded
@@ -116,8 +116,8 @@ curl -X DELETE "http://localhost:3004/v1/memory/semantic/datasets/user_42/facts/
 ```json
 {
   "entities": [
-    { "entityId": "c1f2…", "name": "dji osmo pocket 3", "type": "PRODUCT" },
-    { "entityId": "d4a7…", "name": "berlin", "type": "PLACE" },
+    { "entityId": "c1f2…", "name": "toyota corolla hybrid", "type": "PRODUCT" },
+    { "entityId": "d4a7…", "name": "honda civic", "type": "PRODUCT" },
     { "entityId": "e9b3…", "name": "user", "type": "PERSON" }
   ]
 }
@@ -142,28 +142,28 @@ Every **live** fact touching a named entity, as subject or object.
 {
   "facts": [
     { "factId": "3a91…", "subject": "user", "predicate": "is interested in",
-      "object": "dji osmo pocket 3", "objectIsEntity": true, "confidence": 0.9,
+      "object": "toyota corolla hybrid", "objectIsEntity": true, "confidence": 0.9,
       "sourceQuote": "…", "validAt": "…", "validUntil": null,
       "invalidAt": null, "episodeId": "8b21…" }
   ]
 }
 ```
 
-The name is lower-cased server-side, so `Berlin` and `berlin` both work.
+The name is lower-cased server-side, so `Honda Civic` and `honda civic` both work.
 Otherwise it must match exactly, this is a lookup, not a search. An unknown
 entity returns `{ "facts": [] }`, not `404`.
 
 Superseded and expired facts are excluded; there is no `includeInvalidated` here.
 
 ```bash
-curl "http://localhost:3004/v1/memory/semantic/datasets/user_42/entities/berlin/facts" \
+curl "http://localhost:3004/v1/memory/semantic/datasets/user_42/entities/honda civic/facts" \
   -H "Authorization: Bearer $KEY"
 ```
 
 Percent-encode names containing spaces:
 
 ```bash
-curl "http://localhost:3004/v1/memory/semantic/datasets/user_42/entities/dji%20osmo%20pocket%203/facts" \
+curl "http://localhost:3004/v1/memory/semantic/datasets/user_42/entities/toyota%20corolla%20hybrid/facts" \
   -H "Authorization: Bearer $KEY"
 ```
 

@@ -79,7 +79,7 @@ The resolved canonical nouns, name and type (`PERSON`, `ORG`, `PLACE`,
 `PRODUCT`, …), most recently mentioned first.
 
 Use it to check [entity resolution](/concepts/semantic-memory/#resolution).
-Two entities that should be one, `dji osmo pocket 3` and `pocket 3`, means the
+Two entities that should be one, `toyota corolla hybrid` and `corolla hybrid`, means the
 similarity threshold did not merge them, and the user's memory is split.
 
 > Entities are shown as a flat list. There is no graph visualisation.

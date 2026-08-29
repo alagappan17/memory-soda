@@ -20,9 +20,9 @@ Most tuning goes wrong because it is done blind. Before changing anything:
 
 ```ts
 const QUERIES = [
-  { q: 'what camera should I recommend?', expect: ['dji osmo pocket 3', 'under $1000'] },
-  { q: 'where should we meet?',            expect: ['berlin'] },
-  { q: 'what should I cook?',              expect: ['vegetarian', 'peanut'] },
+  { q: 'what car should I recommend?', expect: ['toyota corolla hybrid', 'under $30k'] },
+  { q: 'what do I drive?',            expect: ['honda civic'] },
+  { q: 'what should we watch?',              expect: ['sci-fi', 'horror'] },
 ];
 
 async function evaluate(dataset: string) {
@@ -107,8 +107,8 @@ feels shallow, this is usually why.
 | `anchorVectorTopK` | `3` | How many vector-matched anchors to admit |
 
 ```
-anchorVectorMin 0.75   "trip to thailand" → thailand ✓   food ✗
-anchorVectorMin 0.60   "trip to thailand" → thailand ✓   food ✓   travel ✓
+anchorVectorMin 0.75   "anything on netflix" → netflix ✓   shows ✗
+anchorVectorMin 0.60   "anything on netflix" → netflix ✓   shows ✓   streaming ✓
 ```
 
 Lowering admits more anchors, which pulls in every fact touching them, powerful,
@@ -133,7 +133,7 @@ Cosine above which two same-type entities merge.
 
 | | |
 |---|---|
-| Too high | `dji osmo pocket 3` and `pocket 3` stay separate. A user's memory splits across two anchors |
+| Too high | `toyota corolla hybrid` and `corolla hybrid` stay separate. A user's memory splits across two anchors |
 | Too low | Genuinely distinct entities collapse into one. **Irreversible** |
 
 Merging happens at write time. Lowering it does not merge existing entities, and

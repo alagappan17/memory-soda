@@ -16,7 +16,7 @@ SDK equivalent: [`memory.recall()`](/sdk/client/#recall)
 ```json
 {
   "dataset": "user_42",
-  "query": "what camera should I recommend?",
+  "query": "what car should I recommend?",
   "include": ["episodes", "synthesis", "raw"],
   "limit": 8,
   "minConfidence": 0.5,
@@ -39,7 +39,7 @@ SDK equivalent: [`memory.recall()`](/sdk/client/#recall)
 
 ```json
 {
-  "context": "Known facts about the user, most relevant first.\n\n# FACTS  (format: fact (valid: from – to))\n- user is interested in dji osmo pocket 3  (valid: 2026-08-16 – present)\n- user finds too bulky mirrorless cameras  (valid: 2026-08-16 – present)\n\n# ENTITIES\n- dji osmo pocket 3 (PRODUCT)\n- mirrorless cameras (PRODUCT)",
+  "context": "Known facts about the user, most relevant first.\n\n# FACTS  (format: fact (valid: from – to))\n- user is interested in toyota corolla hybrid  (valid: 2026-08-16 – present)\n- user finds too big suvs  (valid: 2026-08-16 – present)\n\n# ENTITIES\n- toyota corolla hybrid (PRODUCT)\n- suvs (PRODUCT)",
   "factCount": 2,
   "synthesis": null,
   "facts": null,
@@ -69,14 +69,14 @@ Deterministically rendered. No LLM involved.
 Known facts about the user, most relevant first.
 
 # FACTS  (format: fact (valid: from – to))
-- user is interested in dji osmo pocket 3  (valid: 2026-08-16 – present)
-- user finds too bulky mirrorless cameras  (valid: 2026-08-16 – present)
-- user lives in berlin  (valid: 2026-03-01 – present)
+- user is interested in toyota corolla hybrid  (valid: 2026-08-16 – present)
+- user finds too big suvs  (valid: 2026-08-16 – present)
+- user drives honda civic  (valid: 2026-03-01 – present)
 
 # ENTITIES
-- dji osmo pocket 3 (PRODUCT)
-- mirrorless cameras (PRODUCT)
-- berlin (PLACE)
+- toyota corolla hybrid (PRODUCT)
+- suvs (PRODUCT)
+- honda civic (PRODUCT)
 ```
 
 Facts are grouped by [anchor entity](/concepts/semantic-memory/#the-anchor)
@@ -98,8 +98,8 @@ out of the block.
     "episodes": [
       {
         "episodeId": "8b21…",
-        "summary": "The user is choosing a compact travel camera under $1000…",
-        "keyLearnings": ["user wants a travel camera under $1000"],
+        "summary": "The user is choosing a compact family car under $30k…",
+        "keyLearnings": ["user wants a family car under $30k"],
         "startedAt": "2026-08-16T09:02:11.000Z",
         "endedAt": "2026-08-16T09:14:02.000Z",
         "relevanceScore": 0.82
@@ -118,7 +118,7 @@ Cost: one extra vector search.
 ### `synthesis`
 
 ```json
-{ "synthesis": "The user is shopping for a compact travel camera under $1000 and has ruled out mirrorless as too bulky. They shoot travel vlogs and are interested in the DJI Osmo Pocket 3." }
+{ "synthesis": "The user is shopping for a compact family car under $30k and has ruled out SUVs as too big. They mostly do city commutes and are interested in the Toyota Corolla Hybrid." }
 ```
 
 An LLM-written paragraph over the rendered block.
@@ -132,15 +132,15 @@ An LLM-written paragraph over the rendered block.
 {
   "facts": [
     { "factId": "3a91…", "subject": "user", "predicate": "is interested in",
-      "object": "dji osmo pocket 3", "objectIsEntity": true, "confidence": 0.9,
-      "sourceQuote": "yeah the pcoket 3 looks great",
+      "object": "toyota corolla hybrid", "objectIsEntity": true, "confidence": 0.9,
+      "sourceQuote": "yeah the corola hybrid looks great",
       "validAt": "…", "validUntil": null, "invalidAt": null,
       "episodeId": "8b21…", "relevanceScore": 0.0328 }
   ],
   "groups": [
-    { "entityName": "dji osmo pocket 3",
+    { "entityName": "toyota corolla hybrid",
       "facts": [ { "subject": "user", "predicate": "is interested in",
-                   "object": "dji osmo pocket 3", "sourceQuote": "…",
+                   "object": "toyota corolla hybrid", "sourceQuote": "…",
                    "validAt": "…", "validUntil": null, "relevanceScore": 0.0328 } ],
       "groupRelevance": 0.0328 }
   ]
@@ -210,17 +210,17 @@ A `500` means the whole request failed, which is rare.
 # Common case
 curl -X POST http://localhost:3004/v1/memory/recall \
   -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
-  -d '{"dataset":"user_42","query":"what camera should I recommend?"}'
+  -d '{"dataset":"user_42","query":"what car should I recommend?"}'
 
 # Everything, for a debug view
 curl -X POST http://localhost:3004/v1/memory/recall \
   -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
-  -d '{"dataset":"user_42","query":"cameras","include":["episodes","synthesis","raw"],"limit":20}'
+  -d '{"dataset":"user_42","query":"cars","include":["episodes","synthesis","raw"],"limit":20}'
 
 # High-confidence only
 curl -X POST http://localhost:3004/v1/memory/recall \
   -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
-  -d '{"dataset":"user_42","query":"cameras","minConfidence":0.8}'
+  -d '{"dataset":"user_42","query":"cars","minConfidence":0.8}'
 ```
 
 ```ts
@@ -265,7 +265,7 @@ curl "$API/v1/memory/recall/datasets/user_42/export" -H "Authorization: Bearer m
   "threads": [{ "threadId": "…", "tags": [], "createdAt": "…", "messages": [...] }],
   "episodes": [...],
   "facts": [...],
-  "entities": [{ "name": "thailand", "type": "PLACE" }]
+  "entities": [{ "name": "netflix", "type": "ORG" }]
 }
 ```
 

@@ -34,7 +34,7 @@ listFacts(dataset: string, opts?: {
 
 ```ts
 const { facts, total } = await memory.listFacts('user_42', {
-  q: 'camera',
+  q: 'car',
   limit: 20,
 });
 ```
@@ -46,10 +46,10 @@ const { facts, total } = await memory.listFacts('user_42', {
       "factId": "3a91…",
       "subject": "user",
       "predicate": "is interested in",
-      "object": "dji osmo pocket 3",
+      "object": "toyota corolla hybrid",
       "objectIsEntity": true,
       "confidence": 0.9,
-      "sourceQuote": "yeah the pcoket 3 looks great",
+      "sourceQuote": "yeah the corola hybrid looks great",
       "validAt": "2026-08-16T09:14:02.000Z",
       "validUntil": null,
       "invalidAt": null,
@@ -114,7 +114,7 @@ listEntities(dataset: string): Promise<SemanticEntity[]>
 
 ```ts
 const entities = await memory.listEntities('user_42');
-// [{ entityId: 'c1f2…', name: 'dji osmo pocket 3', type: 'PRODUCT' }, …]
+// [{ entityId: 'c1f2…', name: 'toyota corolla hybrid', type: 'PRODUCT' }, …]
 ```
 
 Ordered by `updatedAt` descending, most recently mentioned first.
@@ -133,10 +133,10 @@ Pass `entity` to [`listFacts()`](#listfacts) for every live fact touching a name
 as subject **or** object:
 
 ```ts
-const { facts } = await memory.listFacts('user_42', { entity: 'berlin' });
+const { facts } = await memory.listFacts('user_42', { entity: 'honda civic' });
 ```
 
-The name is lower-cased on the way out, so `'Berlin'` and `'berlin'` both work.
+The name is lower-cased on the way out, so `'Honda Civic'` and `'honda civic'` both work.
 Names must otherwise match exactly, this is a lookup, not a search. Get valid
 names from `listEntities()`.
 

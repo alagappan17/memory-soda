@@ -58,11 +58,11 @@ await memory.addMessage(threadId, { role: 'assistant', content: reply });
 Known facts about the user, most relevant first.
 
 # FACTS  (format: fact (valid: from – to))
-- user wants to shoot cinematic travel videos  (valid: 2026-07-05 – present)
-- user finds too bulky mirrorless cameras  (valid: 2026-07-05 – present)
+- user wants a car that is fun to drive  (valid: 2026-07-05 – present)
+- user finds too big suvs  (valid: 2026-07-05 – present)
 
 # ENTITIES
-- dji osmo pocket 3 (PRODUCT)
+- toyota corolla hybrid (PRODUCT)
 ```
 
 ---

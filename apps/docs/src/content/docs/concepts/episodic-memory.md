@@ -21,11 +21,11 @@ Episodes serve two purposes:
   "threadId": "f2cb…",
   "dataset": "user_42",
   "status": "completed",
-  "summary": "The user is choosing a compact travel camera under $1000. They rejected mirrorless as too bulky and are interested in the DJI Osmo Pocket 3 for travel vlogging.",
+  "summary": "The user is choosing a compact family car under $30k. They rejected SUVs as too big and are interested in the Toyota Corolla Hybrid for city commuting.",
   "keyLearnings": [
-    "user wants a travel camera under $1000",
-    "user finds mirrorless cameras too bulky",
-    "user shoots travel vlogs"
+    "user wants a family car under $30k",
+    "user finds suvs too big",
+    "user does city commutes"
   ],
   "messageCount": 6,
   "startedAt": "2026-08-16T09:02:11.000Z",
@@ -144,7 +144,7 @@ Episodes are **opt-in** on recall:
 ```ts
 const { episodes } = await memory.recall({
   dataset: 'user_42',
-  query: 'camera recommendations',
+  query: 'car recommendations',
   include: ['episodes'],
 });
 ```
@@ -193,7 +193,7 @@ const block = episodes?.episodes
 ```ts
 // via the API
 GET  /v1/memory/episodic/datasets/:dataset/episodes?status=completed&limit=10
-GET  /v1/memory/episodic/datasets/:dataset/episodes/search?q=cameras&limit=5
+GET  /v1/memory/episodic/datasets/:dataset/episodes/search?q=cars&limit=5
 GET  /v1/memory/episodic/episodes/:episodeId
 DELETE /v1/memory/episodic/episodes/:episodeId      // soft delete → archived
 POST /v1/memory/episodic/episodes/:episodeId/retry  // only when status is 'failed'

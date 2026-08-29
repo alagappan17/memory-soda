@@ -44,7 +44,7 @@ Plain cosine similarity over `facts.embedding`, ordered ascending by distance.
 Fact embeddings are enriched with their anchor before embedding:
 
 ```
-"user is interested in dji osmo pocket 3. About: dji osmo pocket 3."
+"user is interested in toyota corolla hybrid. About: toyota corolla hybrid."
 ```
 
 This makes the anchor prominent in vector space and measurably improves
@@ -73,14 +73,14 @@ in.
 ### Why it matters
 
 ```
-query:  "I'm planning a trip to Thailand"
+query:  "anything good on Netflix tonight?"
 
-vector  → nothing. "mango sticky rice" is not semantically near "trip to Thailand".
+vector  → nothing. "breaking bad" is not semantically near "anything on Netflix".
 keyword → nothing. No shared terms.
-anchor  → "thailand" is an entity in this user's graph
+anchor  → "netflix" is an entity in this user's graph
         → every fact touching it, including
-          "user tried mango sticky rice in thailand"
-        → which surfaces "user's favourite dessert is mango sticky rice"
+          "user watches breaking bad on netflix"
+        → which surfaces "user's favourite show is breaking bad"
 ```
 
 Pure vector search cannot bridge that gap. The anchor signal is what makes
@@ -164,14 +164,14 @@ each group ordered by its best fact, then rendered:
 Known facts about the user, most relevant first.
 
 # FACTS  (format: fact (valid: from – to))
-- user is interested in dji osmo pocket 3  (valid: 2026-08-16 – present)
-- user finds too bulky mirrorless cameras  (valid: 2026-08-16 – present)
-- user lives in berlin  (valid: 2026-03-01 – present)
+- user is interested in toyota corolla hybrid  (valid: 2026-08-16 – present)
+- user finds too big suvs  (valid: 2026-08-16 – present)
+- user drives honda civic  (valid: 2026-03-01 – present)
 
 # ENTITIES
-- dji osmo pocket 3 (PRODUCT)
-- mirrorless cameras (PRODUCT)
-- berlin (PLACE)
+- toyota corolla hybrid (PRODUCT)
+- suvs (PRODUCT)
+- honda civic (PRODUCT)
 ```
 
 Rendering is **deterministic**, no LLM on the read path. Fact text is collapsed

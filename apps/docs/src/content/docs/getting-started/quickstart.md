@@ -28,15 +28,15 @@ const { threadId } = await memory.createThread({ dataset: 'user_42' });
 // 2. Append a conversation. This is all extraction ever sees.
 await memory.addMessage(threadId, {
   role: 'user',
-  content: "I'm looking for a travel camera under $1000. It has to be small, mirrorless is too bulky for me.",
+  content: "I'm looking for a family car under $30k. It has to be easy to park, SUVs are too big for me.",
 });
 await memory.addMessage(threadId, {
   role: 'assistant',
-  content: 'The DJI Osmo Pocket 3 is a great fit, 1-inch sensor, built-in gimbal, pocketable.',
+  content: 'The Toyota Corolla Hybrid is a great fit, 50 mpg, roomy boot, easy to park.',
 });
 await memory.addMessage(threadId, {
   role: 'user',
-  content: 'Yeah the pocket 3 looks great. I mostly shoot travel vlogs.',
+  content: 'Yeah the corola hybrid looks great. I mostly do city commutes.',
 });
 
 // 3. Extraction is asynchronous. Give it a moment.
@@ -46,7 +46,7 @@ await new Promise((r) => setTimeout(r, 45_000));
 // 4. Read it back.
 const { context, factCount } = await memory.recall({
   dataset: 'user_42',
-  query: 'what camera should I recommend?',
+  query: 'what car should I recommend?',
 });
 
 console.log(`${factCount} facts`);
@@ -60,15 +60,15 @@ Expected output:
 Known facts about the user, most relevant first.
 
 # FACTS  (format: fact (valid: from – to))
-- user is interested in dji osmo pocket 3  (valid: 2026-08-16 – present)
-- user finds too bulky mirrorless cameras  (valid: 2026-08-16 – present)
-- user shoots travel vlogging  (valid: 2026-08-16 – present)
-- user wants a travel camera that is small, under $1000  (valid: 2026-08-16 – present)
+- user is interested in toyota corolla hybrid  (valid: 2026-08-16 – present)
+- user finds too big suvs  (valid: 2026-08-16 – present)
+- user does city commuting  (valid: 2026-08-16 – present)
+- user wants a family car that is easy to park, under $30k  (valid: 2026-08-16 – present)
 
 # ENTITIES
-- dji osmo pocket 3 (PRODUCT)
-- mirrorless cameras (PRODUCT)
-- travel vlogging (TOPIC)
+- toyota corolla hybrid (PRODUCT)
+- suvs (PRODUCT)
+- city commuting (TOPIC)
 ```
 
 That `context` string goes straight into your system prompt. That is the whole
@@ -103,7 +103,7 @@ THREAD=$(curl -s -X POST $API/v1/threads \
 curl -s -X POST $API/v1/memory/working/threads/$THREAD/messages \
   -H "Authorization: Bearer $KEY" \
   -H 'Content-Type: application/json' \
-  -d '{"role":"user","content":"I moved to Berlin last month and I am learning German."}'
+  -d '{"role":"user","content":"I bought a Tesla Model 3 last month and I am still learning Autopilot."}'
 ```
 
 **Recall**

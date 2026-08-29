@@ -34,7 +34,7 @@ POST /v1/memory/working/threads/:id/messages
 └──────────────────┬──────────────────────────┘
                    ▼
 ┌─────────────────────────────────────────────┐
-│ 3. Entity resolution           embeddings   │  "pcoket 3" → "dji osmo pocket 3"
+│ 3. Entity resolution           embeddings   │  "corola hybrid" → "toyota corolla hybrid"
 │    exact name → reuse                       │
 │    else nearest same-type entity ≥ 0.88     │
 │    else insert                              │
@@ -67,14 +67,14 @@ in detail.
 ### What survives extraction
 
 The extraction prompt is aggressive about discarding noise. From a
-camera-shopping conversation it emits roughly four facts, not forty:
+car-shopping conversation it emits roughly four facts, not forty:
 
 | Kept | Dropped |
 |---|---|
-| `user is interested in dji osmo pocket 3` | `user is asking about cameras` (task chatter) |
-| `user finds too bulky mirrorless cameras` | `dji osmo pocket 3 has a 1-inch sensor` (the assistant said it) |
-| `user shoots travel vlogging` | `user wants cinematic` (fragment of a fuller fact) |
-| `user wants a travel camera that is small, cinematic-looking, under $1000` | a `pcoket 3` entity (typo, folded into the canonical one) |
+| `user is interested in toyota corolla hybrid` | `user is asking about cars` (task chatter) |
+| `user finds too big suvs` | `toyota corolla hybrid gets 50 mpg` (the assistant said it) |
+| `user does city commuting` | `user wants a hybrid` (fragment of a fuller fact) |
+| `user wants a family car that is hybrid, easy to park, under $30k` | a `corola hybrid` entity (typo, folded into the canonical one) |
 
 ---
 
@@ -124,7 +124,7 @@ query ──► embed once
 ```
 
 The entity-anchor signal is the reliability net. It is what lets
-`"planning a trip to Thailand"` surface `"favourite food is mango sticky rice"`
+`"anything good on Netflix"` surface `"favourite show is breaking bad"`
 when neither vector nor keyword search would bridge that gap.
 
 See [Retrieval](/concepts/retrieval/).

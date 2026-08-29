@@ -19,10 +19,10 @@ A fact is a **subject–predicate–object triple** with a validity window.
   "factId": "3a91…",
   "subject": "user",
   "predicate": "is interested in",
-  "object": "dji osmo pocket 3",
+  "object": "toyota corolla hybrid",
   "objectIsEntity": true,
   "confidence": 0.9,
-  "sourceQuote": "yeah the pcoket 3 looks great",
+  "sourceQuote": "yeah the corola hybrid looks great",
   "validAt": "2026-08-16T09:14:02.000Z",
   "validUntil": null,
   "invalidAt": null,
@@ -49,8 +49,8 @@ A fact is a **subject–predicate–object triple** with a validity window.
 { subject: 'user', predicate: 'works at', object: 'anthropic', objectIsEntity: true }
 
 // Literal, object is a value with no entity behind it
-{ subject: 'user', predicate: 'wants a travel camera that is',
-  object: 'small, cinematic-looking, under $1000', objectIsEntity: false }
+{ subject: 'user', predicate: 'wants a family car that is',
+  object: 'hybrid, easy to park, under $30k', objectIsEntity: false }
 ```
 
 Keeping both in one table is deliberate: it leaves multi-hop traversal possible
@@ -68,7 +68,7 @@ AND (valid_until IS NULL OR valid_until > now())
 
 Every read path uses this predicate. Two consequences worth knowing:
 
-- A fact with a **future** `validAt` ("I start at Anthropic in September") is
+- A fact with a **future** `validAt` ("I pick up my Model 3 in September") is
   stored but invisible until that date arrives.
 - A fact whose `validUntil` has passed drops out automatically, without anything
   having to invalidate it.
@@ -80,7 +80,7 @@ Every read path uses this predicate. Two consequences worth knowing:
 The canonical nouns a user's facts hang off.
 
 ```json
-{ "entityId": "c1f2…", "name": "dji osmo pocket 3", "type": "PRODUCT" }
+{ "entityId": "c1f2…", "name": "toyota corolla hybrid", "type": "PRODUCT" }
 ```
 
 Names are lower-cased and unique per `(dataset, project)`.
@@ -103,8 +103,8 @@ New entities are matched against existing ones in three steps:
 
 Type-awareness matters: `apple` the `ORG` never merges into `apple` the `FOOD`.
 
-This is what collapses typos and aliases. The user types `pcoket 3`; extraction
-corrects it to the canonical `dji osmo pocket 3` discussed in the conversation,
+This is what collapses typos and aliases. The user types `corola hybrid`; extraction
+corrects it to the canonical `toyota corolla hybrid` discussed in the conversation,
 and the memory doesn't silently split in two.
 
 ---
@@ -118,8 +118,8 @@ anchor = objectIsEntity ? object : subject
 ```
 
 ```
-user · is interested in · dji osmo pocket 3   →  anchor: "dji osmo pocket 3"
-user · wants a camera that is · small…        →  anchor: "user"
+user · is interested in · toyota corolla hybrid   →  anchor: "toyota corolla hybrid"
+user · wants a car that is · small…        →  anchor: "user"
 ```
 
 The anchor drives two things: how facts are **grouped** in the rendered context
@@ -181,7 +181,7 @@ fact does not block re-asserting the same claim.
 Fact embeddings are enriched with the anchor before embedding:
 
 ```
-"user is interested in dji osmo pocket 3. About: dji osmo pocket 3."
+"user is interested in toyota corolla hybrid. About: toyota corolla hybrid."
 ```
 
 which makes the anchor more prominent in vector space and measurably improves
@@ -202,14 +202,14 @@ chronological:
 
 ```ts
 const { facts, total } = await memory.listFacts('user_42', {
-  q: 'camera',              // optional keyword filter
+  q: 'car',              // optional keyword filter
   limit: 50,                // 1–100
   includeInvalidated: true, // include superseded/deleted
   asOf: '2026-06-01',       // point-in-time
 });
 
 const entities = await memory.listEntities('user_42');
-const { facts: entityFacts } = await memory.listFacts('user_42', { entity: 'berlin' });
+const { facts: entityFacts } = await memory.listFacts('user_42', { entity: 'honda civic' });
 ```
 
 ---

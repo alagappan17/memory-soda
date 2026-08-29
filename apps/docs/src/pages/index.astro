@@ -29,13 +29,13 @@ await memory.addMessage(threadId, {
 const contextBlock = `Known facts about the user, most relevant first.
 
 # FACTS  (format: fact (valid: from – to))
-- user lives in lisbon        (valid: 2026-08-01 – present)
-- user is vegetarian          (valid: 2026-03-02 – present)
-- user shoots travel vlogging (valid: 2026-08-16 – present)
+- user drives tesla model 3   (valid: 2026-08-01 – present)
+- user likes sci-fi movies    (valid: 2026-03-02 – present)
+- user does city commuting    (valid: 2026-08-16 – present)
 
 # ENTITIES
-- lisbon (PLACE)
-- travel vlogging (TOPIC)`;
+- tesla model 3 (PRODUCT)
+- city commuting (TOPIC)`;
 
 const install = 'npm create memory-soda@latest';
 
@@ -63,12 +63,12 @@ const layers = [
 const features = [
   {
     title: 'Contradictions supersede',
-    body: 'Say you moved to Lisbon and the Berlin fact is marked superseded, not deleted. An LLM judge decides which of two conflicting claims survives; exclusive states replace, compatible ones coexist.',
+    body: 'Say you switch to a Model 3 and the Civic fact is marked superseded, not deleted. An LLM judge decides which of two conflicting claims survives; exclusive states replace, compatible ones coexist.',
     href: '/concepts/bi-temporal-model/',
   },
   {
     title: 'Three retrieval signals, fused',
-    body: 'Vector similarity, entity-anchored lookup and Postgres full-text run in parallel and are merged by rank. The anchor signal is what connects “a trip to Thailand” to “favourite dessert is mango sticky rice”.',
+    body: 'Vector similarity, entity-anchored lookup and Postgres full-text run in parallel and are merged by rank. The anchor signal is what connects “anything on Netflix” to “favourite show is breaking bad”.',
     href: '/concepts/retrieval/',
   },
   {
@@ -176,8 +176,8 @@ const features = [
         <p class="eyebrow">Why this one</p>
         <h2>It stores claims, not transcripts.</h2>
         <p class="band-lede">
-          Embedding a conversation retrieves messages. “I moved to Berlin” and “I
-          moved to Lisbon last month” come back with similar scores and the model
+          Embedding a conversation retrieves messages. “I drive a Honda Civic” and “I
+          switched to a Tesla Model 3 last month” come back with similar scores and the model
           has to guess which is current. Every claim here carries the window of
           time it is true for.
         </p>

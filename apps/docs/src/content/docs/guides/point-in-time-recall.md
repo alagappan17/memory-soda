@@ -54,20 +54,20 @@ included, because at `asOf` we still believed it.
 ## Worked example
 
 ```
-2026-03-01  "I live in Berlin."
-            → berlin   created 03-01  validAt 03-01  invalidAt null
+2026-03-01  "I drive a Honda Civic."
+            → honda civic   created 03-01  validAt 03-01  invalidAt null
 
-2026-08-16  "Actually I moved to Lisbon."
-            → berlin   invalidAt 08-16
-            → lisbon   created 08-16  validAt 08-16  invalidAt null
+2026-08-16  "Actually I switched to a Tesla Model 3."
+            → honda civic   invalidAt 08-16
+            → tesla model 3   created 08-16  validAt 08-16  invalidAt null
 ```
 
 | Query | Result | Why |
 |---|---|---|
-| `recall()` | lisbon | Live now |
-| `asOf: 2026-06-01` | berlin | Existed, valid, not yet superseded |
+| `recall()` | tesla model 3 | Live now |
+| `asOf: 2026-06-01` | honda civic | Existed, valid, not yet superseded |
 | `asOf: 2026-02-01` | *nothing* | The fact didn't exist yet |
-| `asOf: 2026-09-01` | lisbon | Berlin was superseded on 08-16 |
+| `asOf: 2026-09-01` | tesla model 3 | Honda Civic was superseded on 08-16 |
 
 ---
 
@@ -86,8 +86,8 @@ async function explainDecision(dataset: string, at: string, question: string) {
   return { question, at, knewAtTheTime: context, facts };
 }
 
-// "Why did it recommend a vegetarian restaurant on 14 August?"
-await explainDecision('user_42', '2026-08-14T18:30:00Z', 'restaurant recommendation');
+// "Why did it recommend a horror movie on 14 August?"
+await explainDecision('user_42', '2026-08-14T18:30:00Z', 'movie recommendation');
 ```
 
 ### Distinguishing a bug from a change
@@ -148,7 +148,7 @@ Consequences:
 ```ts
 await memory.recall({
   dataset: 'user_42',
-  query: 'food',
+  query: 'movies',
   asOf: '2026-06-01',
   limit: 30,     // wider net, since ranking is weaker
 });
@@ -176,7 +176,7 @@ when both are passed.
 
 ```ts
 const { facts } = await memory.listFacts('user_42', {
-  q: 'berlin',
+  q: 'honda civic',
   includeInvalidated: true,
 });
 

@@ -824,7 +824,7 @@ const factsTsv = sql`to_tsvector('english', coalesce(${facts.subject}, '') || ' 
  * Hybrid fact retrieval: vector similarity + entity-anchored lookup + keyword
  * (full-text), fused with Reciprocal Rank Fusion. Entity-anchor is the reliability
  * net, it surfaces facts tied to a named entity even when no lexical/semantic
- * bridge exists (e.g. "trip to Thailand" → "favorite food is mango sticky rice").
+ * bridge exists (e.g. "anything on Netflix" → "favourite show is breaking bad").
  */
 export interface SemanticRetrievalOptions {
   /** Confidence floor: facts below this are excluded from retrieval. */

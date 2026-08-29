@@ -53,7 +53,7 @@ export function memoryTool(options: MemoryToolOptions): MemoryTool {
           type: 'string',
           description:
             'What you want to know, in natural language. For example: ' +
-            '"dietary preferences" or "what camera did they decide on".',
+            '"favourite movies" or "what car did they decide on".',
         },
       },
       required: ['query'],

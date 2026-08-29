@@ -218,7 +218,7 @@ ${transcript}
 
   // Split model relationships by whether the object is a listed entity. The
   // model routinely emits relationships whose object it forgot to co-list in
-  // `entities` ("user does long runs on → sundays"), dropping those destroys
+  // `entities` ("user has movie nights on → fridays"), dropping those destroys
   // real facts, so they are demoted to literal facts instead: the fact
   // survives, no phantom entity row is created, and the anchor falls back to
   // the subject.

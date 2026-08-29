@@ -21,8 +21,8 @@ list(dataset: string, opts?: {
 
 ```ts
 const { episodes } = await memory.listEpisodes('u_42', { limit: 5 });
-episodes[0].summary;      // "The user compared travel cameras…"
-episodes[0].keyLearnings; // ["user wants a compact camera under $1000", …]
+episodes[0].summary;      // "The user compared family cars…"
+episodes[0].keyLearnings; // ["user wants a compact car under $30k", …]
 ```
 
 Only the newest episode per thread has status `completed`; earlier ones are
@@ -42,7 +42,7 @@ Semantic search over episode summaries, ranked by a blend of similarity and
 recency (the split is the project's `similarityWeight`).
 
 ```ts
-const hits = await memory.searchEpisodes('u_42', 'camera shopping');
+const hits = await memory.searchEpisodes('u_42', 'car shopping');
 hits[0].relevanceScore; // 0.83
 ```
 

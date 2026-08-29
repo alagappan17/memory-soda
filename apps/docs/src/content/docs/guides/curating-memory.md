@@ -25,10 +25,10 @@ The intended path. The user says something contradicting a stored fact;
 extraction judges the pair and supersedes the loser.
 
 ```
-user: "Actually I moved to Lisbon last month."
+user: "Actually I switched to a Tesla Model 3 last month."
 
-→ old:  user lives in berlin    invalidAt = now
-→ new:  user lives in lisbon    validAt = now
+→ old:  user drives honda civic    invalidAt = now
+→ new:  user drives tesla model 3    validAt = now
 ```
 
 Works well for **exclusive** states, one employer, one home city, one current
@@ -78,7 +78,7 @@ invalidated.
 ### Finding the id
 
 ```ts
-const { facts } = await memory.listFacts('user_42', { q: 'berlin' });
+const { facts } = await memory.listFacts('user_42', { q: 'honda civic' });
 for (const f of facts) {
   console.log(f.factId, f.subject, f.predicate, f.object);
 }
@@ -90,7 +90,7 @@ on each row.
 ### Deleting a group
 
 ```ts
-const { facts } = await memory.listFacts('user_42', { q: 'camera' });
+const { facts } = await memory.listFacts('user_42', { q: 'car' });
 for (const f of facts) {
   await memory.deleteFact('user_42', f.factId);
 }
@@ -116,7 +116,7 @@ const { threadId } = await memory.createThread({
 });
 await memory.addMessage(threadId, {
   role: 'user',
-  content: 'To be clear: I am vegetarian, not vegan. I do eat dairy and eggs.',
+  content: 'To be clear: I like sci-fi, not fantasy. Dune yes, Lord of the Rings no.',
 });
 await memory.endThread(threadId);   // extract now rather than on the timer
 
@@ -127,7 +127,7 @@ It is a workaround for the absent write API, and it costs three LLM calls. But i
 is the only way to *add* knowledge.
 
 > Phrase corrections **as the user speaking about themselves**. Extraction
-> discards anything whose subject is not the user, so "the user is vegetarian"
+> discards anything whose subject is not the user, so "the user likes sci-fi"
 > written in third person may not extract cleanly. Write it first-person.
 
 ---
