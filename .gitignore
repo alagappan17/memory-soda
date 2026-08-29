@@ -58,7 +58,6 @@ wiki
 # Root-only. A bare `docs` also matched apps/docs (the docs site), which hid the
 # whole app from git — and therefore from Nx, which reads the git file list.
 /docs
-CLAUDE.md
 plans
 *.tsbuildinfo
 
