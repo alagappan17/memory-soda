@@ -80,16 +80,21 @@ export default function DatasetsPage() {
   // Cross-tab shared state.
   const [tab, setTab] = useState<Tab>('dossier');
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
-  const [episodeThreadFilter, setEpisodeThreadFilter] = useState<string | null>(null);
+  const [episodeThreadFilter, setEpisodeThreadFilter] = useState<string | null>(
+    null,
+  );
 
   const fetchDatasets = useCallback(async () => {
     if (!projectId) return;
     setLoadingDatasets(true);
     setError(null);
     try {
-      const res = await api.get<{ datasets: DatasetSummary[] }>('/dashboard/browse/datasets', {
-        params: { projectId, q: query.trim() || undefined, limit: 100 },
-      });
+      const res = await api.get<{ datasets: DatasetSummary[] }>(
+        '/dashboard/browse/datasets',
+        {
+          params: { projectId, q: query.trim() || undefined, limit: 100 },
+        },
+      );
       setDatasets(res.data.datasets);
     } catch {
       setError('Failed to load datasets');
@@ -128,8 +133,14 @@ export default function DatasetsPage() {
         <div className="p-3 border-b border-border">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-sm font-semibold">Datasets</h1>
-            <button onClick={() => void fetchDatasets()} className="text-muted-foreground hover:text-foreground" title="Refresh">
-              <RefreshCw className={`h-3.5 w-3.5 ${loadingDatasets ? 'animate-spin' : ''}`} />
+            <button
+              onClick={() => void fetchDatasets()}
+              className="text-muted-foreground hover:text-foreground"
+              title="Refresh"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${loadingDatasets ? 'animate-spin' : ''}`}
+              />
             </button>
           </div>
           <div className="relative">
@@ -145,9 +156,13 @@ export default function DatasetsPage() {
         </div>
         <div className="flex-1 overflow-y-auto">
           {!projectId ? (
-            <p className="p-3 text-xs text-muted-foreground">Select a project first.</p>
+            <p className="p-3 text-xs text-muted-foreground">
+              Select a project first.
+            </p>
           ) : datasets.length === 0 && !loadingDatasets ? (
-            <p className="p-3 text-xs text-muted-foreground">No datasets yet.</p>
+            <p className="p-3 text-xs text-muted-foreground">
+              No datasets yet.
+            </p>
           ) : (
             datasets.map((u) => (
               <button
@@ -157,7 +172,9 @@ export default function DatasetsPage() {
               >
                 <div className="font-mono text-xs truncate">{u.dataset}</div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">
-                  {u.threadCount} thread{u.threadCount !== 1 ? 's' : ''} · {u.factCount} fact{u.factCount !== 1 ? 's' : ''} · {relTime(u.lastActivityAt)}
+                  {u.threadCount} thread{u.threadCount !== 1 ? 's' : ''} ·{' '}
+                  {u.factCount} fact{u.factCount !== 1 ? 's' : ''} ·{' '}
+                  {relTime(u.lastActivityAt)}
                 </div>
               </button>
             ))
@@ -168,7 +185,7 @@ export default function DatasetsPage() {
       {/* Right pane — detail */}
       <section className="flex-1 flex flex-col min-h-0">
         {error && (
-          <div className="m-3 rounded-md border border-red-300 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+          <div className="m-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
           </div>
         )}
@@ -179,15 +196,40 @@ export default function DatasetsPage() {
         ) : (
           <>
             <div className="px-4 pt-3 shrink-0">
-              <div className="font-mono text-sm font-medium">{selectedDataset}</div>
+              <div className="font-mono text-sm font-medium">
+                {selectedDataset}
+              </div>
               <div className="flex gap-4 mt-2 border-b border-border">
-                <TabButton active={tab === 'dossier'} onClick={() => setTab('dossier')} icon={<BookOpen className="h-3.5 w-3.5" />}>Dossier</TabButton>
-                <TabButton active={tab === 'conversations'} onClick={() => setTab('conversations')} icon={<MessagesSquare className="h-3.5 w-3.5" />}>Conversations</TabButton>
-                <TabButton active={tab === 'episodes'} onClick={() => { setTab('episodes'); setEpisodeThreadFilter(null); }} icon={<Layers className="h-3.5 w-3.5" />}>Episodes</TabButton>
+                <TabButton
+                  active={tab === 'dossier'}
+                  onClick={() => setTab('dossier')}
+                  icon={<BookOpen className="h-3.5 w-3.5" />}
+                >
+                  Dossier
+                </TabButton>
+                <TabButton
+                  active={tab === 'conversations'}
+                  onClick={() => setTab('conversations')}
+                  icon={<MessagesSquare className="h-3.5 w-3.5" />}
+                >
+                  Conversations
+                </TabButton>
+                <TabButton
+                  active={tab === 'episodes'}
+                  onClick={() => {
+                    setTab('episodes');
+                    setEpisodeThreadFilter(null);
+                  }}
+                  icon={<Layers className="h-3.5 w-3.5" />}
+                >
+                  Episodes
+                </TabButton>
               </div>
             </div>
             <div className="flex-1 min-h-0">
-              {projectId && tab === 'dossier' && <DossierTab projectId={projectId} dataset={selectedDataset} />}
+              {projectId && tab === 'dossier' && (
+                <DossierTab projectId={projectId} dataset={selectedDataset} />
+              )}
               {projectId && tab === 'conversations' && (
                 <ConversationsTab
                   projectId={projectId}
@@ -214,7 +256,17 @@ export default function DatasetsPage() {
   );
 }
 
-function TabButton({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
+function TabButton({
+  active,
+  onClick,
+  icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
@@ -228,7 +280,13 @@ function TabButton({ active, onClick, icon, children }: { active: boolean; onCli
 
 // ── Dossier tab ───────────────────────────────────────────────────────────────
 
-function DossierTab({ projectId, dataset }: { projectId: string; dataset: string }) {
+function DossierTab({
+  projectId,
+  dataset,
+}: {
+  projectId: string;
+  dataset: string;
+}) {
   const [facts, setFacts] = useState<SemanticFact[]>([]);
   const [entities, setEntities] = useState<SemanticEntity[]>([]);
   const [loading, setLoading] = useState(false);
@@ -247,8 +305,20 @@ function DossierTab({ projectId, dataset }: { projectId: string; dataset: string
     setError(null);
     try {
       const [f, e] = await Promise.all([
-        api.get<{ facts: SemanticFact[] }>(`/dashboard/v1/memory/semantic/datasets/${encodeURIComponent(dataset)}/facts`, { params: { projectId, includeInvalidated: showInvalidated, limit: 200 } }),
-        api.get<{ entities: SemanticEntity[] }>(`/dashboard/v1/memory/semantic/datasets/${encodeURIComponent(dataset)}/entities`, { params: { projectId } }),
+        api.get<{ facts: SemanticFact[] }>(
+          `/dashboard/v1/memory/semantic/datasets/${encodeURIComponent(dataset)}/facts`,
+          {
+            params: {
+              projectId,
+              includeInvalidated: showInvalidated,
+              limit: 200,
+            },
+          },
+        ),
+        api.get<{ entities: SemanticEntity[] }>(
+          `/dashboard/v1/memory/semantic/datasets/${encodeURIComponent(dataset)}/entities`,
+          { params: { projectId } },
+        ),
       ]);
       setFacts(f.data.facts);
       setEntities(e.data.entities);
@@ -259,11 +329,16 @@ function DossierTab({ projectId, dataset }: { projectId: string; dataset: string
     }
   }, [projectId, dataset, showInvalidated]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   async function remove(factId: string) {
     try {
-      await api.delete(`/dashboard/v1/memory/semantic/datasets/${encodeURIComponent(dataset)}/facts/${factId}`, { params: { projectId } });
+      await api.delete(
+        `/dashboard/v1/memory/semantic/datasets/${encodeURIComponent(dataset)}/facts/${factId}`,
+        { params: { projectId } },
+      );
       setFacts((prev) => applyFactDeletion(prev, factId, showInvalidated));
     } catch {
       setError('Failed to delete fact');
@@ -284,13 +359,21 @@ function DossierTab({ projectId, dataset }: { projectId: string; dataset: string
   return (
     <div className="h-full overflow-y-auto p-4 max-w-3xl">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-muted-foreground">{loading ? 'Loading…' : `${facts.length} fact${facts.length !== 1 ? 's' : ''}`}</span>
+        <span className="text-xs text-muted-foreground">
+          {loading
+            ? 'Loading…'
+            : `${facts.length} fact${facts.length !== 1 ? 's' : ''}`}
+        </span>
         <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-          <input type="checkbox" checked={showInvalidated} onChange={(e) => setShowInvalidated(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={showInvalidated}
+            onChange={(e) => setShowInvalidated(e.target.checked)}
+          />
           Show invalidated
         </label>
       </div>
-      {error && <div className="mb-3 text-sm text-red-600">{error}</div>}
+      {error && <div className="mb-3 text-sm text-destructive">{error}</div>}
       {entities.length > 0 && (
         <div className="mb-5">
           <h3 className="text-xs font-semibold mb-2">Entities</h3>
@@ -302,7 +385,9 @@ function DossierTab({ projectId, dataset }: { projectId: string; dataset: string
         </div>
       )}
       {facts.length === 0 && !loading && (
-        <p className="text-sm text-muted-foreground">No facts yet — they extract automatically after conversations.</p>
+        <p className="text-sm text-muted-foreground">
+          No facts yet — they extract automatically after conversations.
+        </p>
       )}
       {[...groups.entries()].map(([anchor, items]) => (
         <div key={anchor} className="mb-5">
@@ -313,16 +398,29 @@ function DossierTab({ projectId, dataset }: { projectId: string; dataset: string
               const invalidated = status === 'invalidated';
               const rangeEnd = f.validUntil ? ` – ${day(f.validUntil)}` : '';
               return (
-                <li key={f.factId} className={`group flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm ${inactive ? 'opacity-50' : ''}`}>
-                  <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${FACT_STATUS_DOT[status]}`} />
-                  <span className={invalidated ? 'line-through' : ''} title={f.sourceQuote ? `“${f.sourceQuote}”` : undefined}>
+                <li
+                  key={f.factId}
+                  className={`group flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm ${inactive ? 'opacity-50' : ''}`}
+                >
+                  <span
+                    className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${FACT_STATUS_DOT[status]}`}
+                  />
+                  <span
+                    className={invalidated ? 'line-through' : ''}
+                    title={f.sourceQuote ? `“${f.sourceQuote}”` : undefined}
+                  >
                     {f.subject} {f.predicate} {f.object}
                   </span>
                   <span className="text-[10px] text-muted-foreground ml-auto whitespace-nowrap">
-                    {f.confidence.toFixed(2)} · {status} · {day(f.validAt)}{rangeEnd}
+                    {f.confidence.toFixed(2)} · {status} · {day(f.validAt)}
+                    {rangeEnd}
                   </span>
                   {!invalidated && (
-                    <button onClick={() => void remove(f.factId)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete fact">
+                    <button
+                      onClick={() => void remove(f.factId)}
+                      className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete fact"
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   )}
@@ -339,31 +437,46 @@ function DossierTab({ projectId, dataset }: { projectId: string; dataset: string
 // ── Message bubble (chat) ───────────────────────────────────────────────────────
 
 function MessageBubble({ msg }: { msg: Message }) {
-  const time = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const time = new Date(msg.createdAt).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   if (msg.role === 'system') {
     return (
       <div className="px-4 py-1 text-center">
-        <span className="text-xs text-muted-foreground italic">{msg.content}</span>
+        <span className="text-xs text-muted-foreground italic">
+          {msg.content}
+        </span>
       </div>
     );
   }
   if (msg.role === 'tool') {
     return (
       <div className="px-4 py-2">
-        <div className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs font-mono whitespace-pre-wrap break-words">{msg.content}</div>
+        <div className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs font-mono whitespace-pre-wrap break-words">
+          {msg.content}
+        </div>
       </div>
     );
   }
 
   const isUser = msg.role === 'user';
   return (
-    <div className={`px-4 py-2 flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[78%] flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
-        <div className={`rounded-2xl px-4 py-2.5 text-sm break-words ${isUser ? 'bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap' : 'bg-muted text-foreground rounded-bl-sm'}`}>
+    <div
+      className={`px-4 py-2 flex ${isUser ? 'justify-end' : 'justify-start'}`}
+    >
+      <div
+        className={`max-w-[78%] flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
+      >
+        <div
+          className={`rounded-lg px-4 py-2.5 text-sm break-words ${isUser ? 'bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap' : 'bg-muted text-foreground rounded-bl-sm'}`}
+        >
           {isUser ? msg.content : <Markdown>{msg.content}</Markdown>}
         </div>
-        <div className={`flex items-center gap-1.5 mt-1 text-[10px] text-muted-foreground font-mono ${isUser ? 'flex-row-reverse' : ''}`}>
+        <div
+          className={`flex items-center gap-1.5 mt-1 text-[10px] text-muted-foreground font-mono ${isUser ? 'flex-row-reverse' : ''}`}
+        >
           <span className="font-sans">{time}</span>
           <span>·</span>
           <span>#{msg.sequenceNumber}</span>
@@ -396,7 +509,10 @@ function ConversationsTab({
     (async () => {
       setLoading(true);
       try {
-        const res = await api.get<{ threads: Thread[] }>('/dashboard/browse/threads', { params: { projectId, dataset, limit: 100 } });
+        const res = await api.get<{ threads: Thread[] }>(
+          '/dashboard/browse/threads',
+          { params: { projectId, dataset, limit: 100 } },
+        );
         setThreads(res.data.threads);
       } finally {
         setLoading(false);
@@ -410,7 +526,10 @@ function ConversationsTab({
       return;
     }
     (async () => {
-      const m = await api.get<{ messages: Message[] }>(`/dashboard/browse/threads/${selectedThreadId}/messages`, { params: { projectId } });
+      const m = await api.get<{ messages: Message[] }>(
+        `/dashboard/browse/threads/${selectedThreadId}/messages`,
+        { params: { projectId } },
+      );
       setMessages(m.data.messages);
     })();
   }, [selectedThreadId, projectId]);
@@ -429,19 +548,27 @@ function ConversationsTab({
               onClick={() => onSelectThread(t.threadId)}
               className={`w-full text-left px-3 py-2 border-b border-border/50 hover:bg-muted/40 ${selectedThreadId === t.threadId ? 'bg-muted/60' : ''}`}
             >
-              <div className="font-mono text-[11px] truncate">{t.threadId.slice(0, 8)}…</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">{t.messageCount} msgs · {relTime(t.lastActivityAt)}</div>
+              <div className="font-mono text-[11px] truncate">
+                {t.threadId.slice(0, 8)}…
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                {t.messageCount} msgs · {relTime(t.lastActivityAt)}
+              </div>
             </button>
           ))
         )}
       </div>
       <div className="flex-1 flex flex-col min-h-0">
         {!selectedThreadId ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">Select a conversation.</div>
+          <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+            Select a conversation.
+          </div>
         ) : (
           <>
             <div className="flex items-center justify-between px-4 py-2 border-b border-border shrink-0">
-              <span className="font-mono text-xs text-muted-foreground">{selectedThreadId.slice(0, 12)}…</span>
+              <span className="font-mono text-xs text-muted-foreground">
+                {selectedThreadId.slice(0, 12)}…
+              </span>
               <button
                 onClick={() => onViewEpisodes(selectedThreadId)}
                 className="flex items-center gap-1.5 text-xs rounded-md border border-border px-2.5 py-1 hover:bg-muted/50 transition-colors"
@@ -486,7 +613,10 @@ function EpisodesTab({
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<{ episodes: Episode[] }>(`/dashboard/v1/memory/episodic/datasets/${encodeURIComponent(dataset)}/episodes`, { params: { projectId, status, limit: 100 } });
+      const res = await api.get<{ episodes: Episode[] }>(
+        `/dashboard/v1/memory/episodic/datasets/${encodeURIComponent(dataset)}/episodes`,
+        { params: { projectId, status, limit: 100 } },
+      );
       setEpisodes(res.data.episodes);
     } catch {
       setError('Failed to load episodes');
@@ -495,19 +625,29 @@ function EpisodesTab({
     }
   }, [projectId, dataset, status]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  const shown = threadFilter ? episodes.filter((e) => e.threadId === threadFilter) : episodes;
+  const shown = threadFilter
+    ? episodes.filter((e) => e.threadId === threadFilter)
+    : episodes;
 
   return (
     <div className="h-full overflow-y-auto p-4 max-w-3xl">
-      {error && <div className="mb-3 text-sm text-red-600">{error}</div>}
+      {error && <div className="mb-3 text-sm text-destructive">{error}</div>}
       <div className="flex items-center justify-between mb-4">
         <span className="text-xs text-muted-foreground">
-          {loading ? 'Loading…' : `${shown.length} episode${shown.length !== 1 ? 's' : ''}`}
+          {loading
+            ? 'Loading…'
+            : `${shown.length} episode${shown.length !== 1 ? 's' : ''}`}
         </span>
         <div className="flex items-center gap-2">
-          <select value={status} onChange={(e) => setStatus(e.target.value as 'all' | EpisodeStatus)} className="text-xs rounded-md border border-border bg-background px-2 py-1">
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as 'all' | EpisodeStatus)}
+            className="text-xs rounded-md border border-border bg-background px-2 py-1"
+          >
             <option value="all">All statuses</option>
             <option value="completed">Completed</option>
             <option value="processing">Processing</option>
@@ -515,21 +655,37 @@ function EpisodesTab({
             <option value="failed">Failed</option>
             <option value="archived">Archived</option>
           </select>
-          <button onClick={() => void load()} className="text-muted-foreground hover:text-foreground" title="Refresh">
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <button
+            onClick={() => void load()}
+            className="text-muted-foreground hover:text-foreground"
+            title="Refresh"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
+            />
           </button>
         </div>
       </div>
 
       {threadFilter && (
         <div className="flex items-center justify-between mb-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
-          <span>Filtered to conversation <span className="font-mono">{threadFilter.slice(0, 8)}…</span></span>
-          <button onClick={onClearFilter} className="text-primary hover:underline">Show all</button>
+          <span>
+            Filtered to conversation{' '}
+            <span className="font-mono">{threadFilter.slice(0, 8)}…</span>
+          </span>
+          <button
+            onClick={onClearFilter}
+            className="text-primary hover:underline"
+          >
+            Show all
+          </button>
         </div>
       )}
 
       {shown.length === 0 && !loading && (
-        <p className="text-sm text-muted-foreground">No episodes{threadFilter ? ' for this conversation' : ''} yet.</p>
+        <p className="text-sm text-muted-foreground">
+          No episodes{threadFilter ? ' for this conversation' : ''} yet.
+        </p>
       )}
 
       <div className="space-y-2">
@@ -542,11 +698,26 @@ function EpisodesTab({
                 onClick={() => setExpanded(open ? null : ep.episodeId)}
                 className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/30"
               >
-                <ChevronRight className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`} />
+                <ChevronRight
+                  className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`}
+                />
                 <span className={`w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${s.badge}`}>{s.label}</span>
-                <span className="text-sm truncate flex-1">{ep.summary ?? <span className="text-muted-foreground italic">No summary</span>}</span>
-                <span className="text-[10px] text-muted-foreground shrink-0">{ep.messageCount} msg{ep.messageCount !== 1 ? 's' : ''} · {relTime(ep.endedAt ?? ep.createdAt)}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${s.badge}`}
+                >
+                  {s.label}
+                </span>
+                <span className="text-sm truncate flex-1">
+                  {ep.summary ?? (
+                    <span className="text-muted-foreground italic">
+                      No summary
+                    </span>
+                  )}
+                </span>
+                <span className="text-[10px] text-muted-foreground shrink-0">
+                  {ep.messageCount} msg{ep.messageCount !== 1 ? 's' : ''} ·{' '}
+                  {relTime(ep.endedAt ?? ep.createdAt)}
+                </span>
               </button>
 
               {open && (
@@ -557,28 +728,48 @@ function EpisodesTab({
                     <Meta label="threadId" value={ep.threadId ?? '—'} />
                     <Meta label="status" value={ep.status} />
                     <Meta label="messages" value={String(ep.messageCount)} />
-                    <Meta label="tokens" value={ep.tokenCount != null ? ep.tokenCount.toLocaleString() : '—'} />
+                    <Meta
+                      label="tokens"
+                      value={
+                        ep.tokenCount != null
+                          ? ep.tokenCount.toLocaleString()
+                          : '—'
+                      }
+                    />
                     <Meta label="retries" value={String(ep.retryCount)} />
                     <Meta label="startedAt" value={dateTime(ep.startedAt)} />
                     <Meta label="endedAt" value={dateTime(ep.endedAt)} />
-                    <Meta label="processingStartedAt" value={dateTime(ep.processingStartedAt)} />
-                    <Meta label="processingCompletedAt" value={dateTime(ep.processingCompletedAt)} />
+                    <Meta
+                      label="processingStartedAt"
+                      value={dateTime(ep.processingStartedAt)}
+                    />
+                    <Meta
+                      label="processingCompletedAt"
+                      value={dateTime(ep.processingCompletedAt)}
+                    />
                     <Meta label="createdAt" value={dateTime(ep.createdAt)} />
                   </dl>
 
                   {ep.summary && (
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Summary</div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                        Summary
+                      </div>
                       <p className="text-sm leading-relaxed">{ep.summary}</p>
                     </div>
                   )}
 
                   {ep.keyLearnings && ep.keyLearnings.length > 0 && (
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Key learnings</div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                        Key learnings
+                      </div>
                       <ul className="space-y-1">
                         {ep.keyLearnings.map((k, i) => (
-                          <li key={i} className="flex gap-2 text-muted-foreground">
+                          <li
+                            key={i}
+                            className="flex gap-2 text-muted-foreground"
+                          >
                             <span className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/50 shrink-0" />
                             <span>{k}</span>
                           </li>
@@ -588,7 +779,7 @@ function EpisodesTab({
                   )}
 
                   {ep.status === 'failed' && ep.error && (
-                    <div className="flex gap-2 items-start text-red-600 dark:text-red-400 bg-red-500/10 rounded-md px-3 py-2">
+                    <div className="flex gap-2 items-start text-destructive bg-destructive/10 rounded-md px-3 py-2">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                       <span className="break-all">{ep.error}</span>
                     </div>
@@ -599,7 +790,8 @@ function EpisodesTab({
                       onClick={() => onViewConversation(ep.threadId!)}
                       className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 hover:bg-muted/50 transition-colors"
                     >
-                      <MessagesSquare className="h-3.5 w-3.5" /> View conversation <ArrowRight className="h-3 w-3" />
+                      <MessagesSquare className="h-3.5 w-3.5" /> View
+                      conversation <ArrowRight className="h-3 w-3" />
                     </button>
                   )}
                 </div>
@@ -616,7 +808,9 @@ function Meta({ label, value }: { label: string; value: string }) {
   return (
     <Fragment>
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="truncate" title={value}>{value}</dd>
+      <dd className="truncate" title={value}>
+        {value}
+      </dd>
     </Fragment>
   );
 }

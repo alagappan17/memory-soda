@@ -7,6 +7,13 @@ import type {
 import { Markdown } from '../../components/markdown';
 import { Card, CardContent } from '../../components/ui/card';
 import { Separator } from '../../components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
 
 // ── Message meta + detail card ────────────────────────────────────────────────
 //
@@ -66,7 +73,7 @@ function MessageDetailCard({ msg }: { msg: WMMessage }) {
   });
 
   return (
-    <Card className="shadow-xl border-border text-xs w-72">
+    <Card className="border-border text-xs w-72">
       <CardContent className="p-3 space-y-2.5">
         <div className="grid grid-cols-[5rem_1fr] gap-x-3 gap-y-1.5 items-baseline">
           <span className="text-muted-foreground">Message</span>
@@ -151,7 +158,15 @@ function MessageDetailCard({ msg }: { msg: WMMessage }) {
 
 // ── Manual message form ───────────────────────────────────────────────────────
 
-const ROLES: MessageRole[] = ['user', 'assistant', 'system', 'tool'];
+const ROLES: { value: MessageRole; hint: string }[] = [
+  { value: 'user', hint: 'what the person said' },
+  { value: 'assistant', hint: 'a reply your own model produced' },
+  { value: 'system', hint: 'instructions — kept out of extraction' },
+  { value: 'tool', hint: 'a tool result the model saw' },
+];
+
+const FIELD =
+  'rounded-md border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring font-mono placeholder:font-sans placeholder:text-muted-foreground';
 
 function ManualMessageForm({
   onSubmit,
@@ -162,14 +177,20 @@ function ManualMessageForm({
 }) {
   const [role, setRole] = useState<MessageRole>('user');
   const [content, setContent] = useState('');
+  const [showMeta, setShowMeta] = useState(false);
   const [model, setModel] = useState('');
   const [latencyMs, setLatencyMs] = useState('');
   const [tokensIn, setTokensIn] = useState('');
   const [tokensOut, setTokensOut] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const canSubmit = !disabled && !!content.trim() && !submitting;
+  const metaCount = [model, latencyMs, tokensIn, tokensOut].filter(
+    Boolean,
+  ).length;
+
   async function submit() {
-    if (!content.trim() || submitting || disabled) return;
+    if (!canSubmit) return;
     setSubmitting(true);
     const input = tokensIn ? parseInt(tokensIn, 10) : undefined;
     const output = tokensOut ? parseInt(tokensOut, 10) : undefined;
@@ -188,67 +209,93 @@ function ManualMessageForm({
     setSubmitting(false);
   }
 
+  const digits =
+    (set: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      set(e.target.value.replace(/\D/g, ''));
+
   return (
     <div className="px-4 pb-3 space-y-2">
       <div className="flex items-center gap-2">
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value as MessageRole)}
-          className="rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
+        <Select value={role} onValueChange={(v) => setRole(v as MessageRole)}>
+          <SelectTrigger className="h-7 w-32 rounded-md px-2 text-xs font-mono">
+            <SelectValue>{role}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {ROLES.map((r) => (
+              <SelectItem key={r.value} value={r.value} className="text-xs">
+                <span className="font-mono">{r.value}</span>
+                <span className="ml-2 text-muted-foreground">{r.hint}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <button
+          onClick={() => setShowMeta((v) => !v)}
+          className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
         >
-          {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
-        <input
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          placeholder="model (optional)"
-          className="flex-1 min-w-0 rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring font-mono"
-        />
-        <input
-          value={latencyMs}
-          onChange={(e) => setLatencyMs(e.target.value.replace(/\D/g, ''))}
-          placeholder="latency ms"
-          className="w-20 rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring font-mono"
-        />
+          {showMeta ? 'hide' : 'add'} metadata
+          {metaCount ? ` (${metaCount})` : ''}
+        </button>
+        <span className="ml-auto text-[10px] text-muted-foreground">
+          inserts without an AI reply
+        </span>
       </div>
-      <div className="flex items-center gap-2">
-        <input
-          value={tokensIn}
-          onChange={(e) => setTokensIn(e.target.value.replace(/\D/g, ''))}
-          placeholder="tokens in"
-          className="w-24 rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring font-mono"
-        />
-        <input
-          value={tokensOut}
-          onChange={(e) => setTokensOut(e.target.value.replace(/\D/g, ''))}
-          placeholder="tokens out"
-          className="w-24 rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring font-mono"
-        />
-      </div>
-      <div className="flex items-end gap-2">
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder={`Raw ${role} message content…`}
-          rows={2}
-          className="flex-1 text-xs rounded border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring resize-none font-mono"
-        />
+
+      {showMeta && (
+        <div className="grid grid-cols-4 gap-2">
+          <input
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder="model"
+            className={FIELD}
+          />
+          <input
+            value={latencyMs}
+            onChange={digits(setLatencyMs)}
+            inputMode="numeric"
+            placeholder="latency ms"
+            className={FIELD}
+          />
+          <input
+            value={tokensIn}
+            onChange={digits(setTokensIn)}
+            inputMode="numeric"
+            placeholder="tokens in"
+            className={FIELD}
+          />
+          <input
+            value={tokensOut}
+            onChange={digits(setTokensOut)}
+            inputMode="numeric"
+            placeholder="tokens out"
+            className={FIELD}
+          />
+        </div>
+      )}
+
+      <textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            void submit();
+          }
+        }}
+        placeholder={`${role} message…`}
+        rows={3}
+        className={`w-full resize-none px-3 py-2 ${FIELD}`}
+      />
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-muted-foreground">⌘↵ to add</span>
         <button
           onClick={() => void submit()}
-          disabled={disabled || !content.trim() || submitting}
-          className="shrink-0 text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors"
+          disabled={!canSubmit}
+          className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity"
         >
-          {submitting ? 'Adding…' : 'Add'}
+          {submitting ? 'Adding…' : `Add ${role} message`}
         </button>
       </div>
-      <p className="text-[10px] text-muted-foreground">
-        Calls addMessage directly — inserts into the thread without triggering
-        an AI reply. Demos tool/system messages, tokens, model, latencyMs.
-      </p>
     </div>
   );
 }
@@ -371,20 +418,20 @@ export function ChatPanel({
                 className={`max-w-[78%] flex flex-col group/msg relative ${isUser ? 'items-end' : 'items-start'}`}
               >
                 <div
-                  className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                  className={`rounded-lg px-4 py-2.5 text-sm leading-relaxed ${
                     msg.compactedAt
                       ? 'opacity-35 line-through decoration-muted-foreground'
                       : isUser
                         ? 'bg-primary text-primary-foreground rounded-br-sm'
                         : msg.role === 'system'
-                          ? 'bg-amber-50 border border-amber-200 text-amber-900 rounded-bl-sm dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200'
+                          ? 'bg-background border border-border rounded-bl-sm'
                           : isTool
                             ? 'bg-muted/50 border border-border font-mono text-xs rounded-bl-sm'
                             : 'bg-muted rounded-bl-sm'
                   }`}
                 >
                   {msg.role === 'system' && (
-                    <span className="block text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-1">
+                    <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                       {msg.metadata &&
                       (msg.metadata as Record<string, unknown>)['type'] ===
                         'compact_summary'
@@ -428,7 +475,7 @@ export function ChatPanel({
 
         {sending && (
           <div className="flex justify-start">
-            <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-muted-foreground">
+            <div className="bg-muted rounded-lg rounded-bl-sm px-4 py-3 text-sm text-muted-foreground">
               <span className="animate-pulse">Thinking…</span>
             </div>
           </div>
@@ -457,13 +504,13 @@ export function ChatPanel({
             placeholder="Message… (Enter to send)"
             rows={1}
             disabled={sending}
-            className="flex-1 resize-none rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 max-h-40 overflow-y-auto"
+            className="flex-1 resize-none rounded-lg border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 max-h-40 overflow-y-auto"
             style={{ minHeight: '42px' }}
           />
           <button
             onClick={send}
             disabled={!canSend}
-            className="shrink-0 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
+            className="shrink-0 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
           >
             Send
           </button>

@@ -28,7 +28,7 @@ function Toggle({
       }`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+        className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${
           on ? 'translate-x-4' : 'translate-x-0'
         }`}
       />
@@ -55,7 +55,9 @@ function PanelShell({
         <span className="font-mono">{open ? '▾' : '▸'}</span>
         {title}
       </button>
-      {open && <div className="px-4 pb-4 pt-1 bg-card space-y-3">{children}</div>}
+      {open && (
+        <div className="px-4 pb-4 pt-1 bg-card space-y-3">{children}</div>
+      )}
     </div>
   );
 }
@@ -84,7 +86,9 @@ export function WorkingMemoryPanel({
             })
           }
           disabled={hasThread}
-          title={hasThread ? 'Cannot change after thread is started' : undefined}
+          title={
+            hasThread ? 'Cannot change after thread is started' : undefined
+          }
         />
       </div>
 
@@ -141,9 +145,16 @@ export function WorkingMemoryPanel({
         />
       </div>
 
+      {settings.autoCompactEnabled &&
+        settings.messageLimit < settings.autoCompactThreshold && (
+          <p className="text-[10px] text-destructive bg-destructive/10 rounded px-2 py-1">
+            Message limit is below the compact threshold — messages between the
+            summary and the tail will be skipped by prepare.
+          </p>
+        )}
       {hasThread && (
         <p className="text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1">
-          Thread active — start a new thread to change settings.
+          Thread active — start a new thread to change auto-compact.
         </p>
       )}
     </PanelShell>

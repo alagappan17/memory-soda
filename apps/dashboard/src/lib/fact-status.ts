@@ -2,14 +2,18 @@ import type { SemanticFact } from '@memory-soda/types';
 
 export const day = (iso: string) => iso.slice(0, 10);
 
-export type FactStatus = 'valid' | 'expired' | 'invalidated' | 'below threshold';
+export type FactStatus =
+  | 'valid'
+  | 'expired'
+  | 'invalidated'
+  | 'below threshold';
 
 /** Status dot color per bi-temporal state — shared by every fact list. */
 export const FACT_STATUS_DOT: Record<FactStatus, string> = {
-  valid: 'bg-green-500',
-  expired: 'bg-amber-500',
-  invalidated: 'bg-muted-foreground',
-  'below threshold': 'bg-slate-400',
+  valid: 'bg-foreground',
+  expired: 'bg-muted-foreground',
+  invalidated: 'bg-muted-foreground/40',
+  'below threshold': 'bg-muted-foreground/40',
 };
 
 /**
@@ -48,9 +52,7 @@ export function applyFactDeletion(
 ): SemanticFact[] {
   return showInvalidated
     ? facts.map((f) =>
-        f.factId === factId
-          ? { ...f, invalidAt: new Date().toISOString() }
-          : f,
+        f.factId === factId ? { ...f, invalidAt: new Date().toISOString() } : f,
       )
     : facts.filter((f) => f.factId !== factId);
 }

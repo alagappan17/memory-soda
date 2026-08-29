@@ -67,9 +67,7 @@ export function FactsTab({
   const loadEntities = useCallback(async () => {
     if (!ready) return;
     try {
-      setEntities(
-        await quiet(apiKey, (memory) => memory.listEntities(scope)),
-      );
+      setEntities(await quiet(apiKey, (memory) => memory.listEntities(scope)));
     } catch (err) {
       setError(describeError(err, 'Failed to load entities').message);
     }
@@ -212,6 +210,7 @@ export function FactsTab({
                 key={f.factId}
                 fact={f}
                 threshold={threshold}
+                apiKey={apiKey}
                 onDelete={(id) => void removeFact(id)}
               />
             ))}
@@ -263,6 +262,7 @@ export function FactsTab({
                     key={f.factId}
                     fact={f}
                     threshold={threshold}
+                    apiKey={apiKey}
                     onDelete={(id) => void removeFact(id)}
                   />
                 ))}
