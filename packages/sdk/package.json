@@ -63,8 +63,9 @@
       },
       "test": {
         "executor": "nx:run-commands",
+        "dependsOn": ["^build"],
         "options": {
-          "command": "node --test \"packages/sdk/src/**/*.test.ts\""
+          "command": "node --import ./tools/resolve-ts.mjs --test \"packages/sdk/src/**/*.test.ts\""
         }
       }
     }

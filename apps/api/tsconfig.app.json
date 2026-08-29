@@ -9,7 +9,7 @@
   "include": ["src/**/*.ts"],
   // Tests import sibling modules by their real `.ts` path (node runs them
   // directly, stripping types) and are never part of the shipped build.
-  "exclude": ["src/**/*.test.ts"],
+  "exclude": ["src/**/*.test.ts", "src/test/**"],
   "references": [
     {
       "path": "../../packages/types/tsconfig.lib.json"

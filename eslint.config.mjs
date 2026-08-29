@@ -49,6 +49,12 @@ export default tseslint.config(
     },
   },
 
+  // ── Tests: JSON responses are asserted on, not typed ──────────────────────
+  {
+    files: ['**/*.test.ts', 'apps/api/src/test/**/*.ts'],
+    rules: { '@typescript-eslint/no-explicit-any': 'off' },
+  },
+
   // ── API: Node, background jobs ────────────────────────────────────────────
   {
     files: ['apps/api/**/*.ts', 'packages/**/*.ts'],
