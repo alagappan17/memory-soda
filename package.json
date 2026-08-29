@@ -16,7 +16,8 @@
     "release": "nx release",
     "lint:fix": "eslint . --fix",
     "db:migrate": "npm run --workspace=apps/api db:migrate",
-    "db:generate": "npm run --workspace=apps/api db:generate"
+    "db:generate": "npm run --workspace=apps/api db:generate",
+    "prepare": "husky"
   },
   "private": true,
   "devDependencies": {
@@ -35,6 +36,8 @@
     "eslint": "^9.39.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.11.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.4.1",
     "nx": "22.6.4",
     "prettier": "~3.6.2",
     "tslib": "^2.3.0",
@@ -46,5 +49,14 @@
   "workspaces": [
     "packages/*",
     "apps/*"
-  ]
+  ],
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,mdx,css,astro}": [
+      "prettier --write"
+    ]
+  }
 }
