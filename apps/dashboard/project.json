@@ -7,14 +7,16 @@
       "options": {
         "command": "vite",
         "cwd": "{projectRoot}"
-      }
+      },
+      "dependsOn": ["^build"]
     },
     "build": {
       "executor": "nx:run-commands",
       "options": {
         "command": "vite build",
         "cwd": "{projectRoot}"
-      }
+      },
+      "dependsOn": ["^build"]
     },
     "preview": {
       "executor": "nx:run-commands",
@@ -30,9 +32,7 @@
         "command": "tsc --noEmit -p tsconfig.json",
         "cwd": "{projectRoot}"
       },
-      "dependsOn": [
-        "^build"
-      ]
+      "dependsOn": ["^build"]
     }
   }
 }
