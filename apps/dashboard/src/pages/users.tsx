@@ -228,6 +228,17 @@ export default function UsersPage() {
         </div>
       </div>
 
+      <ChangePasswordDialog
+        open={showChangePassword}
+        onOpenChange={setShowChangePassword}
+        onDone={(message, type) => {
+          setNotice(null);
+          setError(null);
+          if (type === 'success') setNotice(message);
+          else setError(message);
+        }}
+      />
+
       <Dialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {
@@ -245,16 +256,6 @@ export default function UsersPage() {
               ? This cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <ChangePasswordDialog
-            open={showChangePassword}
-            onOpenChange={setShowChangePassword}
-            onDone={(message, type) => {
-              setNotice(null);
-              setError(null);
-              if (type === 'success') setNotice(message);
-              else setError(message);
-            }}
-          />
           <DialogFooter className="mt-6 flex justify-end gap-2">
             <button
               type="button"
