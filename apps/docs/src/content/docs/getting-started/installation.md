@@ -48,7 +48,9 @@ It ends with a status block and a **Before you run** list, for example:
 │ 1. Set GOOGLE_GENERATIVE_AI_API_KEY in .env — the API refuses to start without it
 ```
 
-The project keeps its `.git`; `npm run update` pulls and reinstalls later.
+The project keeps its `.git` with the public repo as `upstream`, so
+`npm run update` (`git pull upstream main && npm install`) brings in fixes.
+Add your own repo as `origin` to deploy from it.
 Pass `--verbose` to stream clone/install output instead of a spinner.
 
 ---

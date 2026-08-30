@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "update": "git pull && npm install",
+    "update": "git pull upstream main && npm install",
     "dev": "concurrently -n api,web -c cyan,magenta \"nx serve @memory-soda/api\" \"nx dev @memory-soda/dashboard\"",
     "build": "nx run-many --target=build --all",
     "lint": "eslint .",

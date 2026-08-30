@@ -494,11 +494,16 @@ async function main() {
   // ── 7. Install
   await runWithSpinner(`Cloning into ${chalk.bold(dirName)}`, 'git', [
     'clone',
-    '--depth',
-    '1',
     REPO,
     target,
   ]);
+  // The clone points at the public repo, which the user cannot push to.
+  // Name it `upstream` so `git pull upstream main` fetches fixes and `origin`
+  // stays free for the repo they deploy from.
+  execFileSync('git', ['remote', 'rename', 'origin', 'upstream'], {
+    cwd: target,
+    stdio: 'ignore',
+  });
   writeFileSync(
     resolve(target, '.env'),
     renderEnv({
@@ -568,6 +573,13 @@ async function main() {
       'Then sign in, create an API key, and: npm install @memory-soda/sdk',
     ].join('\n'),
     'Run',
+  );
+  p.note(
+    [
+      'Updates   npm run update        (git pull upstream main && npm install)',
+      'Your repo git remote add origin <url> && git push -u origin main',
+    ].join('\n'),
+    'Git',
   );
   p.outro(
     `Thanks for trying Memory Soda — ${chalk.bold(basename(target))} is ready.`,

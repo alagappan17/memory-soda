@@ -31,8 +31,8 @@ cd memory-soda
 npm run dev
 ```
 
-Sign in to the dashboard (:3000) to create an API key. `npm run update` pulls
-and reinstalls later. Pass `--verbose` to stream clone/install output.
+Sign in to the dashboard (:3000) to create an API key. The public repo is
+remote `upstream`; `npm run update` pulls from it. Add your own repo as `origin`. Pass `--verbose` to stream clone/install output.
 
 ## Requirements
 

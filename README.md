@@ -47,11 +47,19 @@ prompted, and create an API key under **API Keys**.
 ### Updating
 
 ```bash
-npm run update   # git pull && npm install
+npm run update   # git pull upstream main && npm install
 npm run dev      # migrations apply on boot
 ```
 
 `.env` is gitignored, so your config survives the pull.
+
+The installer names the public repo `upstream` and leaves `origin` free for
+your own repo — the one your host deploys from:
+
+```bash
+git remote add origin git@github.com:you/memory-soda.git
+git push -u origin main
+```
 
 | Service     | URL                          |
 | ----------- | ---------------------------- |

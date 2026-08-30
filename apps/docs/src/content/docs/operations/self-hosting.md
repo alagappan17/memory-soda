@@ -263,8 +263,16 @@ Nothing outside Postgres needs backing up. There is no local state on the API.
 
 ## Upgrading
 
+The installer names the public repo `upstream`; `origin` is yours. Push to
+`origin` to deploy, pull from `upstream` to upgrade:
+
 ```bash
-git pull
+git remote add origin git@github.com:you/memory-soda.git   # once
+git push -u origin main
+```
+
+```bash
+git pull upstream main
 npm ci
 npm run build
 # restart; migrations run on boot with MIGRATE_ON_START=true
