@@ -1,40 +1,39 @@
 # create-memory-soda
 
 Scaffold a self-hosted [Memory Soda](https://github.com/alagappan17/memory-soda)
-instance — API, dashboard, SDK, and a Postgres to point them at.
+instance — API, dashboard, and a Postgres to point them at.
 
 ```bash
 npm create memory-soda@latest
 ```
 
-It asks for a folder name, a Gemini API key, your Postgres connection string,
-which ports to use, and the dashboard admin login. Then it clones the repo,
-writes `.env`, installs dependencies, creates the database if it is missing,
-and verifies pgvector is available. Clone and install run behind a spinner;
-pass `--verbose` to stream their full output instead.
+The installer checks each requirement before asking you to use it, creates
+what it can, and ends with a checklist of anything it could not do for you.
+
+1. **Preflight** — Node 20+ and git. Missing? Prints the install command for
+   your OS and stops. Nothing is written.
+2. **Folder** — `memory-soda` by default.
+3. **Postgres** — bring your own URL, let it start `pgvector/pgvector:pg16` in
+   Docker (offered when Docker is running), or skip.
+4. **Database check** — connects, offers to create a missing database,
+   confirms pgvector and enables the extension. Failures name the fix and let
+   you retry, paste another URL, or skip.
+5. **Gemini key** — checked live. Blank allowed; goes on the checklist.
+6. **Ports and admin login** — ports checked for use; blank password is
+   generated at first boot.
+7. **Clone, `.env`, `npm ci`, migrations** — migrations run now if the database
+   passed.
+
+Then:
 
 ```bash
 cd memory-soda
 npm run dev
 ```
 
-First boot applies migrations and creates your admin user. Sign in to the
-dashboard to create an API key.
-Dashboard on :3000, API on :3004.
-
-To update later, run `npm run update` (git pull + install) and restart.
-
-## Postgres
-
-You bring the server; the installer creates the database. It asks for a
-`DATABASE_URL`, probes the host and port while you are still at the prompt, and
-after install connects for real. A missing database is created for you (the
-role in the URL needs `CREATEDB`). Anything else — server down, bad password,
-no pgvector — names the fix and lets you retry without starting over.
-
-The role in the URL needs permission to `CREATE EXTENSION vector` — the first
-migration creates the extension. On most installations that means a superuser.
+Sign in to the dashboard (:3000) to create an API key. `npm run update` pulls
+and reinstalls later. Pass `--verbose` to stream clone/install output.
 
 ## Requirements
 
-Node 20+, git, and a Postgres 14+ with the pgvector extension available.
+Node 20+, git. Postgres 14+ with pgvector, or Docker.

@@ -7,44 +7,62 @@ Memory Soda is self-hosted. You run Postgres, you bring a Gemini API key.
 
 ---
 
-## The short way
+## Install
 
 ```bash
 npm create memory-soda@latest
 ```
 
-The installer asks for a folder name, your Gemini API key, your `DATABASE_URL`,
-which ports to use, and the dashboard admin login, then clones the repo, writes
-`.env`, installs dependencies, and checks the database. Skip to
-[Quickstart](/getting-started/quickstart/) once it finishes.
+The installer is the one supported way to set up a self-hosted instance. It
+checks each requirement before it asks you to use it, creates what it can, and
+finishes with a checklist of anything it could not do for you.
 
-You supply Postgres yourself, so set it up first, see
-[Prerequisites](#prerequisites) below. The installer connects before it finishes
-and tells you exactly what is missing rather than leaving it to fail at boot:
+What it does, in order:
+
+1. **Preflight** — Node 20+ and git. Missing? It prints the install command
+   for your OS and stops; nothing is written. Re-run after installing.
+2. **Folder** — `memory-soda` by default; must be empty or missing.
+3. **Postgres** — pick one:
+   - _I have one_ — give the URL (default `postgresql://localhost:5432/memory_db`)
+   - _Start one in Docker for me_ — shown when Docker is running; starts
+     `pgvector/pgvector:pg16` as `memory-soda-pg` with a generated password
+   - _Skip_ — set `DATABASE_URL` yourself later
+4. **Database check** — connects, offers to create a missing database, confirms
+   pgvector is installed and runs `CREATE EXTENSION vector`. Every failure names
+   the fix and lets you retry, paste another URL, or skip.
+5. **Gemini key** — checked live against the API. Blank is allowed, but the API
+   will not start until it is set.
+6. **Ports and admin login** — ports are checked for use; a blank password is
+   generated and printed once at first boot.
+7. **Clone, `.env`, `npm ci`, migrations** — migrations run now if the
+   database passed, otherwise they are left on the checklist.
+
+It ends with a status block and a **Before you run** list, for example:
 
 ```
-! database "memory_db" does not exist
-  createdb memory_db
-Fix it and press enter to retry, or type a new DATABASE_URL (s to skip):
+│ ✓ Postgres  postgresql://localhost:5432/memory_db
+│ ✗ Gemini key missing
+│ ✓ Migrations applied
+│
+│ Before you run
+│ 1. Set GOOGLE_GENERATIVE_AI_API_KEY in .env — the API refuses to start without it
 ```
 
-> Planning to send patches? Clone instead. The installer removes `.git` so your
-> project is not a fork of this repo, see
-> [Development setup](/contributing/development/).
-
-Everything below is the same setup done by hand.
+The project keeps its `.git`; `npm run update` pulls and reinstalls later.
+Pass `--verbose` to stream clone/install output instead of a spinner.
 
 ---
 
 ## Prerequisites
 
-| Requirement    | Version     | Notes                                                                               |
-| -------------- | ----------- | ----------------------------------------------------------------------------------- |
-| Node.js        | 20 or newer | 22+ recommended                                                                     |
-| PostgreSQL     | 14 or newer | must have the [pgvector](https://github.com/pgvector/pgvector) extension available  |
-| Gemini API key | ,           | free tier is enough to evaluate, [aistudio.google.com](https://aistudio.google.com) |
+| Requirement    | Version     | Notes                                                                                                               |
+| -------------- | ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| Node.js        | 20 or newer | 22+ recommended                                                                                                     |
+| git            | any         |                                                                                                                     |
+| PostgreSQL     | 14 or newer | must have the [pgvector](https://github.com/pgvector/pgvector) extension — or let the installer start one in Docker |
+| Gemini API key |             | free tier is enough to evaluate, [aistudio.google.com](https://aistudio.google.com)                                 |
 
-### Installing pgvector
+### Installing pgvector on your own Postgres
 
 <details>
 <summary>macOS (Homebrew)</summary>
@@ -66,88 +84,21 @@ sudo apt install postgresql-16-pgvector   # match your server major version
 
 </details>
 
-<details>
-<summary>Docker</summary>
-
-```bash
-docker run -d --name memory-pg \
-  -e POSTGRES_PASSWORD=memory_pass \
-  -e POSTGRES_USER=memory_user \
-  -e POSTGRES_DB=memory_db \
-  -p 5432:5432 \
-  pgvector/pgvector:pg16
-```
-
-</details>
-
-Verify it is available:
+Verify:
 
 ```bash
 psql -d postgres -c "SELECT * FROM pg_available_extensions WHERE name = 'vector';"
 ```
 
----
+> `CREATE EXTENSION` needs superuser on most installations. If the role in your
+> URL lacks it, the installer puts the exact `psql` command on your checklist.
 
-## 1. Clone and install
-
-```bash
-git clone https://github.com/alagappan17/memory-soda
-cd memory-soda
-npm install
-```
+> Planning to send patches? Clone instead — see
+> [Development setup](/contributing/development/).
 
 ---
 
-## 2. Create the database
-
-```bash
-createdb memory_db
-psql -d memory_db -c "CREATE ROLE memory_user LOGIN PASSWORD 'memory_pass';"
-psql -d memory_db -c "CREATE EXTENSION IF NOT EXISTS vector;"
-psql -d memory_db -c "ALTER DATABASE memory_db OWNER TO memory_user;"
-```
-
-> `CREATE EXTENSION` requires superuser on most installations. Run it as your
-> Postgres superuser, not as `memory_user`.
-
----
-
-## 3. Configure
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env`, only two values are required:
-
-```bash
-# Required
-DATABASE_URL=postgresql://memory_user:memory_pass@localhost:5432/memory_db
-GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
-
-# Optional, shown with defaults
-HOST=localhost
-PORT=3004
-CORS_ORIGIN=http://localhost:3000
-MIGRATE_ON_START=true
-```
-
-Full list: [Environment variables](/reference/environment-variables/).
-
----
-
-## 4. Apply migrations
-
-With `MIGRATE_ON_START=true` this happens automatically on boot. To run it
-explicitly:
-
-```bash
-npm run --workspace=apps/api db:migrate
-```
-
----
-
-## 5. Start
+## Start
 
 ```bash
 npm run dev
@@ -178,7 +129,7 @@ line. Sign in and create an API key under **API Keys**.
 
 ---
 
-## 6. Verify
+## Verify
 
 ```bash
 curl http://localhost:3004/health
