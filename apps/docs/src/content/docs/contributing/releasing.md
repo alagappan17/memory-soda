@@ -99,11 +99,8 @@ will get a `404` or a silently missing field, with nothing to explain it.
 ### Smoke test
 
 ```bash
-npm run sdk:build
-npm link --workspace=packages/sdk
-
 mkdir /tmp/sdk-smoke && cd /tmp/sdk-smoke && npm init -y
-npm link @memory-soda/sdk
+npm install @memory-soda/sdk@latest
 
 cat > test.mjs <<'EOF'
 import { MemorySoda } from '@memory-soda/sdk';

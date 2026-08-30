@@ -141,33 +141,16 @@ await memory.forgetDataset('user_42'); // erase it, for real
 > **Server-side only.** An API key grants full read and write access to every
 > dataset in its project. Never ship it to a browser or a mobile app.
 
-### Install locally (pre-publish / contributors)
+### Environments
 
-**Option A — npm link** (recommended while actively developing the SDK)
+The SDK is the same everywhere; only `baseUrl` changes. Point it at
+`http://localhost:3004` in development and at your deployed API in production:
 
-```bash
-# In this repo — build and register globally
-cd packages/sdk && npm run build && cd ../..
-npm link --workspace=packages/sdk
-
-# In your app
-npm link @memory-soda/sdk
-
-# When you change SDK code, just rebuild — the link picks up the new dist:
-npm run sdk:build
-```
-
-**Option B — file path** (stable snapshot, no global symlink)
-
-```bash
-# In your app's package.json:
-"@memory-soda/sdk": "file:../memory-soda/packages/sdk"
-
-npm install
-
-# After SDK changes: rebuild then reinstall in your app
-npm run sdk:build          # in this repo
-npm install                # in your app
+```ts
+const memory = new MemorySoda({
+  baseUrl: process.env.MEMORY_SODA_URL,
+  apiKey: process.env.MEMORY_SODA_API_KEY,
+});
 ```
 
 ---

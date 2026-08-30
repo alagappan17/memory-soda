@@ -157,26 +157,17 @@ const memory = new MemorySoda({
 });
 ```
 
-### Working against a local checkout
+### Environments
 
-While developing the SDK itself, link it rather than publishing:
+Install the SDK from npm in every environment. Only `baseUrl` changes: your
+local API in development, your deployed API in production, so read it from
+config rather than hard-coding it:
 
-```bash
-# in this repo
-npm run sdk:build
-npm link --workspace=packages/sdk
-
-# in your app
-npm link @memory-soda/sdk
-```
-
-After changing SDK source, `npm run sdk:build` is enough, the link picks up the
-new `dist`.
-
-Alternatively, pin a file path in your app's `package.json`:
-
-```json
-{ "dependencies": { "@memory-soda/sdk": "file:../memory-soda/packages/sdk" } }
+```ts
+const memory = new MemorySoda({
+  baseUrl: process.env.MEMORY_SODA_URL,
+  apiKey: process.env.MEMORY_SODA_API_KEY,
+});
 ```
 
 ---
