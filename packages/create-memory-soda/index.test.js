@@ -10,25 +10,18 @@ import { renderEnv, isUsableTarget, parsePostgresUrl } from './index.js';
 const base = {
   databaseUrl: 'postgresql://u:p@localhost:5432/memory_db',
   geminiKey: 'AIza-test',
-  adminUser: 'admin',
-  adminPassword: '',
   apiPort: 3004,
   dashboardPort: 3000,
 };
 
 test('renderEnv writes the collected values', () => {
   const env = renderEnv(base);
-  assert.match(env, /^DATABASE_URL=postgresql:\/\/u:p@localhost:5432\/memory_db$/m);
-  assert.match(env, /^GOOGLE_GENERATIVE_AI_API_KEY=AIza-test$/m);
-  assert.match(env, /^ADMIN_USERNAME=admin$/m);
-});
-
-test('a blank password omits ADMIN_PASSWORD so the API generates one', () => {
-  assert.ok(!renderEnv(base).includes('ADMIN_PASSWORD'));
   assert.match(
-    renderEnv({ ...base, adminPassword: 'hunter2' }),
-    /^ADMIN_PASSWORD=hunter2$/m,
+    env,
+    /^DATABASE_URL=postgresql:\/\/u:p@localhost:5432\/memory_db$/m,
   );
+  assert.match(env, /^GOOGLE_GENERATIVE_AI_API_KEY=AIza-test$/m);
+  assert.match(env, /^# ADMIN_PASSWORD=open-sesame$/m);
 });
 
 // A dashboard on a non-default port that the API does not allow in CORS is the

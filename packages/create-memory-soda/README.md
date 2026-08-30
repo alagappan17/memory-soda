@@ -19,8 +19,8 @@ what it can, and ends with a checklist of anything it could not do for you.
    confirms pgvector and enables the extension. Failures name the fix and let
    you retry, paste another URL, or skip.
 5. **Gemini key** — checked live. Blank allowed; goes on the checklist.
-6. **Ports and admin login** — ports checked for use; blank password is
-   generated at first boot.
+6. **Ports** — checked for use. Dashboard login starts as `admin` /
+   `open-sesame`; change it after signing in.
 7. **Clone, `.env`, `npm ci`, migrations** — migrations run now if the database
    passed.
 
