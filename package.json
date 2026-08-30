@@ -18,6 +18,7 @@
     "release": "nx release",
     "lint:fix": "eslint . --fix",
     "db:migrate": "npm run --workspace=apps/api db:migrate",
+    "admin:reset-password": "npm run --workspace=apps/api admin:reset-password --",
     "db:generate": "npm run --workspace=apps/api db:generate",
     "prepare": "husky"
   },

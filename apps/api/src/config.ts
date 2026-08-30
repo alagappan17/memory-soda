@@ -1,3 +1,4 @@
+import { DEFAULT_ADMIN_PASSWORD } from '@memory-soda/types';
 import { z } from 'zod';
 
 /**
@@ -51,7 +52,7 @@ const schema = z.object({
 
   // ── First-boot admin ──────────────────────────────────────────────────────
   ADMIN_USERNAME: z.string().min(1).default('admin'),
-  ADMIN_PASSWORD: z.string().min(1).optional(),
+  ADMIN_PASSWORD: z.string().min(1).default(DEFAULT_ADMIN_PASSWORD),
 });
 
 function load(): z.infer<typeof schema> {
@@ -120,7 +121,6 @@ export const config = Object.freeze({
 
   admin: Object.freeze({
     username: env.ADMIN_USERNAME,
-    /** Undefined means "generate a random one and print it once". */
     password: env.ADMIN_PASSWORD,
   }),
 });

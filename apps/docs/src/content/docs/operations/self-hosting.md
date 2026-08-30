@@ -1,19 +1,20 @@
 ---
-title: "Self-hosting"
-description: "Memory Soda is self-hosted only. There is no managed offering."
+title: 'Self-hosting'
+description: 'Memory Soda is self-hosted only. There is no managed offering.'
 ---
+
 Memory Soda is self-hosted only. There is no managed offering.
 
 ---
 
 ## What you are running
 
-| Component | Notes |
-|---|---|
-| **API** | One Node process. Express, stateless except for in-process timers. |
-| **Dashboard** | Static assets from a Vite build. Any static host will do. |
-| **PostgreSQL** | With `pgvector`. The only datastore. |
-| **Gemini API** | External dependency. Required to boot. |
+| Component      | Notes                                                              |
+| -------------- | ------------------------------------------------------------------ |
+| **API**        | One Node process. Express, stateless except for in-process timers. |
+| **Dashboard**  | Static assets from a Vite build. Any static host will do.          |
+| **PostgreSQL** | With `pgvector`. The only datastore.                               |
+| **Gemini API** | External dependency. Required to boot.                             |
 
 No queue, no cache, no worker pool, no object storage.
 
@@ -24,11 +25,11 @@ No queue, no cache, no worker pool, no object storage.
 The API is IO-bound, it waits on Postgres and on Gemini. Extraction runs
 in-process but is mostly network wait.
 
-| Deployment | API | Postgres |
-|---|---|---|
-| Evaluation, one developer | 0.5 vCPU, 512 MB | shared, 1 GB |
-| Small production, < 10k datasets | 1 vCPU, 1 GB | 2 vCPU, 4 GB, SSD |
-| Larger | 2 vCPU, 2 GB | scale Postgres first, it is always the bottleneck |
+| Deployment                       | API              | Postgres                                          |
+| -------------------------------- | ---------------- | ------------------------------------------------- |
+| Evaluation, one developer        | 0.5 vCPU, 512 MB | shared, 1 GB                                      |
+| Small production, < 10k datasets | 1 vCPU, 1 GB     | 2 vCPU, 4 GB, SSD                                 |
+| Larger                           | 2 vCPU, 2 GB     | scale Postgres first, it is always the bottleneck |
 
 Two memory notes:
 
@@ -151,12 +152,12 @@ Superuser, once per database, before the first migration.
 
 ### Managed providers
 
-| Provider | pgvector |
-|---|---|
-| AWS RDS / Aurora | 15.2+ / 14.7+ |
-| Google Cloud SQL | 14+ |
-| Azure Database | 11+ |
-| Supabase, Neon | enabled by default |
+| Provider         | pgvector           |
+| ---------------- | ------------------ |
+| AWS RDS / Aurora | 15.2+ / 14.7+      |
+| Google Cloud SQL | 14+                |
+| Azure Database   | 11+                |
+| Supabase, Neon   | enabled by default |
 
 ### Connection pool
 
@@ -208,22 +209,22 @@ front of it.
 
 ### What it does not do
 
-| Missing | Mitigation |
-|---|---|
-| TLS | Terminate at the proxy |
-| Rate limiting, including `/auth/login` | Rate-limit at the proxy |
-| Per-dataset or read-only API keys | One project per tenant |
-| API key expiry | Rotate manually |
-| Audit logging | Log at the proxy |
-| Roles or permissions | Every dashboard user is a full admin |
+| Missing                                | Mitigation                           |
+| -------------------------------------- | ------------------------------------ |
+| TLS                                    | Terminate at the proxy               |
+| Rate limiting, including `/auth/login` | Rate-limit at the proxy              |
+| Per-dataset or read-only API keys      | One project per tenant               |
+| API key expiry                         | Rotate manually                      |
+| Audit logging                          | Log at the proxy                     |
+| Roles or permissions                   | Every dashboard user is a full admin |
 
 ### Checklist
 
 - [ ] TLS terminated in front
 - [ ] Rate limits on `/auth/login` and `/v1/*`
 - [ ] `CORS_ORIGIN` set to the exact dashboard origin, never `*`
-- [ ] `ADMIN_PASSWORD` unset in production so a random one is generated, or set
-      to something strong
+- [ ] Default admin password changed (the sidebar notice is gone), or
+      `ADMIN_PASSWORD` set to something strong before first boot
 - [ ] Postgres not publicly reachable
 - [ ] `GOOGLE_GENERATIVE_AI_API_KEY` in a secret store
 - [ ] Dashboard on a trusted origin, the session token lives in `localStorage`
@@ -278,10 +279,10 @@ Take a backup before upgrading, migrations are not reversible. See
 
 Gemini is the running cost. Per episode:
 
-| | |
-|---|---|
-| LLM calls | 3, summary, extraction, contradiction judging |
-| Embedding batches | 3, summary, entity names, fact strings |
+|                   |                                               |
+| ----------------- | --------------------------------------------- |
+| LLM calls         | 3, summary, extraction, contradiction judging |
+| Embedding batches | 3, summary, entity names, fact strings        |
 
 Plus one embedding per `recall()` with a query, and one LLM call per
 `recall({ include: ['synthesis'] })`.

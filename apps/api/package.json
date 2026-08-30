@@ -6,13 +6,16 @@
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:push": "drizzle-kit push --config=drizzle.config.ts",
-    "db:studio": "drizzle-kit studio --config=drizzle.config.ts"
+    "db:studio": "drizzle-kit studio --config=drizzle.config.ts",
+    "admin:reset-password": "node --env-file=../../.env --import ../../tools/resolve-ts.mjs src/scripts/reset-password.ts"
   },
   "nx": {
     "targets": {
       "test": {
         "executor": "nx:run-commands",
-        "dependsOn": ["^build"],
+        "dependsOn": [
+          "^build"
+        ],
         "options": {
           "command": "node --import ./tools/resolve-ts.mjs --test \"apps/api/src/**/*.test.ts\""
         }

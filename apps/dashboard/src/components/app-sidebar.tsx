@@ -11,6 +11,8 @@ import {
   Settings,
   Users,
   LogOut,
+  KeySquare,
+  ShieldAlert,
   ChevronsUpDown,
   Plus,
   Check,
@@ -38,6 +40,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ChangePasswordDialog } from '@/components/change-password-dialog';
 import {
   Select,
   SelectContent,
@@ -107,7 +110,8 @@ export default function AppSidebar() {
     createProject,
     loading,
   } = useProject();
-  const { user, logout } = useAuth();
+  const { user, logout, usingDefaultPassword } = useAuth();
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const projectInitial = selectedProject
     ? selectedProject.name.slice(0, 1).toUpperCase()
     : 'P';
@@ -219,6 +223,19 @@ export default function AppSidebar() {
 
       {/* Account + project switcher */}
       <SidebarFooter className="pb-4">
+        {usingDefaultPassword && (
+          <button
+            type="button"
+            onClick={() => setShowChangePassword(true)}
+            className="mb-2 flex items-start gap-2 rounded-md border border-border bg-muted px-3 py-2 text-left text-xs hover:bg-muted/70 transition-colors cursor-pointer group-data-[collapsible=icon]:hidden"
+          >
+            <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+              <span className="font-medium">Default password in use.</span>{' '}
+              Change it before exposing this dashboard.
+            </span>
+          </button>
+        )}
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col">
             {/* Profile circle, click to reveal the sign-out option. */}
@@ -244,6 +261,10 @@ export default function AppSidebar() {
                   </DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowChangePassword(true)}>
+                  <KeySquare />
+                  Change password
+                </DropdownMenuItem>
                 <DropdownMenuItem variant="destructive" onClick={logout}>
                   <LogOut />
                   Sign out
@@ -360,6 +381,12 @@ export default function AppSidebar() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ChangePasswordDialog
+        open={showChangePassword}
+        onOpenChange={setShowChangePassword}
+        onDone={showToast}
+      />
 
       {/* Floating Sonner-Style Toast Notification */}
       {toast.visible &&

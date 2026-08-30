@@ -1,14 +1,15 @@
 ---
-title: "Authentication"
-description: "Two independent credentials for two independent surfaces. They never mix, an API key cannot reach /dashboard/, and a session token cannot reach /v1/."
+title: 'Authentication'
+description: 'Two independent credentials for two independent surfaces. They never mix, an API key cannot reach /dashboard/, and a session token cannot reach /v1/.'
 ---
+
 Two independent credentials for two independent surfaces. They never mix, an
 API key cannot reach `/dashboard/*`, and a session token cannot reach `/v1/*`.
 
-| Surface | Credential | Grants |
-|---|---|---|
-| `/v1/*` | API key `ms_…` | Full read/write on **one project's** memory |
-| `/dashboard/*` | Session token `ms_sess_…` | The dashboard UI, across all projects |
+| Surface        | Credential                | Grants                                      |
+| -------------- | ------------------------- | ------------------------------------------- |
+| `/v1/*`        | API key `ms_…`            | Full read/write on **one project's** memory |
+| `/dashboard/*` | Session token `ms_sess_…` | The dashboard UI, across all projects       |
 
 ---
 
@@ -37,7 +38,10 @@ curl http://localhost:3004/v1/threads \
 ```
 
 ```ts
-const memory = new MemorySoda({ baseUrl, apiKey: process.env.MEMORY_SODA_API_KEY! });
+const memory = new MemorySoda({
+  baseUrl,
+  apiKey: process.env.MEMORY_SODA_API_KEY!,
+});
 ```
 
 ### Getting one
@@ -54,8 +58,15 @@ curl -X POST http://localhost:3004/dashboard/api-keys \
 ```json
 {
   "key": "ms_3f9a…",
-  "apiKey": { "id": "93fe…", "name": "production", "keyPreview": "ms_3f9a4c…0161",
-              "projectId": "ea43…", "createdAt": "…", "lastUsedAt": null, "revokedAt": null }
+  "apiKey": {
+    "id": "93fe…",
+    "name": "production",
+    "keyPreview": "ms_3f9a4c…0161",
+    "projectId": "ea43…",
+    "createdAt": "…",
+    "lastUsedAt": null,
+    "revokedAt": null
+  }
 }
 ```
 
@@ -73,12 +84,12 @@ permanent; `revokedAt` is stamped and the row is kept.
 
 ### Failure modes
 
-| Response | Cause |
-|---|---|
-| `401 Missing or invalid Authorization header` | No header, or not `Bearer ` |
-| `401 Invalid API key` | No matching hash |
-| `401 API key has been revoked` | `revokedAt` is set |
-| `401 API key is not linked to a project` | Orphaned row, recreate the key |
+| Response                                      | Cause                          |
+| --------------------------------------------- | ------------------------------ |
+| `401 Missing or invalid Authorization header` | No header, or not `Bearer `    |
+| `401 Invalid API key`                         | No matching hash               |
+| `401 API key has been revoked`                | `revokedAt` is set             |
+| `401 API key is not linked to a project`      | Orphaned row, recreate the key |
 
 The SDK surfaces all of these as [`AuthError`](/sdk/errors/#autherror).
 
@@ -116,7 +127,12 @@ curl -X POST http://localhost:3004/auth/login \
 ```json
 {
   "token": "ms_sess_1bbe…",
-  "user": { "id": "61a8…", "username": "admin", "createdAt": "…", "updatedAt": "…" }
+  "user": {
+    "id": "61a8…",
+    "username": "admin",
+    "createdAt": "…",
+    "updatedAt": "…"
+  }
 }
 ```
 
@@ -126,12 +142,12 @@ so latency cannot enumerate usernames.
 
 ### Session properties
 
-| | |
-|---|---|
-| Lifetime | 7 days from creation |
-| Storage | SHA-256 hash of the token; plaintext shown once |
-| Revocation | Server-side, immediate, `POST /auth/logout` |
-| `lastUsedAt` | Updated on every request |
+|              |                                                 |
+| ------------ | ----------------------------------------------- |
+| Lifetime     | 7 days from creation                            |
+| Storage      | SHA-256 hash of the token; plaintext shown once |
+| Revocation   | Server-side, immediate, `POST /auth/logout`     |
+| `lastUsedAt` | Updated on every request                        |
 
 Because sessions are database rows rather than JWTs, signing out actually
 invalidates the token.
@@ -152,15 +168,27 @@ curl http://localhost:3004/auth/me -H "Authorization: Bearer $SESSION_TOKEN"
 curl -X POST http://localhost:3004/auth/logout -H "Authorization: Bearer $SESSION_TOKEN"
 ```
 
+### Change password
+
+```bash
+curl -X POST http://localhost:3004/auth/password \
+  -H "Authorization: Bearer $SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"currentPassword":"open-sesame","newPassword":"something-longer"}'
+```
+
+`204` on success. `401` if the current password is wrong, `400` if the new one
+is under 6 characters. Existing sessions, including this one, stay valid.
+
 `204`, and the token 401s from then on.
 
 ### Failure modes
 
-| Response | Cause |
-|---|---|
-| `401 Invalid session` | No matching hash |
-| `401 Session has been revoked` | Signed out |
-| `401 Session has expired` | Past `expiresAt` |
+| Response                            | Cause                |
+| ----------------------------------- | -------------------- |
+| `401 Invalid session`               | No matching hash     |
+| `401 Session has been revoked`      | Signed out           |
+| `401 Session has expired`           | Past `expiresAt`     |
 | `401 Session user no longer exists` | The user was deleted |
 
 ---
@@ -192,14 +220,14 @@ On an empty database, the API seeds an admin login. No API key is seeded;
 create the first one from the dashboard:
 
 ```
-[ setup ] Log in to the dashboard with the admin login you created (admin) to get started.
+[ setup ] admin user "admin" created. Sign in to the dashboard and change the password.
 ```
 
-- The admin password is **randomly generated** unless `ADMIN_PASSWORD` is set.
-  There is no fixed default.
-- `ADMIN_USERNAME` defaults to `admin`.
-- Neither is recoverable. If you lose the password, create another user from the
-  dashboard, or insert one with a hash you generate yourself.
+- `ADMIN_USERNAME` defaults to `admin`, `ADMIN_PASSWORD` to `open-sesame`.
+- The login response carries `usingDefaultPassword: true` while the shipped
+  default is still in use; the dashboard nags until it is changed.
+- Lost it? `npm run admin:reset-password -- admin <new-password>` with database
+  access, or create another user from the dashboard.
 
 ---
 
@@ -207,13 +235,13 @@ create the first one from the dashboard:
 
 Known gaps, so you can compensate:
 
-| Gap | Mitigation |
-|---|---|
-| **No rate limiting anywhere**, including `/auth/login` | Put a reverse proxy or WAF in front |
-| Session tokens live in browser `localStorage` | Readable by any XSS. Serve the dashboard on a trusted origin only |
-| No per-dataset or read-only API keys | Separate projects per tenant |
-| No API key expiry | Rotate manually |
-| No audit log | Front it with request logging if you need one |
+| Gap                                                    | Mitigation                                                        |
+| ------------------------------------------------------ | ----------------------------------------------------------------- |
+| **No rate limiting anywhere**, including `/auth/login` | Put a reverse proxy or WAF in front                               |
+| Session tokens live in browser `localStorage`          | Readable by any XSS. Serve the dashboard on a trusted origin only |
+| No per-dataset or read-only API keys                   | Separate projects per tenant                                      |
+| No API key expiry                                      | Rotate manually                                                   |
+| No audit log                                           | Front it with request logging if you need one                     |
 
 Memory Soda is designed to run **behind your own network boundary**. Do not
 expose it directly to the internet without a proxy handling TLS, rate limiting

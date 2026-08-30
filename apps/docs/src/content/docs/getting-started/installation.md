@@ -32,8 +32,8 @@ What it does, in order:
    the fix and lets you retry, paste another URL, or skip.
 5. **Gemini key** — checked live against the API. Blank is allowed, but the API
    will not start until it is set.
-6. **Ports and admin login** — ports are checked for use; a blank password is
-   generated and printed once at first boot.
+6. **Ports** — checked for use. The dashboard login is always `admin` /
+   `open-sesame` to start with; the installer reminds you to change it.
 7. **Clone, `.env`, `npm ci`, migrations** — migrations run now if the
    database passed, otherwise they are left on the checklist.
 
@@ -109,17 +109,16 @@ This runs the API and the dashboard together with hot reload.
 On **first boot only**, the admin user is created:
 
 ```
-[ setup ] Log in to the dashboard with the admin login you created (admin) to get started.
+[ setup ] admin user "admin" created. Sign in to the dashboard and change the password.
 ```
 
-If `ADMIN_PASSWORD` was not set, the generated password is included in that
-line. Sign in and create an API key under **API Keys**.
+Sign in with **`admin` / `open-sesame`**, change the password when the sidebar
+asks you to, then create an API key under **API Keys**.
 
 - The **API key** is hashed at rest and cannot be recovered. If you lose it,
   issue a new one from the dashboard's API Keys page.
-- The **admin password** is randomly generated unless you set `ADMIN_PASSWORD`.
-  It is not recoverable either, but you can create another user from the
-  dashboard, or insert one directly.
+- The **admin password** can be reset from the shell with
+  `npm run admin:reset-password -- admin <new-password>`.
 
 | Service      | URL                          |
 | ------------ | ---------------------------- |

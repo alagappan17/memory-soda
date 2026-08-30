@@ -37,7 +37,9 @@ Public.
 ```
 
 `401 Invalid username or password` for both an unknown user and a wrong
-password. Sessions last 7 days.
+password. Sessions last 7 days. The response also carries
+`usingDefaultPassword: true` while the account still uses the shipped
+`open-sesame`.
 
 ### `POST /auth/logout`
 
@@ -48,6 +50,17 @@ Session required. `204`, and the token is revoked immediately.
 ```json
 { "user": { "userId": "61a8…", "username": "admin" } }
 ```
+
+### `POST /auth/password`
+
+Session required.
+
+```json
+{ "currentPassword": "open-sesame", "newPassword": "something-longer" }
+```
+
+`204` on success, `401` if the current password is wrong, `400` if the new one
+is shorter than 6 characters. Sessions are not revoked.
 
 ---
 

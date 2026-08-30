@@ -1,11 +1,12 @@
 ---
-title: "Users and sign-in"
-description: "Dashboard login accounts."
+title: 'Users and sign-in'
+description: 'Dashboard login accounts.'
 ---
+
 Dashboard login accounts.
 
-> **These are operators, not the people being remembered.** A dashboard *user*
-> signs in to the UI. A [*dataset*](/concepts/projects-and-datasets/) is the
+> **These are operators, not the people being remembered.** A dashboard _user_
+> signs in to the UI. A [_dataset_](/concepts/projects-and-datasets/) is the
 > memory store for one end user. They are unrelated, and the Users page has
 > nothing to do with the Datasets page.
 
@@ -13,37 +14,39 @@ Dashboard login accounts.
 
 ## First sign-in
 
-On an empty database the API seeds one admin account and says so once:
+On an empty database the API seeds one admin account:
+
+|          | Default       | Override         |
+| -------- | ------------- | ---------------- |
+| Username | `admin`       | `ADMIN_USERNAME` |
+| Password | `open-sesame` | `ADMIN_PASSWORD` |
 
 ```
-[ setup ] Log in to the dashboard with the admin login you created (admin) to get started.
+[ setup ] admin user "admin" created. Sign in to the dashboard and change the password.
 ```
 
-- Username comes from `ADMIN_USERNAME`, default `admin`.
-- Password comes from `ADMIN_PASSWORD`. **If unset, one is randomly generated**
-  and included in that log line once; there is no fixed default credential.
-- A generated password is not recoverable after the log scrolls.
+The same default on every install is deliberate — it is the Grafana
+`admin`/`admin` model. Nobody has to dig a generated password out of a log, and
+the dashboard will not let you forget: a **Default password in use** notice
+stays in the sidebar until you change it.
+
+### Changing your password
+
+Avatar in the sidebar footer → **Change password**, or click the notice. Enter
+the current password and the new one (6+ characters). Other sessions stay
+signed in.
 
 ### If you lost it
 
-There is no password reset. Options:
+There is no email reset — nothing here can send mail. With database access you
+can set any user's password from the shell:
 
-1. **Another account exists**, sign in with that and create a replacement.
-2. **No account is usable**, insert one directly. Generate a hash with the
-   project's own function so the format matches:
+```bash
+npm run admin:reset-password -- admin a-new-password
+```
 
-   ```bash
-   node -e "
-     const {hashPassword} = require('./apps/api/dist/apps/api/src/lib/password.js');
-     hashPassword('your-new-password').then(h => console.log(h));
-   "
-   ```
-
-   ```sql
-   INSERT INTO users (username, password_hash) VALUES ('admin2', 'scrypt$32768$8$3$…');
-   ```
-
-   Requires a build first (`npm run build`).
+Or, if another account exists, sign in with that one and create a replacement
+from the Users page.
 
 ---
 
@@ -52,7 +55,7 @@ There is no password reset. Options:
 Reached at `/login`, or automatically when you hit any page without a session.
 
 - Username and password, with a show/hide toggle.
-- A single error, *Invalid username or password*, for both an unknown user and
+- A single error, _Invalid username or password_, for both an unknown user and
   a wrong password.
 - **Deep links survive.** Visiting `/datasets?q=abc` while signed out sends you
   to `/login` and back to `/datasets?q=abc` afterwards, query string and hash
@@ -78,10 +81,10 @@ Lists every account with its creation date, and allows creating and deleting.
 
 ### Creating
 
-| Field | Rule |
-|---|---|
+| Field    | Rule                     |
+| -------- | ------------------------ |
 | Username | 1–100 characters, unique |
-| Password | 6–200 characters |
+| Password | 6–200 characters         |
 
 Six characters is a low floor. Nothing enforces complexity, and there is no rate
 limiting on sign-in, pick something strong.
@@ -92,10 +95,10 @@ Duplicate usernames return `409`, including under concurrent creation.
 
 Two guards, both intended to stop you locking everyone out:
 
-| Blocked | Message |
-|---|---|
-| Deleting your own account | *You cannot delete your own account* |
-| Deleting the last remaining account | *Cannot delete the last user* |
+| Blocked                             | Message                              |
+| ----------------------------------- | ------------------------------------ |
+| Deleting your own account           | _You cannot delete your own account_ |
+| Deleting the last remaining account | _Cannot delete the last user_        |
 
 The last-user check runs in a transaction with the user rows locked, so two
 simultaneous deletes cannot both pass it.
@@ -142,19 +145,19 @@ scrypt$32768$8$3$<salt hex>$<derived key hex>
 
 ## Known gaps
 
-| Gap | Consequence |
-|---|---|
-| No password change endpoint | Create a new account, delete the old one |
-| No password reset | Recovery requires database access |
-| No roles or permissions | Every account is a full administrator |
-| No rate limiting on `/auth/login` | Put a proxy in front if exposed |
-| Token in `localStorage` | Readable by any XSS on the dashboard origin |
-| No audit log | No record of who deleted what |
+| Gap                               | Consequence                                 |
+| --------------------------------- | ------------------------------------------- |
+| No password change endpoint       | Create a new account, delete the old one    |
+| No password reset                 | Recovery requires database access           |
+| No roles or permissions           | Every account is a full administrator       |
+| No rate limiting on `/auth/login` | Put a proxy in front if exposed             |
+| Token in `localStorage`           | Readable by any XSS on the dashboard origin |
+| No audit log                      | No record of who deleted what               |
 
 ---
 
 ## Next
 
 - [Authentication API](/api/authentication/), the endpoints
-- [API keys](/dashboard/api-keys/), the *other* credential
+- [API keys](/dashboard/api-keys/), the _other_ credential
 - [Self-hosting](/operations/self-hosting/)

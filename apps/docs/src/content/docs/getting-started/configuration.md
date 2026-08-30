@@ -1,7 +1,8 @@
 ---
-title: "Configuration"
-description: "Two independent layers:"
+title: 'Configuration'
+description: 'Two independent layers:'
 ---
+
 Two independent layers:
 
 1. **Environment variables**, how the server runs. Set once, at boot.
@@ -17,31 +18,31 @@ read from it.
 
 ### Required
 
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | Postgres connection string. The database must have the `vector` extension. |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Gemini key. Required to boot, the module throws at import without it. |
+| Variable                       | Description                                                                |
+| ------------------------------ | -------------------------------------------------------------------------- |
+| `DATABASE_URL`                 | Postgres connection string. The database must have the `vector` extension. |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Gemini key. Required to boot, the module throws at import without it.      |
 
 ### Optional
 
-| Variable | Default | Description |
-|---|---|---|
-| `HOST` | `localhost` | API bind address. Use `0.0.0.0` in a container. |
-| `PORT` | `3004` | API port. |
-| `CORS_ORIGIN` | `http://localhost:3000` | Allowed browser origin(s), comma-separated. |
-| `MIGRATE_ON_START` | `true` | Run pending migrations on boot. |
-| `ADMIN_USERNAME` | `admin` | Username for the first-boot admin user. |
-| `ADMIN_PASSWORD` | *randomly generated* | Password for that user. Printed once. Leave unset in production. |
-| `VITE_API_URL` | `http://localhost:3004` | API URL as the **browser** sees it. Dashboard build-time. |
+| Variable           | Default                 | Description                                                               |
+| ------------------ | ----------------------- | ------------------------------------------------------------------------- |
+| `HOST`             | `localhost`             | API bind address. Use `0.0.0.0` in a container.                           |
+| `PORT`             | `3004`                  | API port.                                                                 |
+| `CORS_ORIGIN`      | `http://localhost:3000` | Allowed browser origin(s), comma-separated.                               |
+| `MIGRATE_ON_START` | `true`                  | Run pending migrations on boot.                                           |
+| `ADMIN_USERNAME`   | `admin`                 | Username for the first-boot admin user.                                   |
+| `ADMIN_PASSWORD`   | `open-sesame`           | Password for that user. Change it from the dashboard after first sign-in. |
+| `VITE_API_URL`     | `http://localhost:3004` | API URL as the **browser** sees it. Dashboard build-time.                 |
 
 ### SDK-side
 
-Read by `new MemorySoda()` in *your* application, not by the server.
+Read by `new MemorySoda()` in _your_ application, not by the server.
 
-| Variable | Description |
-|---|---|
+| Variable               | Description                  |
+| ---------------------- | ---------------------------- |
 | `MEMORY_SODA_BASE_URL` | e.g. `http://localhost:3004` |
-| `MEMORY_SODA_API_KEY` | `ms_…` |
+| `MEMORY_SODA_API_KEY`  | `ms_…`                       |
 
 Full details: [Environment variables](/reference/environment-variables/).
 
@@ -63,12 +64,12 @@ curl -X PATCH http://localhost:3004/dashboard/projects/$PROJECT_ID/settings \
 
 ### The ones you will actually change
 
-| Setting | Default | What it does |
-|---|---|---|
-| `semantic.factsInContext` | `8` | How many facts `recall()` puts in the context block. The main quality/token dial. |
-| `semantic.retrievalMinConfidence` | `0.5` | Facts below this extraction confidence are excluded from retrieval. |
-| `episodic.autoEpisodeIntervalMs` | `1800000` | Idle time before extraction fires. Lower = fresher and costlier. |
-| `episodic.enabled` / `semantic.enabled` | `true` | Turn a whole layer off. |
+| Setting                                 | Default   | What it does                                                                      |
+| --------------------------------------- | --------- | --------------------------------------------------------------------------------- |
+| `semantic.factsInContext`               | `8`       | How many facts `recall()` puts in the context block. The main quality/token dial. |
+| `semantic.retrievalMinConfidence`       | `0.5`     | Facts below this extraction confidence are excluded from retrieval.               |
+| `episodic.autoEpisodeIntervalMs`        | `1800000` | Idle time before extraction fires. Lower = fresher and costlier.                  |
+| `episodic.enabled` / `semantic.enabled` | `true`    | Turn a whole layer off.                                                           |
 
 ### The rest
 
@@ -76,18 +77,18 @@ These are retrieval-tuning constants. Changing them without measuring will
 usually make results worse. Documented in full at
 [Project settings](/reference/project-settings/).
 
-| Setting | Default |
-|---|---|
-| `semantic.entityResolutionThreshold` | `0.88` |
-| `semantic.factDedupThreshold` | `0.95` |
-| `semantic.contradictionBandMin` | `0.80` |
-| `semantic.anchorVectorMin` | `0.75` |
-| `semantic.anchorVectorTopK` | `3` |
-| `episodic.maxMessages` | `100` |
-| `episodic.maxRetries` | `3` |
-| `episodic.contextEpisodes` | `3` |
-| `episodic.similarityWeight` | `0.7` |
-| `episodic.recencyWeight` | `0.3` |
+| Setting                              | Default |
+| ------------------------------------ | ------- |
+| `semantic.entityResolutionThreshold` | `0.88`  |
+| `semantic.factDedupThreshold`        | `0.95`  |
+| `semantic.contradictionBandMin`      | `0.80`  |
+| `semantic.anchorVectorMin`           | `0.75`  |
+| `semantic.anchorVectorTopK`          | `3`     |
+| `episodic.maxMessages`               | `100`   |
+| `episodic.maxRetries`                | `3`     |
+| `episodic.contextEpisodes`           | `3`     |
+| `episodic.similarityWeight`          | `0.7`   |
+| `episodic.recencyWeight`             | `0.3`   |
 
 ---
 
@@ -149,16 +150,16 @@ await memory.createThread({
 
 Settings are validated on write. Requests outside these ranges return `400`.
 
-| Setting | Range |
-|---|---|
-| `autoEpisodeIntervalMs` (project) | `>= 1000`, or `null` to disable |
-| `autoEpisodeIntervalMs` (thread override) | `>= 1000`, or `null` |
-| `maxMessages` | 10–1000 |
-| `contextEpisodes` | 1–20 |
-| `factsInContext` | 1–100 |
-| all `0..1` thresholds | 0–1 inclusive |
-| `anchorVectorTopK` | 1–10 |
-| `autoCompactThreshold` | `>= 2` |
+| Setting                                   | Range                           |
+| ----------------------------------------- | ------------------------------- |
+| `autoEpisodeIntervalMs` (project)         | `>= 1000`, or `null` to disable |
+| `autoEpisodeIntervalMs` (thread override) | `>= 1000`, or `null`            |
+| `maxMessages`                             | 10–1000                         |
+| `contextEpisodes`                         | 1–20                            |
+| `factsInContext`                          | 1–100                           |
+| all `0..1` thresholds                     | 0–1 inclusive                   |
+| `anchorVectorTopK`                        | 1–10                            |
+| `autoCompactThreshold`                    | `>= 2`                          |
 
 ---
 

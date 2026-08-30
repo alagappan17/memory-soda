@@ -1,7 +1,8 @@
 ---
-title: "Environment variables"
-description: "Read from .env in the repo root during development, and from the process environment in production."
+title: 'Environment variables'
+description: 'Read from .env in the repo root during development, and from the process environment in production.'
 ---
+
 Read from `.env` in the repo root during development, and from the process
 environment in production.
 
@@ -11,10 +12,10 @@ environment in production.
 
 ### Required
 
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | Postgres connection string. The database must have the `vector` extension. |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Gemini API key. |
+| Variable                       | Description                                                                |
+| ------------------------------ | -------------------------------------------------------------------------- |
+| `DATABASE_URL`                 | Postgres connection string. The database must have the `vector` extension. |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Gemini API key.                                                            |
 
 ```bash
 DATABASE_URL=postgresql://memory_user:memory_pass@localhost:5432/memory_db
@@ -33,14 +34,14 @@ DATABASE_URL=postgresql://user:pass@db.example.com:5432/memory?sslmode=require
 
 ### Optional
 
-| Variable | Default | Description |
-|---|---|---|
-| `HOST` | `localhost` | Bind address. **Set to `0.0.0.0` in a container** or nothing external can connect. |
-| `PORT` | `3004` | |
-| `CORS_ORIGIN` | `http://localhost:3000` | Allowed browser origin(s), comma-separated. Never `*` in production. |
-| `MIGRATE_ON_START` | `true` | Run pending migrations before opening the listener. |
-| `ADMIN_USERNAME` | `admin` | Username for the first-boot admin user. |
-| `ADMIN_PASSWORD` | *randomly generated* | Password for that user, printed once. |
+| Variable           | Default                 | Description                                                                        |
+| ------------------ | ----------------------- | ---------------------------------------------------------------------------------- |
+| `HOST`             | `localhost`             | Bind address. **Set to `0.0.0.0` in a container** or nothing external can connect. |
+| `PORT`             | `3004`                  |                                                                                    |
+| `CORS_ORIGIN`      | `http://localhost:3000` | Allowed browser origin(s), comma-separated. Never `*` in production.               |
+| `MIGRATE_ON_START` | `true`                  | Run pending migrations before opening the listener.                                |
+| `ADMIN_USERNAME`   | `admin`                 | Username for the first-boot admin user.                                            |
+| `ADMIN_PASSWORD`   | `open-sesame`           | Password for that user. Change it in the dashboard after first sign-in.            |
 
 #### `CORS_ORIGIN`
 
@@ -60,18 +61,14 @@ to `false` and migrate as a deploy step. See [Migrations](/operations/migrations
 
 #### `ADMIN_PASSWORD`
 
-Only used on an empty database, when the first admin user is seeded.
+Only used on an empty database, when the first admin user is seeded. Later
+changes to the variable do nothing; change the password from the dashboard
+(avatar → **Change password**) or with
+`npm run admin:reset-password -- <username> <new-password>`.
 
-**Leave it unset in production.** A random password is generated and printed once
-safer than a value that ends up in your deployment config and shell history.
-
-```
-Login:    admin / kR7v-2mQxPd1
-          (generated, set ADMIN_PASSWORD to choose)
-```
-
-Neither the generated password nor the API key is recoverable after the log
-scrolls.
+The default is the same on every install, so the dashboard shows a
+**Default password in use** notice until it is changed. Set it explicitly if
+you would rather never have the default live at all.
 
 ---
 
@@ -79,14 +76,14 @@ scrolls.
 
 All optional. Defaults shown; omit them and nothing changes.
 
-| Variable | Default | Description |
-|---|---|---|
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Model for summarisation, extraction, contradiction judging and synthesis. |
-| `GEMINI_TIMEOUT_MS` | `30000` | Timeout for interactive text calls. |
-| `GEMINI_STRUCTURED_TIMEOUT_MS` | `90000` | Timeout for schema-constrained calls (extraction, judging). Higher because these run in background jobs and tolerate thinking-mode tail latency. |
-| `GEMINI_EMBED_MODEL` | `models/gemini-embedding-001` | Embedding model. Include the `models/` prefix. |
-| `GEMINI_API_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta` | Base for the REST embedding endpoint. Point it at a proxy or gateway. |
-| `GEMINI_EMBED_DIM` | `768` | Embedding dimensionality. **See the warning below.** |
+| Variable                       | Default                                            | Description                                                                                                                                      |
+| ------------------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GEMINI_MODEL`                 | `gemini-2.5-flash`                                 | Model for summarisation, extraction, contradiction judging and synthesis.                                                                        |
+| `GEMINI_TIMEOUT_MS`            | `30000`                                            | Timeout for interactive text calls.                                                                                                              |
+| `GEMINI_STRUCTURED_TIMEOUT_MS` | `90000`                                            | Timeout for schema-constrained calls (extraction, judging). Higher because these run in background jobs and tolerate thinking-mode tail latency. |
+| `GEMINI_EMBED_MODEL`           | `models/gemini-embedding-001`                      | Embedding model. Include the `models/` prefix.                                                                                                   |
+| `GEMINI_API_BASE_URL`          | `https://generativelanguage.googleapis.com/v1beta` | Base for the REST embedding endpoint. Point it at a proxy or gateway.                                                                            |
+| `GEMINI_EMBED_DIM`             | `768`                                              | Embedding dimensionality. **See the warning below.**                                                                                             |
 
 The embedding URL is **derived** as `${GEMINI_API_BASE_URL}/${GEMINI_EMBED_MODEL}`
 rather than configured separately, so changing the model cannot leave the URL
@@ -101,7 +98,7 @@ than failing silently:
 
 > **`GEMINI_EMBED_DIM` is not really a runtime setting.** The `facts`, `entities`
 > and `episodes` tables declare `vector(768)` columns, so any other value is
-> rejected on insert. Changing it means a migration *and* re-embedding every
+> rejected on insert. Changing it means a migration _and_ re-embedding every
 > stored vector. The API warns at startup if the two disagree:
 >
 > ```
@@ -120,10 +117,10 @@ than failing silently:
 
 Build-time only. Vite inlines these into the bundle.
 
-| Variable | Default | Description |
-|---|---|---|
-| `VITE_API_URL` | `http://localhost:3004` | API URL **as the browser sees it**. |
-| `DASHBOARD_PORT` | `3000` | Port the Vite dev server binds to. Read at dev-server start, not inlined. |
+| Variable         | Default                 | Description                                                               |
+| ---------------- | ----------------------- | ------------------------------------------------------------------------- |
+| `VITE_API_URL`   | `http://localhost:3004` | API URL **as the browser sees it**.                                       |
+| `DASHBOARD_PORT` | `3000`                  | Port the Vite dev server binds to. Read at dev-server start, not inlined. |
 
 ```bash
 VITE_API_URL=https://api.memory.example.com npm run build
@@ -145,10 +142,10 @@ both from one answer.
 
 Read by `new MemorySoda()` in your app, not by the server.
 
-| Variable | Description |
-|---|---|
+| Variable               | Description                           |
+| ---------------------- | ------------------------------------- |
 | `MEMORY_SODA_BASE_URL` | e.g. `https://api.memory.example.com` |
-| `MEMORY_SODA_API_KEY` | `ms_…` |
+| `MEMORY_SODA_API_KEY`  | `ms_…`                                |
 
 ```ts
 const memory = new MemorySoda();
@@ -190,9 +187,9 @@ GOOGLE_GENERATIVE_AI_API_KEY=
 VITE_API_URL=http://localhost:3004
 
 # ── First-boot admin (optional) ──────────────────────────────────────
-# Leave ADMIN_PASSWORD unset to have one generated and printed once.
+# Defaults to admin / open-sesame; change it in the dashboard after first sign-in.
 # ADMIN_USERNAME=admin
-# ADMIN_PASSWORD=
+# ADMIN_PASSWORD=open-sesame
 ```
 
 ---
@@ -201,19 +198,19 @@ VITE_API_URL=http://localhost:3004
 
 Hard-coded in the source. Changing them means editing code.
 
-| Setting | Value | Location |
-|---|---|---|
-| Embedding batch size | 100 | `apps/api/src/lib/gemini.ts` |
-| Postgres pool max | 20 | `apps/api/src/db/postgres.ts` |
-| Pool idle timeout | 30 s | same |
-| Pool connection timeout | 2 s | same |
-| Job intervals | 5 s / 120 s / 120 s | `apps/api/src/main.ts` |
-| Stale claim window | 10 min | `apps/api/src/services/semantic-memory.service.ts` |
-| Semantic retry cap | 3 | same |
-| Rows per job tick | 20 | various |
-| Request body limit | 1 MB | `apps/api/src/main.ts` |
-| Session lifetime | 7 days | `apps/api/src/services/session.service.ts` |
-| scrypt parameters | `N=2^15, r=8, p=3` | `apps/api/src/lib/password.ts` |
+| Setting                 | Value               | Location                                           |
+| ----------------------- | ------------------- | -------------------------------------------------- |
+| Embedding batch size    | 100                 | `apps/api/src/lib/gemini.ts`                       |
+| Postgres pool max       | 20                  | `apps/api/src/db/postgres.ts`                      |
+| Pool idle timeout       | 30 s                | same                                               |
+| Pool connection timeout | 2 s                 | same                                               |
+| Job intervals           | 5 s / 120 s / 120 s | `apps/api/src/main.ts`                             |
+| Stale claim window      | 10 min              | `apps/api/src/services/semantic-memory.service.ts` |
+| Semantic retry cap      | 3                   | same                                               |
+| Rows per job tick       | 20                  | various                                            |
+| Request body limit      | 1 MB                | `apps/api/src/main.ts`                             |
+| Session lifetime        | 7 days              | `apps/api/src/services/session.service.ts`         |
+| scrypt parameters       | `N=2^15, r=8, p=3`  | `apps/api/src/lib/password.ts`                     |
 
 ---
 

@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
@@ -18,17 +17,11 @@ const { host, port } = config.server;
 async function seedAdminUser(): Promise<void> {
   if ((await countUsers()) > 0) return;
 
-  // Never fall back to a fixed password: a literal here ships in the
-  // published source, so every deployment that skips ADMIN_PASSWORD would
-  // share known credentials. A random one is generated and shown once instead.
-  const generated = config.admin.password === undefined;
-  const password = config.admin.password ?? randomBytes(12).toString('base64url');
-  await createUser(config.admin.username, password);
-
+  // A known default (Grafana-style) beats a password buried in logs. The
+  // dashboard keeps a banner up until it is changed.
+  await createUser(config.admin.username, config.admin.password);
   console.log(
-    generated
-      ? `[ setup ] admin user "${config.admin.username}" created with a generated password: ${password} (set ADMIN_PASSWORD to choose one)`
-      : `[ setup ] Log in to the dashboard with the admin login you created (${config.admin.username}) to get started.`,
+    `[ setup ] admin user "${config.admin.username}" created. Sign in to the dashboard and change the password.`,
   );
 }
 

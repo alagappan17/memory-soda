@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { startApi, type Api } from './harness.ts';
 
 let api: Api;
-before(async () => { api = await startApi('auth'); });
+before(async () => {
+  api = await startApi('auth');
+});
 after(() => api.stop());
 
 test('health reports postgres ok', async () => {
@@ -25,7 +27,9 @@ test('login issues a session usable on /auth/me and logout revokes it', async ()
   assert.equal(me.status, 200);
   assert.equal(me.body.user.username, username);
 
-  const out = await api.call('POST', '/auth/logout', { token: login.body.token });
+  const out = await api.call('POST', '/auth/logout', {
+    token: login.body.token,
+  });
   assert.equal(out.status, 204);
   const after = await api.call('GET', '/auth/me', { token: login.body.token });
   assert.equal(after.status, 401);
@@ -43,6 +47,46 @@ test('login rejects wrong password and unknown user identically', async () => {
   assert.equal(bad.status, 401);
   assert.equal(unknown.status, 401);
   assert.equal(bad.body.error, unknown.body.error);
+});
+
+test('login flags the default password and /auth/password changes it', async () => {
+  const { username, token } = await api.login();
+  const first = await api.call('POST', '/auth/login', {
+    body: { username, password: 'password1' },
+  });
+  assert.equal(first.body.usingDefaultPassword, false);
+
+  const wrong = await api.call('POST', '/auth/password', {
+    token,
+    body: { currentPassword: 'nope', newPassword: 'open-sesame' },
+  });
+  assert.equal(wrong.status, 401);
+
+  const short = await api.call('POST', '/auth/password', {
+    token,
+    body: { currentPassword: 'password1', newPassword: 'abc' },
+  });
+  assert.equal(short.status, 400);
+
+  const ok = await api.call('POST', '/auth/password', {
+    token,
+    body: { currentPassword: 'password1', newPassword: 'open-sesame' },
+  });
+  assert.equal(ok.status, 204);
+
+  const again = await api.call('POST', '/auth/login', {
+    body: { username, password: 'open-sesame' },
+  });
+  assert.equal(again.status, 200);
+  assert.equal(again.body.usingDefaultPassword, true);
+  assert.equal(
+    (
+      await api.call('POST', '/auth/login', {
+        body: { username, password: 'password1' },
+      })
+    ).status,
+    401,
+  );
 });
 
 test('login validates the body', async () => {

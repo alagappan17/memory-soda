@@ -41,9 +41,8 @@ npm run --workspace=apps/api db:migrate
 npm run dev
 ```
 
-On first boot the API prints the admin login to its logs (password comes from
-`ADMIN_PASSWORD`, or is generated). Sign in to the dashboard and create an API
-key under **API Keys**.
+Sign in to the dashboard with `admin` / `open-sesame`, change the password when
+prompted, and create an API key under **API Keys**.
 
 ### Updating
 
