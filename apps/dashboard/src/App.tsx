@@ -25,6 +25,7 @@ import PlaygroundPage from './pages/playground';
 import ProjectSettingsPage from './pages/project-settings';
 import LoginPage from './pages/login';
 import UsersPage from './pages/users';
+import UsagePage from './pages/usage';
 
 function DashboardHeader() {
   const location = useLocation();
@@ -35,6 +36,7 @@ function DashboardHeader() {
     '/datasets': 'Datasets',
     '/playground': 'Playground',
     '/api-keys': 'API Keys',
+    '/usage': 'Usage',
     '/users': 'Users',
     '/status': 'Status',
   };
@@ -99,6 +101,7 @@ export default function App() {
                 <Route path="/users" element={scroll(<UsersPage />)} />
                 <Route path="/playground" element={<PlaygroundPage />} />
                 <Route path="/status" element={scroll(<StatusPage />)} />
+                <Route path="/usage" element={scroll(<UsagePage />)} />
               </Route>
             </Routes>
           </TooltipProvider>
