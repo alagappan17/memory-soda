@@ -7,6 +7,8 @@ import { db, checkPostgres } from './db/postgres.js';
 import { AppError } from './lib/errors.js';
 import { countUsers, createUser } from './services/user.service.js';
 import { startWorker } from './worker.js';
+import { usageLogs } from './db/schema.js';
+import { flush, startUsageFlusher } from './lib/usage.js';
 
 // In compiled output (dist/apps/api/src/), drizzle/ sits at dist/drizzle/.
 const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle');
@@ -41,6 +43,14 @@ async function bootstrap(): Promise<void> {
   });
 
   startWorker();
+  startUsageFlusher((rows) => db.insert(usageLogs).values(rows));
+
+  // Drain the usage buffer before the process goes away.
+  for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+    process.once(sig, () => {
+      void flush().finally(() => process.exit(0));
+    });
+  }
 }
 
 bootstrap().catch((err) => {

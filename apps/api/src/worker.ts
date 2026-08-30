@@ -7,6 +7,7 @@ import {
   sweepAbandonedThreads,
 } from './services/episodic-memory.service.js';
 import { sweepSemanticMemory } from './services/semantic-memory.service.js';
+import { runWithUsage } from './lib/usage.js';
 
 /**
  * All background work, on one clock.
@@ -57,7 +58,7 @@ async function tick(): Promise<void> {
 /** One job's failure must not stop the others in the same tick. */
 async function run(name: string, job: () => Promise<void>): Promise<void> {
   try {
-    await job();
+    await runWithUsage({ source: 'worker', operation: name }, job);
   } catch (err) {
     console.error(`[worker] ${name} failed:`, err);
   }
