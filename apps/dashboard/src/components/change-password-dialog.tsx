@@ -26,8 +26,15 @@ export function ChangePasswordDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const tooShort = next.length > 0 && next.length < 6;
+  const sameAsCurrent = next.length > 0 && next === current;
   const mismatch = confirm.length > 0 && next !== confirm;
-  const canSubmit = current && next.length >= 6 && next === confirm && !saving;
+  const canSubmit =
+    current &&
+    next.length >= 6 &&
+    !sameAsCurrent &&
+    next === confirm &&
+    !saving;
 
   function reset() {
     setCurrent('');
@@ -98,6 +105,16 @@ export function ChangePasswordDialog({
               autoComplete="new-password"
               required
             />
+            {tooShort && (
+              <p className="text-xs text-destructive">
+                At least 6 characters ({next.length}/6).
+              </p>
+            )}
+            {sameAsCurrent && (
+              <p className="text-xs text-destructive">
+                New password must differ from the current one.
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium leading-none">
