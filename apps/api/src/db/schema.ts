@@ -18,6 +18,8 @@ import type {
   ProjectEpisodicSettings,
   ProjectSemanticSettings,
   ProjectSettingsPatch,
+  UsageKind,
+  UsageSource,
   WMMessageMetadata,
   WMTokenCount,
 } from '@memory-soda/types';
@@ -158,12 +160,10 @@ export const threads = pgTable(
       .notNull()
       .defaultNow(),
     autoCompactThreshold: integer('auto_compact_threshold'),
-    episodicSettings: jsonb('episodic_settings').$type<
-      Partial<ProjectEpisodicSettings>
-    >(),
-    semanticSettings: jsonb('semantic_settings').$type<
-      Partial<ProjectSemanticSettings>
-    >(),
+    episodicSettings:
+      jsonb('episodic_settings').$type<Partial<ProjectEpisodicSettings>>(),
+    semanticSettings:
+      jsonb('semantic_settings').$type<Partial<ProjectSemanticSettings>>(),
     lastCompactedAt: timestamp('last_compacted_at', { withTimezone: true }),
     lastCompactedSequence: integer('last_compacted_sequence')
       .notNull()
@@ -464,3 +464,48 @@ export const entities = pgTable(
 
 export type EntityRow = typeof entities.$inferSelect;
 export type NewEntityRow = typeof entities.$inferInsert;
+
+// ── Usage log ─────────────────────────────────────────────────────────────────
+//
+// One row per unit of work that costs money or time. Fixed columns are what
+// the dashboard filters and groups on; anything else goes in `meta` so new
+// metadata never needs a migration. Cost is not stored: it is priced at read
+// time from `service` + `model`, so a price change needs no backfill.
+export const usageLogs = pgTable(
+  'usage_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    dataset: text('dataset'),
+    source: text('source').$type<UsageSource>().notNull(),
+    apiKeyId: uuid('api_key_id'),
+    userId: uuid('user_id'),
+    requestId: uuid('request_id'),
+    operation: text('operation').notNull(),
+    stage: text('stage').notNull(),
+    kind: text('kind').$type<UsageKind>().notNull(),
+    service: text('service'),
+    model: text('model'),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    inputChars: integer('input_chars').notNull().default(0),
+    calls: integer('calls').notNull().default(1),
+    latencyMs: integer('latency_ms').notNull().default(0),
+    ok: boolean('ok').notNull().default(true),
+    error: text('error'),
+    threadId: uuid('thread_id'),
+    episodeId: uuid('episode_id'),
+    meta: jsonb('meta').$type<Record<string, unknown>>().notNull().default({}),
+  },
+  (t) => [
+    index('usage_logs_project_created_idx').on(t.projectId, t.createdAt),
+    index('usage_logs_request_idx').on(t.requestId),
+  ],
+);
+
+export type UsageLogInsert = typeof usageLogs.$inferInsert;
