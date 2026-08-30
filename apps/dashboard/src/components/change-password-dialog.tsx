@@ -107,7 +107,7 @@ export function ChangePasswordDialog({
             />
             {tooShort && (
               <p className="text-xs text-destructive">
-                At least 6 characters ({next.length}/6).
+                Password must be at least 6 characters.
               </p>
             )}
             {sameAsCurrent && (
