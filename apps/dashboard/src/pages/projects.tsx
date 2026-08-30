@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Check, Pencil, AlertCircle } from 'lucide-react';
+import { Check, Pencil, AlertCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import type { Project } from '@memory-soda/types';
 
@@ -138,7 +138,6 @@ export default function ProjectsPage() {
           onClick={() => setShowNewProject(true)}
           className="flex items-center gap-2 text-sm px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer font-medium"
         >
-          <Plus className="h-4 w-4" />
           <span>New project</span>
         </button>
       </div>
@@ -176,13 +175,15 @@ export default function ProjectsPage() {
                       isActive ? 'bg-muted/10 font-medium' : ''
                     }`}
                   >
-                    <TableCell className="font-semibold text-foreground flex items-center gap-2">
-                      <span>{p.name}</span>
-                      {isActive && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full border border-border text-muted-foreground font-medium select-none">
-                          Active
-                        </span>
-                      )}
+                    <TableCell className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <span>{p.name}</span>
+                        {isActive && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full border border-border text-muted-foreground font-medium select-none">
+                            Active
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell
                       className="text-muted-foreground truncate max-w-xs"

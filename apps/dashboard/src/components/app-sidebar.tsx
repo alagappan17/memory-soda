@@ -29,7 +29,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
 } from '@/components/ui/sidebar';
 
 import {
@@ -407,8 +406,6 @@ export default function AppSidebar() {
           </div>,
           document.body,
         )}
-
-      <SidebarRail />
     </Sidebar>
   );
 }
