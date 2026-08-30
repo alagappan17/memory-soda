@@ -148,18 +148,6 @@ The SDK is a thin typed wrapper over `fetch`. Adding a method means:
 3. Add the method with a JSDoc block, the docs are generated from reading these.
 4. Update [the SDK reference](/sdk/).
 
-Testing against a local app:
-
-```bash
-npm run sdk:build
-npm link --workspace=packages/sdk
-# in your app
-npm link @memory-soda/sdk
-```
-
-After changing SDK source, `npm run sdk:build` is enough, the link picks up the
-new `dist`.
-
 **Keep it dependency-free.** The SDK has zero runtime dependencies and that is
 worth preserving.
 
