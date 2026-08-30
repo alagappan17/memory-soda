@@ -46,8 +46,6 @@ const CLEARED = {
   PORT: undefined,
   CORS_ORIGIN: undefined,
   MIGRATE_ON_START: undefined,
-  ADMIN_USERNAME: undefined,
-  ADMIN_PASSWORD: undefined,
   GEMINI_MODEL: undefined,
   GEMINI_TIMEOUT_MS: undefined,
   GEMINI_STRUCTURED_TIMEOUT_MS: undefined,
@@ -73,13 +71,6 @@ test('defaults match the values that were previously hard-coded', () => {
     c.gemini.embedUrl,
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001',
     'the derived URL must equal the literal it replaced',
-  );
-
-  assert.equal(c.admin.username, 'admin');
-  assert.equal(
-    c.admin.password,
-    'open-sesame',
-    'unset means the shipped default',
   );
 });
 

@@ -60,7 +60,7 @@ switcher**. Changing the project changes what every Project-group page shows.
 
 ## Signing in
 
-The first admin user is `admin` / `open-sesame`. Change the password when the
+The first admin user is `admin` / `open-sesame`, and a project named `default` is created alongside it. Change the password when the
 sidebar asks. See [Users and sign-in](/dashboard/users-and-auth/).
 
 Sessions last 7 days and are revocable server-side. Deep links survive sign-in,

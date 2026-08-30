@@ -36,6 +36,7 @@ export interface SessionUser {
 }
 
 /** The out-of-the-box admin password. Every deployment starts with it until someone changes it. */
+export const DEFAULT_ADMIN_USERNAME = 'admin';
 export const DEFAULT_ADMIN_PASSWORD = 'open-sesame';
 
 /** Response shape for a successful login. */

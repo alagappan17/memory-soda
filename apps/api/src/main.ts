@@ -1,10 +1,16 @@
 import path from 'node:path';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
+import {
+  DEFAULT_ADMIN_PASSWORD,
+  DEFAULT_ADMIN_USERNAME,
+} from '@memory-soda/types';
+
 import { app } from './app.js';
 import { config } from './config.js';
 import { db, checkPostgres } from './db/postgres.js';
 import { AppError } from './lib/errors.js';
+import { getOrCreateDefaultProject } from './services/project.service.js';
 import { countUsers, createUser } from './services/user.service.js';
 import { startWorker } from './worker.js';
 import { usageLogs } from './db/schema.js';
@@ -15,15 +21,19 @@ const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle');
 
 const { host, port } = config.server;
 
-/** First-time setup: seed the admin login. Nothing else is created or shown. */
+/** First-time setup: seed the admin login and a project to land in. */
 async function seedAdminUser(): Promise<void> {
   if ((await countUsers()) > 0) return;
 
+  // Same project an API key gets when created without one, so the dashboard
+  // is never empty on first sign-in.
+  await getOrCreateDefaultProject();
+
   // A known default (Grafana-style) beats a password buried in logs. The
   // dashboard keeps a banner up until it is changed.
-  await createUser(config.admin.username, config.admin.password);
+  await createUser(DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD);
   console.log(
-    `[ setup ] admin user "${config.admin.username}" created. Sign in to the dashboard and change the password.`,
+    `[ setup ] admin user "${DEFAULT_ADMIN_USERNAME}" created. Sign in to the dashboard and change the password.`,
   );
 }
 

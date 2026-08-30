@@ -108,7 +108,8 @@ npm run dev
 
 This runs the API and the dashboard together with hot reload.
 
-On **first boot only**, the admin user is created:
+On **first boot only**, the admin user and a project named `default` are
+created:
 
 ```
 [ setup ] admin user "admin" created. Sign in to the dashboard and change the password.

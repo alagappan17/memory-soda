@@ -25,15 +25,13 @@ read from it.
 
 ### Optional
 
-| Variable           | Default                 | Description                                                               |
-| ------------------ | ----------------------- | ------------------------------------------------------------------------- |
-| `HOST`             | `localhost`             | API bind address. Use `0.0.0.0` in a container.                           |
-| `PORT`             | `3004`                  | API port.                                                                 |
-| `CORS_ORIGIN`      | `http://localhost:3000` | Allowed browser origin(s), comma-separated.                               |
-| `MIGRATE_ON_START` | `true`                  | Run pending migrations on boot.                                           |
-| `ADMIN_USERNAME`   | `admin`                 | Username for the first-boot admin user.                                   |
-| `ADMIN_PASSWORD`   | `open-sesame`           | Password for that user. Change it from the dashboard after first sign-in. |
-| `VITE_API_URL`     | `http://localhost:3004` | API URL as the **browser** sees it. Dashboard build-time.                 |
+| Variable           | Default                 | Description                                               |
+| ------------------ | ----------------------- | --------------------------------------------------------- |
+| `HOST`             | `localhost`             | API bind address. Use `0.0.0.0` in a container.           |
+| `PORT`             | `3004`                  | API port.                                                 |
+| `CORS_ORIGIN`      | `http://localhost:3000` | Allowed browser origin(s), comma-separated.               |
+| `MIGRATE_ON_START` | `true`                  | Run pending migrations on boot.                           |
+| `VITE_API_URL`     | `http://localhost:3004` | API URL as the **browser** sees it. Dashboard build-time. |
 
 ### SDK-side
 

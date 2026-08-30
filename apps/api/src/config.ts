@@ -1,4 +1,3 @@
-import { DEFAULT_ADMIN_PASSWORD } from '@memory-soda/types';
 import { z } from 'zod';
 
 /**
@@ -51,8 +50,6 @@ const schema = z.object({
     .default('https://generativelanguage.googleapis.com/v1beta'),
 
   // ── First-boot admin ──────────────────────────────────────────────────────
-  ADMIN_USERNAME: z.string().min(1).default('admin'),
-  ADMIN_PASSWORD: z.string().min(1).default(DEFAULT_ADMIN_PASSWORD),
 });
 
 function load(): z.infer<typeof schema> {
@@ -117,11 +114,6 @@ export const config = Object.freeze({
      * model can never leave the URL pointing at the previous one.
      */
     embedUrl: `${env.GEMINI_API_BASE_URL.replace(/\/+$/, '')}/${env.GEMINI_EMBED_MODEL.replace(/^\/+/, '')}`,
-  }),
-
-  admin: Object.freeze({
-    username: env.ADMIN_USERNAME,
-    password: env.ADMIN_PASSWORD,
   }),
 });
 

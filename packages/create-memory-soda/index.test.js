@@ -21,7 +21,6 @@ test('renderEnv writes the collected values', () => {
     /^DATABASE_URL=postgresql:\/\/u:p@localhost:5432\/memory_db$/m,
   );
   assert.match(env, /^GOOGLE_GENERATIVE_AI_API_KEY=AIza-test$/m);
-  assert.match(env, /^# ADMIN_PASSWORD=open-sesame$/m);
 });
 
 // A dashboard on a non-default port that the API does not allow in CORS is the

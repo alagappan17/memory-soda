@@ -101,10 +101,6 @@ export function renderEnv({ databaseUrl, geminiKey, apiPort, dashboardPort }) {
     `CORS_ORIGIN=http://localhost:${dashboardPort}`,
     `VITE_API_URL=http://localhost:${apiPort}`,
     '',
-    '# Dashboard login. Defaults to admin / open-sesame — change it in the dashboard after first sign-in.',
-    '# ADMIN_USERNAME=admin',
-    '# ADMIN_PASSWORD=open-sesame',
-    '',
   ].join('\n');
 }
 

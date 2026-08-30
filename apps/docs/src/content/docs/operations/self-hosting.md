@@ -223,8 +223,7 @@ front of it.
 - [ ] TLS terminated in front
 - [ ] Rate limits on `/auth/login` and `/v1/*`
 - [ ] `CORS_ORIGIN` set to the exact dashboard origin, never `*`
-- [ ] Default admin password changed (the sidebar notice is gone), or
-      `ADMIN_PASSWORD` set to something strong before first boot
+- [ ] Default admin password changed (the sidebar notice is gone)
 - [ ] Postgres not publicly reachable
 - [ ] `GOOGLE_GENERATIVE_AI_API_KEY` in a secret store
 - [ ] Dashboard on a trusted origin, the session token lives in `localStorage`

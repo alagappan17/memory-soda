@@ -223,7 +223,7 @@ create the first one from the dashboard:
 [ setup ] admin user "admin" created. Sign in to the dashboard and change the password.
 ```
 
-- `ADMIN_USERNAME` defaults to `admin`, `ADMIN_PASSWORD` to `open-sesame`.
+- The account is always `admin` / `open-sesame`; change it after first sign-in.
 - The login response carries `usingDefaultPassword: true` while the shipped
   default is still in use; the dashboard nags until it is changed.
 - Lost it? `npm run admin:reset-password -- admin <new-password>` with database

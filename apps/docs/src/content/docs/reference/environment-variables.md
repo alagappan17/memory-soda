@@ -40,8 +40,6 @@ DATABASE_URL=postgresql://user:pass@db.example.com:5432/memory?sslmode=require
 | `PORT`             | `3004`                  |                                                                                    |
 | `CORS_ORIGIN`      | `http://localhost:3000` | Allowed browser origin(s), comma-separated. Never `*` in production.               |
 | `MIGRATE_ON_START` | `true`                  | Run pending migrations before opening the listener.                                |
-| `ADMIN_USERNAME`   | `admin`                 | Username for the first-boot admin user.                                            |
-| `ADMIN_PASSWORD`   | `open-sesame`           | Password for that user. Change it in the dashboard after first sign-in.            |
 
 #### `CORS_ORIGIN`
 
@@ -58,19 +56,6 @@ Must match the dashboard origin exactly, **including port**. A dashboard on
 `true` is right for a single instance. With several replicas booting together
 they race, safely, because Drizzle takes a lock, but slowly. For a fleet, set it
 to `false` and migrate as a deploy step. See [Migrations](/operations/migrations/).
-
-#### `ADMIN_PASSWORD`
-
-Only used on an empty database, when the first admin user is seeded. Later
-changes to the variable do nothing; change the password from the dashboard
-(avatar → **Change password**) or with
-`npm run admin:reset-password -- <username> <new-password>`.
-
-The default is the same on every install, so the dashboard shows a
-**Default password in use** notice until it is changed. Set it explicitly if
-you would rather never have the default live at all.
-
----
 
 ## Model and endpoint
 
@@ -185,11 +170,6 @@ GOOGLE_GENERATIVE_AI_API_KEY=
 
 # ── Dashboard (build time) ───────────────────────────────────────────
 VITE_API_URL=http://localhost:3004
-
-# ── First-boot admin (optional) ──────────────────────────────────────
-# Defaults to admin / open-sesame; change it in the dashboard after first sign-in.
-# ADMIN_USERNAME=admin
-# ADMIN_PASSWORD=open-sesame
 ```
 
 ---

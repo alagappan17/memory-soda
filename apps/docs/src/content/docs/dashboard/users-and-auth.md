@@ -14,12 +14,9 @@ Dashboard login accounts.
 
 ## First sign-in
 
-On an empty database the API seeds one admin account:
-
-|          | Default       | Override         |
-| -------- | ------------- | ---------------- |
-| Username | `admin`       | `ADMIN_USERNAME` |
-| Password | `open-sesame` | `ADMIN_PASSWORD` |
+On an empty database the API seeds one admin account, **`admin` /
+`open-sesame`**, the same on every install. Change the password from the
+dashboard after first sign-in.
 
 ```
 [ setup ] admin user "admin" created. Sign in to the dashboard and change the password.
