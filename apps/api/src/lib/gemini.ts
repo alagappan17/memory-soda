@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { EpisodeContext } from '@memory-soda/types';
 import { config } from '../config.js';
 import { buildTranscript } from './transcript.js';
+import { log } from './usage.js';
 
 const {
   apiKey,
@@ -18,12 +19,25 @@ const {
 
 const google = createGoogleGenerativeAI({ apiKey });
 
-async function generateTextWithTimeout<T>(
+const SERVICE = 'gemini';
+
+/** Token usage as the AI SDK reports it; every Gemini call exposes it. */
+interface WithUsage {
+  usage?: { promptTokens?: number; completionTokens?: number };
+}
+
+/**
+ * The one funnel every text/structured call goes through. Timing and token
+ * usage are logged here so no caller has to remember to.
+ */
+async function generateTextWithTimeout<T extends WithUsage>(
+  stage: string,
   fn: (signal: AbortSignal) => Promise<T>,
   timeoutMs: number = GEMINI_TIMEOUT_MS,
 ): Promise<T> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const t0 = Date.now();
 
   try {
     const result = await Promise.race([
@@ -37,9 +51,29 @@ async function generateTextWithTimeout<T>(
       }),
     ]);
     clearTimeout(timeoutId);
+    log({
+      stage,
+      kind: 'llm',
+      service: SERVICE,
+      model: GEMINI_MODEL,
+      inputTokens: result.usage?.promptTokens ?? 0,
+      outputTokens: result.usage?.completionTokens ?? 0,
+      latencyMs: Date.now() - t0,
+      meta: { timeoutMs },
+    });
     return result;
   } catch (error) {
     clearTimeout(timeoutId);
+    log({
+      stage,
+      kind: 'llm',
+      service: SERVICE,
+      model: GEMINI_MODEL,
+      latencyMs: Date.now() - t0,
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+      meta: { timeoutMs },
+    });
     throw error;
   }
 }
@@ -51,8 +85,9 @@ async function generateTextWithTimeout<T>(
 export async function generateContent(
   system: string,
   prompt: string,
+  stage = 'generate',
 ): Promise<string> {
-  const { text } = await generateTextWithTimeout((signal) =>
+  const { text } = await generateTextWithTimeout(stage, (signal) =>
     generateText({
       model: google(GEMINI_MODEL),
       system,
@@ -71,8 +106,10 @@ export async function generateStructured<S extends z.ZodType>(
   system: string,
   prompt: string,
   schema: S,
+  stage = 'structured',
 ): Promise<z.infer<S>> {
   const { object } = await generateTextWithTimeout(
+    stage,
     (signal) =>
       generateObject({
         model: google(GEMINI_MODEL),
@@ -145,7 +182,7 @@ export async function generateReply(
 
   const chatMessages = contextMessages.filter(isChatTurn);
 
-  const { text } = await generateTextWithTimeout((signal) =>
+  const { text } = await generateTextWithTimeout('reply', (signal) =>
     generateText({
       model: google(GEMINI_MODEL),
       system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
@@ -171,7 +208,7 @@ export async function summarizeMessages(
 
   const prompt = `${contextBlock}New messages to incorporate:\n${transcript}\n\nWrite a concise, factual, third-person summary of the full conversation so far. Merge the previous summary (if any) with the new messages, never drop a decision, fact, constraint, or unresolved question that is still relevant. Do not add commentary or analysis.`;
 
-  const { text } = await generateTextWithTimeout((signal) =>
+  const { text } = await generateTextWithTimeout('summarize', (signal) =>
     generateText({
       model: google(GEMINI_MODEL),
       prompt,
@@ -228,6 +265,7 @@ export async function extractEpisode(
 ${transcript}
 </transcript>`,
     extractionSchema,
+    'extract_episode',
   );
 
   return {
@@ -237,8 +275,11 @@ ${transcript}
 }
 
 /** Embed a single text. A single-element batch. */
-export async function embedText(text: string): Promise<number[]> {
-  const [vector] = await batchEmbedTexts([text]);
+export async function embedText(
+  text: string,
+  stage = 'embed',
+): Promise<number[]> {
+  const [vector] = await batchEmbedTexts([text], { stage });
   if (!vector) throw new Error('Embedding API returned no vector');
   return vector;
 }
@@ -251,27 +292,49 @@ const EMBED_BATCH_LIMIT = 100;
 
 export async function batchEmbedTexts(
   texts: string[],
-  opts: { timeoutMs?: number } = {},
+  opts: { timeoutMs?: number; stage?: string } = {},
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
 
   const out: number[][] = [];
   for (let start = 0; start < texts.length; start += EMBED_BATCH_LIMIT) {
     const chunk = texts.slice(start, start + EMBED_BATCH_LIMIT);
-    const res = await axios.post<{ embeddings: { values: number[] }[] }>(
-      `${EMBED_URL}:batchEmbedContents`,
-      {
-        requests: chunk.map((text) => ({
-          model: EMBED_MODEL,
-          content: { parts: [{ text }] },
-          outputDimensionality: EMBED_DIM,
-        })),
-      },
-      {
-        headers: { 'x-goog-api-key': apiKey },
-        timeout: opts.timeoutMs ?? GEMINI_TIMEOUT_MS,
-      },
-    );
+    const t0 = Date.now();
+    // The embedding API returns no token count, so chars are logged and
+    // priced by estimate.
+    const usage = {
+      stage: opts.stage ?? 'embed',
+      kind: 'embed' as const,
+      service: SERVICE,
+      model: EMBED_MODEL,
+      inputChars: chunk.reduce((n, t) => n + t.length, 0),
+      meta: { texts: chunk.length },
+    };
+    const res = await axios
+      .post<{ embeddings: { values: number[] }[] }>(
+        `${EMBED_URL}:batchEmbedContents`,
+        {
+          requests: chunk.map((text) => ({
+            model: EMBED_MODEL,
+            content: { parts: [{ text }] },
+            outputDimensionality: EMBED_DIM,
+          })),
+        },
+        {
+          headers: { 'x-goog-api-key': apiKey },
+          timeout: opts.timeoutMs ?? GEMINI_TIMEOUT_MS,
+        },
+      )
+      .catch((err: unknown) => {
+        log({
+          ...usage,
+          latencyMs: Date.now() - t0,
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        throw err;
+      });
+    log({ ...usage, latencyMs: Date.now() - t0 });
     // The API returns embeddings in request order.
     for (const e of res.data.embeddings) out.push(e.values);
   }
@@ -290,7 +353,7 @@ export async function synthesizeContext(contextBlock: string): Promise<string> {
 <context>
 ${contextBlock}
 </context>`;
-  const { text } = await generateTextWithTimeout((signal) =>
+  const { text } = await generateTextWithTimeout('synthesize', (signal) =>
     generateText({
       model: google(GEMINI_MODEL),
       system: SYNTHESIS_SYSTEM,

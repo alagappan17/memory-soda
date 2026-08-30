@@ -1,4 +1,5 @@
 import { embedText, synthesizeContext } from '../lib/gemini.js';
+import { extendUsage, log } from '../lib/usage.js';
 import {
   getEpisodicContext,
   getProjectEpisodicSettings,
@@ -31,6 +32,8 @@ export async function recall(
   req: RecallRequest,
 ): Promise<RecallResponse> {
   const { dataset, query, include = [], limit, asOf, minConfidence } = req;
+  const t0 = Date.now();
+  extendUsage({ projectId, dataset });
 
   const settings = await getEffectiveSemanticSettings(projectId);
   const factLimit = limit ?? settings.factsInContext;
@@ -40,9 +43,12 @@ export async function recall(
   let queryEmbedding: number[] | null = null;
   if (query && query.trim().length >= 3) {
     try {
-      queryEmbedding = await embedText(query);
+      queryEmbedding = await embedText(query, 'embed_query');
     } catch (err) {
-      console.warn('[recall] query embed failed, falling back to keyword/recency:', err);
+      console.warn(
+        '[recall] query embed failed, falling back to keyword/recency:',
+        err,
+      );
     }
   }
 
@@ -121,11 +127,19 @@ export async function recall(
   }
 
   // Counts and lengths only, the context block is the user's own data.
-  console.log(
-    `[recall] dataset=${dataset} facts=${factList.length} ` +
-      `contextChars=${context.length} synthesis=${Boolean(synthesis)} ` +
-      `episodes=${episodes?.episodeCount ?? 0}`,
-  );
+  log({
+    stage: 'recall',
+    kind: 'span',
+    latencyMs: Date.now() - t0,
+    meta: {
+      facts: factList.length,
+      contextChars: context.length,
+      synthesis: Boolean(synthesis),
+      episodes: episodes?.episodeCount ?? 0,
+      include,
+      asOf: Boolean(asOf),
+    },
+  });
 
   return {
     context,

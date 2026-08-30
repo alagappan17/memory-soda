@@ -188,6 +188,7 @@ ${transcript}
     buildGraphSystem(today),
     prompt,
     rawGraphSchema,
+    'extract_graph',
   );
 
   const entities: ExtractedEntity[] = (raw.entities ?? [])
@@ -214,7 +215,8 @@ ${transcript}
   // entity is encyclopedia content (e.g. "asus rog → features → rtx 4070") and is
   // dropped. This guard is deterministic so it holds even when the model ignores
   // the prompt's "facts about the user only" instruction.
-  const isAllowedSubject = (subject: string) => normalizeName(subject) === 'user';
+  const isAllowedSubject = (subject: string) =>
+    normalizeName(subject) === 'user';
 
   // Split model relationships by whether the object is a listed entity. The
   // model routinely emits relationships whose object it forgot to co-list in
@@ -225,7 +227,10 @@ ${transcript}
   const relationships: ExtractedRelationship[] = [];
   const demoted: ExtractedLiteralFact[] = [];
   for (const r of raw.relationships ?? []) {
-    if (!isAllowedSubject(r.subject) || !entityNames.has(normalizeName(r.subject)))
+    if (
+      !isAllowedSubject(r.subject) ||
+      !entityNames.has(normalizeName(r.subject))
+    )
       continue;
     const common = {
       subject: normalizeName(r.subject),
@@ -331,6 +336,7 @@ export async function resolveContradictions(
       BATCH_CONTRADICTION_SYSTEM,
       prompt,
       verdictSchema,
+      'resolve_contradictions',
     );
     for (const item of parsed.verdicts ?? []) {
       if (item.index >= 0 && item.index < verdicts.length) {

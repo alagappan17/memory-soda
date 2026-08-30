@@ -9,6 +9,7 @@ import {
 import { recall } from '../../services/recall.service.js';
 import { generateReply } from '../../lib/gemini.js';
 import type { RecallResponse, WMChatResponse } from '@memory-soda/types';
+import { extendUsage } from '../../lib/usage.js';
 
 /**
  * The playground's chat turn: the server runs the model itself.
@@ -48,6 +49,7 @@ router.post(
         projectId,
         { role: 'user', content: body.content },
       );
+      extendUsage({ threadId, dataset: thread.dataset });
 
       // Working memory is pure SQL and long-term memory does the embedding and
       // LLM work, so the two reads run in parallel. Recall is best-effort: the

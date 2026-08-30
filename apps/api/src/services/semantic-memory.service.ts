@@ -34,6 +34,7 @@ import {
   type ExtractedEntity,
   type ExtractedGraph,
 } from '../lib/semantic-extraction.js';
+import { extendUsage, log } from '../lib/usage.js';
 
 import {
   anchorFor,
@@ -135,6 +136,7 @@ interface LiveNeighbour {
 
 export async function processSemanticMemory(episodeId: string): Promise<void> {
   const now = new Date();
+  const t0 = Date.now();
 
   // Atomic claim: only one worker moves pending/failed → processing. A stale
   // 'processing' row (worker died mid-extraction) may also be reclaimed.
@@ -156,6 +158,25 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
     )
     .returning();
   if (!episode) return;
+  extendUsage({
+    projectId: episode.projectId,
+    dataset: episode.dataset,
+    threadId: episode.threadId ?? undefined,
+    episodeId: episode.id,
+  });
+  const span = (
+    ok: boolean,
+    error: string | null,
+    meta: Record<string, unknown>,
+  ) =>
+    log({
+      stage: 'semantic',
+      kind: 'span',
+      latencyMs: Date.now() - t0,
+      ok,
+      error,
+      meta,
+    });
 
   try {
     const [[projRow], [tRow]] = await Promise.all([
@@ -244,8 +265,14 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
       .update(episodes)
       .set({ semanticStatus: 'completed', error: null, updatedAt: new Date() })
       .where(eq(episodes.id, episodeId));
+    span(true, null, {
+      messageCount: msgRows.length,
+      entitiesExtracted: graph.entities.length,
+      factsExtracted: graph.relationships.length + graph.literalFacts.length,
+    });
   } catch (err) {
     console.error('[semantic] processSemanticMemory failed:', episodeId, err);
+    span(false, err instanceof Error ? err.message : String(err), {});
     await db
       .update(episodes)
       .set({
@@ -277,7 +304,10 @@ async function resolveEntities(
 
   // One embedding call, then pair each entity with its vector, indexing two
   // arrays in step is how they silently drift apart.
-  const embeddings = await batchEmbedTexts(extracted.map((e) => e.name));
+  const embeddings = await batchEmbedTexts(
+    extracted.map((e) => e.name),
+    { stage: 'embed_entities' },
+  );
   const candidates = extracted.flatMap((ent, i) => {
     const embedding = embeddings[i];
     return embedding ? [{ ent, embedding }] : [];
@@ -318,7 +348,11 @@ async function resolveEntities(
         })
         .from(entities)
         .where(
-          and(tenant, eq(entities.type, ent.type), isNotNull(entities.embedding)),
+          and(
+            tenant,
+            eq(entities.type, ent.type),
+            isNotNull(entities.embedding),
+          ),
         )
         .orderBy(sql`${entities.embedding} <=> ${vec}::vector`)
         .limit(1);
@@ -427,7 +461,10 @@ async function writeFacts(
   ];
   if (candidates.length === 0) return;
 
-  const tenant = and(eq(facts.dataset, dataset), eq(facts.projectId, projectId));
+  const tenant = and(
+    eq(facts.dataset, dataset),
+    eq(facts.projectId, projectId),
+  );
 
   // `snapshotAt` marks the start of the read set so the write transaction can
   // detect facts a concurrent job committed while we were off calling the LLM.
@@ -476,7 +513,8 @@ async function writeFacts(
 
   // Valid-time bounds. Extraction already normalized these to ISO date strings
   // or null, so parsing is safe.
-  const toDate = (iso: string | null): Date | null => (iso ? new Date(iso) : null);
+  const toDate = (iso: string | null): Date | null =>
+    iso ? new Date(iso) : null;
 
   // Effective valid-from instant. validFrom is date-only, so "today" resolves to
   // midnight, hours BEFORE facts recorded earlier the same day, which would make
@@ -490,7 +528,9 @@ async function writeFacts(
   };
 
   // Embed candidates (enriched with the derived anchor).
-  const embeds = await batchEmbedTexts(deduped.map(buildFactEmbedString));
+  const embeds = await batchEmbedTexts(deduped.map(buildFactEmbedString), {
+    stage: 'embed_facts',
+  });
 
   // Step 3b, the neighbourhood of each candidate, from Postgres.
   //
@@ -567,7 +607,8 @@ async function writeFacts(
       ...neighbours,
       ...samePredicateLive.filter(
         (f) =>
-          f.subject === candidate.subject && f.predicate === candidate.predicate,
+          f.subject === candidate.subject &&
+          f.predicate === candidate.predicate,
       ),
     ]);
   }
@@ -799,7 +840,10 @@ const FACT_COLUMNS = {
 /** Exactly the row shape {@link FACT_COLUMNS} selects, derived, not restated. */
 type FactSelect = Pick<FactRow, keyof typeof FACT_COLUMNS>;
 
-function rowToSemanticFact(r: FactSelect, relevanceScore?: number): SemanticFact {
+function rowToSemanticFact(
+  r: FactSelect,
+  relevanceScore?: number,
+): SemanticFact {
   return {
     factId: r.id,
     subject: r.subject,
@@ -855,12 +899,12 @@ export async function getSemanticContext(
 
   // No query → most recent live facts.
   if (!query || query.trim().length === 0) {
-    const rows = (await db
+    const rows = await db
       .select(FACT_COLUMNS)
       .from(facts)
       .where(tenant)
       .orderBy(desc(facts.validAt))
-      .limit(limit));
+      .limit(limit);
     return {
       facts: rows.map((r) => rowToSemanticFact(r, 1)),
       factCount: rows.length,
@@ -871,12 +915,12 @@ export async function getSemanticContext(
   const vectorSignal = async (): Promise<FactSelect[]> => {
     if (!queryEmbedding || queryEmbedding.length === 0) return [];
     const vectorLiteral = toVectorLiteral(queryEmbedding);
-    return (await db
+    return await db
       .select(FACT_COLUMNS)
       .from(facts)
       .where(and(tenant, isNotNull(facts.embedding)))
       .orderBy(sql`${facts.embedding} <=> ${vectorLiteral}::vector`)
-      .limit(scan));
+      .limit(scan);
   };
 
   // Signal 2, entity-anchored: resolve entities the query mentions (word-boundary
@@ -917,7 +961,7 @@ export async function getSemanticContext(
       ...new Set([...mentionRows, ...vectorRows].map((r) => r.name)),
     ];
     if (anchors.length === 0) return [];
-    return (await db
+    return await db
       .select(FACT_COLUMNS)
       .from(facts)
       .where(
@@ -926,18 +970,18 @@ export async function getSemanticContext(
           or(inArray(facts.subject, anchors), inArray(facts.object, anchors)),
         ),
       )
-      .limit(scan));
+      .limit(scan);
   };
 
   // Signal 3, keyword / full-text.
   const keywordSignal = async (): Promise<FactSelect[]> => {
     const tsquery = sql`plainto_tsquery('english', ${query})`;
-    return (await db
+    return await db
       .select(FACT_COLUMNS)
       .from(facts)
       .where(and(tenant, sql`${factsTsv} @@ ${tsquery}`))
       .orderBy(sql`ts_rank(${factsTsv}, ${tsquery}) DESC`)
-      .limit(scan));
+      .limit(scan);
   };
 
   // The three signals are independent, run them in one round-trip.
@@ -1045,7 +1089,9 @@ export async function listEntities(
   const rows = await db
     .select({ id: entities.id, name: entities.name, type: entities.type })
     .from(entities)
-    .where(and(eq(entities.dataset, dataset), eq(entities.projectId, projectId)))
+    .where(
+      and(eq(entities.dataset, dataset), eq(entities.projectId, projectId)),
+    )
     .orderBy(desc(entities.updatedAt));
   return rows.map((r) => ({
     entityId: r.id,
@@ -1059,7 +1105,7 @@ export async function listEntityFacts(
   projectId: string,
   name: string,
 ): Promise<SemanticFact[]> {
-  const rows = (await db
+  const rows = await db
     .select(FACT_COLUMNS)
     .from(facts)
     .where(
@@ -1070,7 +1116,7 @@ export async function listEntityFacts(
         or(eq(facts.subject, name), eq(facts.object, name)),
       ),
     )
-    .orderBy(desc(facts.validAt)));
+    .orderBy(desc(facts.validAt));
   return rows.map((r) => rowToSemanticFact(r));
 }
 

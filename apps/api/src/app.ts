@@ -10,6 +10,7 @@ import { config } from './config.js';
 import { isAppError } from './lib/errors.js';
 import { requireApiKey, requireSession } from './middleware/authenticate.js';
 import { projectFromQuery } from './middleware/project-scope.js';
+import { usageContext } from './middleware/usage-context.js';
 
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
@@ -19,6 +20,7 @@ import apiKeysRouter from './routes/admin/api-keys.js';
 import usersRouter from './routes/admin/users.js';
 import browseRouter from './routes/admin/browse.js';
 import chatRouter from './routes/admin/chat.js';
+import usageRouter from './routes/admin/usage.js';
 
 /** The HTTP app without a listener, so tests can mount it on any port. */
 const { corsOrigins } = config.server;
@@ -34,14 +36,27 @@ app.use('/auth', authRouter);
 
 // ── SDK surface ──────────────────────────────────────────────────────────────
 // The API key names the project, so no other scoping is needed.
-app.use('/v1', requireApiKey, memoryRouter);
+app.use('/v1', requireApiKey, usageContext, memoryRouter);
 
 // ── Dashboard surface ────────────────────────────────────────────────────────
 // The same memory router under a login session. A session can see several
 // projects, so the project comes from `?projectId=` instead of the credential.
-app.use('/dashboard/v1', requireSession, projectFromQuery, memoryRouter);
-app.use('/dashboard/chat', requireSession, projectFromQuery, chatRouter);
+app.use(
+  '/dashboard/v1',
+  requireSession,
+  projectFromQuery,
+  usageContext,
+  memoryRouter,
+);
+app.use(
+  '/dashboard/chat',
+  requireSession,
+  projectFromQuery,
+  usageContext,
+  chatRouter,
+);
 app.use('/dashboard/browse', requireSession, projectFromQuery, browseRouter);
+app.use('/dashboard/usage', requireSession, projectFromQuery, usageRouter);
 app.use('/dashboard/projects', requireSession, projectsRouter);
 app.use('/dashboard/api-keys', requireSession, apiKeysRouter);
 app.use('/dashboard/users', requireSession, usersRouter);

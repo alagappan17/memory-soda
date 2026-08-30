@@ -32,6 +32,7 @@ import type {
   EpisodeWithRelevance,
   ProjectEpisodicSettings,
 } from '@memory-soda/types';
+import { extendUsage, log } from '../lib/usage.js';
 
 import { processSemanticMemory } from './semantic-memory.service.js';
 
@@ -219,6 +220,7 @@ export async function createPendingEpisode(payload: {
 
 export async function processEpisode(episodeId: string): Promise<void> {
   const now = new Date();
+  const t0 = Date.now();
   // Atomic claim: only one worker can move pending/failed → processing.
   const [episode] = await db
     .update(episodes)
@@ -236,6 +238,29 @@ export async function processEpisode(episodeId: string): Promise<void> {
     .returning();
 
   if (!episode) return;
+  extendUsage({
+    projectId: episode.projectId,
+    dataset: episode.dataset,
+    threadId: episode.threadId ?? undefined,
+    episodeId: episode.id,
+  });
+  const span = (
+    ok: boolean,
+    error: string | null,
+    meta: Record<string, unknown>,
+  ) =>
+    log({
+      stage: 'episode',
+      kind: 'span',
+      latencyMs: Date.now() - t0,
+      ok,
+      error,
+      meta: {
+        messageCount: msgRows.length,
+        retryCount: episode.retryCount,
+        ...meta,
+      },
+    });
 
   // Only this episode's window, the same messages semantic extraction will
   // read. Continuity with earlier windows comes from `previousSummary` below,
@@ -312,6 +337,7 @@ export async function processEpisode(episodeId: string): Promise<void> {
         updatedAt: now,
       })
       .where(eq(episodes.id, episodeId));
+    span(false, err instanceof Error ? err.message : String(err), {});
     return;
   }
 
@@ -319,7 +345,7 @@ export async function processEpisode(episodeId: string): Promise<void> {
   let embedding: number[] | null = null;
   let embeddingError: string | null = null;
   try {
-    embedding = await embedText(summary);
+    embedding = await embedText(summary, 'embed_summary');
   } catch (err) {
     embeddingError = err instanceof Error ? err.message : String(err);
   }
@@ -336,6 +362,7 @@ export async function processEpisode(episodeId: string): Promise<void> {
         updatedAt: now,
       })
       .where(eq(episodes.id, episodeId));
+    span(false, `Embedding failed: ${embeddingError}`, {});
     return;
   }
 
@@ -346,11 +373,13 @@ export async function processEpisode(episodeId: string): Promise<void> {
       summary,
       keyLearnings,
       embedding,
-      processingCompletedAt: now,
+      // A fresh timestamp: `now` was taken before the model calls.
+      processingCompletedAt: new Date(),
       error: null,
       updatedAt: now,
     })
     .where(eq(episodes.id, episodeId));
+  span(true, null, { keyLearnings: keyLearnings.length });
 
   // Fire-and-forget semantic extraction on the now-completed episode.
   processSemanticMemory(episodeId).catch((err) => {
@@ -476,7 +505,10 @@ export async function getEpisodicContext(
 
   if (!queryEmbedding) {
     const [totalRows, rows] = await Promise.all([
-      db.select({ count: count() }).from(episodes).where(activeEpisodesFilter(dataset, projectId)),
+      db
+        .select({ count: count() })
+        .from(episodes)
+        .where(activeEpisodesFilter(dataset, projectId)),
       db
         .select()
         .from(episodes)
@@ -486,7 +518,10 @@ export async function getEpisodicContext(
     ]);
     const episodeCount = totalRows[0]?.count ?? 0;
     if (episodeCount === 0) return { episodes: null, episodeCount: 0 };
-    return { episodes: rows.map((r) => rowToContextItem(r, 1.0)), episodeCount };
+    return {
+      episodes: rows.map((r) => rowToContextItem(r, 1.0)),
+      episodeCount,
+    };
   }
 
   const totalRows = await db
@@ -511,7 +546,10 @@ export async function getEpisodicContext(
     })
     .from(episodes)
     .where(
-      and(activeEpisodesFilter(dataset, projectId), isNotNull(episodes.embedding)),
+      and(
+        activeEpisodesFilter(dataset, projectId),
+        isNotNull(episodes.embedding),
+      ),
     )
     .orderBy(sql`${episodes.embedding} <=> ${vectorLiteral}::vector`)
     .limit(10);
@@ -628,7 +666,9 @@ export async function getThreadEpisodes(
   const rows = await db
     .select()
     .from(episodes)
-    .where(and(eq(episodes.threadId, threadId), eq(episodes.projectId, projectId)))
+    .where(
+      and(eq(episodes.threadId, threadId), eq(episodes.projectId, projectId)),
+    )
     .orderBy(desc(episodes.createdAt));
   return rows.map(rowToEpisode);
 }
@@ -651,7 +691,10 @@ export async function searchEpisodes(
     })
     .from(episodes)
     .where(
-      and(activeEpisodesFilter(dataset, projectId), isNotNull(episodes.embedding)),
+      and(
+        activeEpisodesFilter(dataset, projectId),
+        isNotNull(episodes.embedding),
+      ),
     )
     .orderBy(sql`${episodes.embedding} <=> ${vectorLiteral}::vector`)
     .limit(limit * 3);

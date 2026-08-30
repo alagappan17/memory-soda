@@ -11,6 +11,7 @@ import type {
   WMTokenCount,
 } from '@memory-soda/types';
 import { type Thread, rowToThread } from './thread.service.js';
+import { extendUsage, timed } from '../lib/usage.js';
 
 export type { Thread };
 
@@ -273,9 +274,18 @@ export async function compactThread(
   const toSeq = targetRows[targetRows.length - 1]!.sequenceNumber;
   const targetIds = targetRows.map((r) => r.id);
 
-  const summaryText = await summarizeMessages(
-    targetRows.map((r) => ({ role: r.role, content: r.content })),
-    existingSummaryRow?.content ?? null,
+  extendUsage({ projectId, threadId });
+  const summaryText = await timed(
+    {
+      stage: 'compact',
+      kind: 'span',
+      meta: { messages: targetRows.length, keepLast },
+    },
+    () =>
+      summarizeMessages(
+        targetRows.map((r) => ({ role: r.role, content: r.content })),
+        existingSummaryRow?.content ?? null,
+      ),
   );
 
   if (!summaryText || summaryText.trim().length === 0) {
