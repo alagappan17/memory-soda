@@ -5,6 +5,7 @@ import {
   Home,
   Folder,
   KeyRound,
+  BarChart3,
   Activity,
   FlaskConical,
   Database,
@@ -73,6 +74,7 @@ const projectNav = [
   { to: '/datasets', label: 'Datasets', icon: Database },
   { to: '/playground', label: 'Playground', icon: FlaskConical },
   { to: '/api-keys', label: 'API Keys', icon: KeyRound },
+  { to: '/usage', label: 'Usage', icon: BarChart3 },
 ];
 
 function NavItem({

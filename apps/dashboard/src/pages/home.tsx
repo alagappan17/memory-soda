@@ -6,6 +6,7 @@ import {
   Database,
   FlaskConical,
   KeyRound,
+  BarChart3,
   Settings,
   ArrowRight,
 } from 'lucide-react';
@@ -58,6 +59,12 @@ const projectItems: Item[] = [
     label: 'API Keys',
     description: 'Issue and revoke keys for the SDK.',
     icon: KeyRound,
+  },
+  {
+    to: '/usage',
+    label: 'Usage',
+    description: 'Cost, tokens, latency, and memory growth.',
+    icon: BarChart3,
   },
 ];
 
