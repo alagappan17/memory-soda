@@ -1,8 +1,9 @@
 ---
-title: "Database schema"
-description: "Ten tables in PostgreSQL with pgvector. Defined in apps/api/src/db/schema.ts, applied by migrations."
+title: 'Database schema'
+description: 'Eleven tables in PostgreSQL with pgvector. Defined in apps/api/src/db/schema.ts, applied by migrations.'
 ---
-Ten tables in PostgreSQL with `pgvector`. Defined in
+
+Eleven tables in PostgreSQL with `pgvector`. Defined in
 `apps/api/src/db/schema.ts`, applied by [migrations](/operations/migrations/).
 
 ```
@@ -318,6 +319,47 @@ which is why entity names are never updated in place.
 
 ---
 
+## `usage_logs`
+
+One row per unit of work that costs money or time: a model call, an embedding
+batch, or a timed span. Feeds the dashboard's [Usage](/dashboard/usage/) page.
+
+```
+id            uuid PK
+created_at    timestamptz NOT NULL DEFAULT now()
+project_id    uuid NOT NULL → projects ON DELETE CASCADE
+dataset       text
+source        text NOT NULL           -- api | dashboard | worker
+api_key_id    uuid                    -- no FK: a revoked key keeps its history
+user_id       uuid
+request_id    uuid                    -- shared by every row of one request / job
+operation     text NOT NULL           -- route or worker job, e.g. "POST /v1/memory/recall"
+stage         text NOT NULL           -- extract_graph | embed_facts | recall | http | …
+kind          text NOT NULL           -- llm | embed | span
+service       text                    -- gemini | …    (NULL for spans)
+model         text
+input_tokens  integer NOT NULL DEFAULT 0
+output_tokens integer NOT NULL DEFAULT 0
+input_chars   integer NOT NULL DEFAULT 0   -- embedding APIs that return no token count
+calls         integer NOT NULL DEFAULT 1
+latency_ms    integer NOT NULL DEFAULT 0
+ok            boolean NOT NULL DEFAULT true
+error         text
+thread_id     uuid
+episode_id    uuid
+meta          jsonb NOT NULL DEFAULT '{}'
+
+INDEX usage_logs_project_created_idx (project_id, created_at)
+INDEX usage_logs_request_idx (request_id)
+```
+
+**Cost is not a column.** It is priced at read time from `service` + `model`,
+so a price change or a new provider needs no backfill. Thread, episode and
+API-key ids are plain columns, not foreign keys: the log must outlive what it
+describes.
+
+---
+
 ## Vector storage
 
 - pgvector, **768 dimensions**, from `gemini-embedding-001`.
@@ -332,12 +374,12 @@ which is why entity names are never updated in place.
 
 ## Cascade behaviour
 
-| Deleting | Removes |
-|---|---|
-| `projects` | api_keys, threads → messages, episodes, facts, entities, scheduled_episodes |
-| `threads` | messages, scheduled_episodes. **Not episodes** (nullable FK), **not facts** |
-| `episodes` | Nothing, `facts.episode_id` is `ON DELETE SET NULL` |
-| `users` | sessions |
+| Deleting   | Removes                                                                                 |
+| ---------- | --------------------------------------------------------------------------------------- |
+| `projects` | api_keys, threads → messages, episodes, facts, entities, scheduled_episodes, usage_logs |
+| `threads`  | messages, scheduled_episodes. **Not episodes** (nullable FK), **not facts**             |
+| `episodes` | Nothing, `facts.episode_id` is `ON DELETE SET NULL`                                     |
+| `users`    | sessions                                                                                |
 
 Facts and entities are scoped to the **dataset**, not the thread, and outlive
 both. Deleting a conversation does not delete what was learned from it. See

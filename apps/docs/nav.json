@@ -234,6 +234,11 @@
           "title": "Project settings",
           "path": "dashboard/project-settings.md",
           "slug": "project-settings"
+        },
+        {
+          "title": "Usage",
+          "path": "dashboard/usage.md",
+          "slug": "usage"
         }
       ]
     },

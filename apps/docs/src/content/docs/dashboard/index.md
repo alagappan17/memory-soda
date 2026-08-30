@@ -12,14 +12,15 @@ does goes through [`/dashboard/*` and `/auth/*`](/api/dashboard/).
 
 ## What it is for
 
-| Question                                   | Page                                             |
-| ------------------------------------------ | ------------------------------------------------ |
-| What does the system know about this user? | [Datasets](/dashboard/datasets/)                 |
-| Why did it extract _that_?                 | [Playground](/dashboard/playground/)             |
-| How do I issue a key for my app?           | [API keys](/dashboard/api-keys/)                 |
-| How do I change retrieval behaviour?       | [Project settings](/dashboard/project-settings/) |
-| Who can sign in here?                      | [Users and sign-in](/dashboard/users-and-auth/)  |
-| Is anything broken?                        | Status                                           |
+| Question                                     | Page                                             |
+| -------------------------------------------- | ------------------------------------------------ |
+| What does the system know about this user?   | [Datasets](/dashboard/datasets/)                 |
+| Why did it extract _that_?                   | [Playground](/dashboard/playground/)             |
+| How do I issue a key for my app?             | [API keys](/dashboard/api-keys/)                 |
+| What is this costing me, and how fast is it? | [Usage](/dashboard/usage/)                       |
+| How do I change retrieval behaviour?         | [Project settings](/dashboard/project-settings/) |
+| Who can sign in here?                        | [Users and sign-in](/dashboard/users-and-auth/)  |
+| Is anything broken?                          | Status                                           |
 
 ---
 
@@ -117,6 +118,11 @@ Issue and revoke integration keys.
 ### [Project settings](/dashboard/project-settings/)
 
 All fifteen episodic and semantic tuning values.
+
+### [Usage](/dashboard/usage/)
+
+Cost, tokens, latency and memory growth for the project, from a log of every
+model call the platform made. Filter by window, dataset, source, stage or model.
 
 ### Status
 
