@@ -78,6 +78,13 @@
       "when": 1785679084711,
       "tag": "0010_tokens_rename",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788082150031,
+      "tag": "0011_overjoyed_owl",
+      "breakpoints": true
     }
   ]
 }

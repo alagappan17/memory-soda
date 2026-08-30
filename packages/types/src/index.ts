@@ -7,3 +7,4 @@ export * from './lib/semantic-memory.js';
 export * from './lib/prepare.js';
 export * from './lib/project-settings.js';
 export * from './lib/dataset.js';
+export * from './lib/usage.js';
