@@ -17,12 +17,12 @@ const GRACE_MS = 2000;
  * currentRequestId, which guards user-initiated UI state.
  */
 export function useExtractionPoller({
-  apiKey,
+  projectId,
   dataset,
   addOp,
   onEpisodesChanged,
 }: {
-  apiKey: string;
+  projectId: string;
   dataset: string;
   addOp: AddOp;
   onEpisodesChanged: () => void;
@@ -36,8 +36,8 @@ export function useExtractionPoller({
   const tickingRef = useRef(false);
 
   // Latest values for use inside timers without re-arming them.
-  const keyRef = useRef(apiKey);
-  keyRef.current = apiKey;
+  const projectRef = useRef(projectId);
+  projectRef.current = projectId;
   const dsRef = useRef(dataset);
   dsRef.current = dataset;
   const addOpRef = useRef(addOp);
@@ -64,20 +64,20 @@ export function useExtractionPoller({
     watchIdRef.current = null;
   }, [stopTimers]);
 
-  // New key/dataset = new memory scope; drop any in-flight watch.
+  // New project/dataset = new memory scope; drop any in-flight watch.
   useEffect(() => {
     reset();
-  }, [apiKey, dataset, reset]);
+  }, [projectId, dataset, reset]);
 
   useEffect(() => () => stopTimers(), [stopTimers]);
 
   const fetchEpisodes = useCallback(async (): Promise<Episode[]> => {
     const scope = dsRef.current.trim();
     const [completed, failed] = await Promise.all([
-      quiet(keyRef.current, (memory) =>
+      quiet(projectRef.current, (memory) =>
         memory.listEpisodes(scope, { status: 'completed', limit: 20 }),
       ),
-      quiet(keyRef.current, (memory) =>
+      quiet(projectRef.current, (memory) =>
         memory.listEpisodes(scope, { status: 'failed', limit: 10 }),
       ),
     ]);
@@ -101,7 +101,7 @@ export function useExtractionPoller({
 
   const reportFacts = useCallback(async (episode: Episode, gen: number) => {
     try {
-      const { data, trace } = await call(keyRef.current, (memory) =>
+      const { data, trace } = await call(projectRef.current, (memory) =>
         memory.listFacts(dsRef.current.trim(), {
           episodeId: episode.episodeId,
           includeInvalidated: true,
@@ -168,7 +168,7 @@ export function useExtractionPoller({
       try {
         if (watchIdRef.current) {
           const watchId = watchIdRef.current;
-          const episode = await quiet(keyRef.current, (memory) =>
+          const episode = await quiet(projectRef.current, (memory) =>
             memory.getEpisode(watchId),
           );
           if (gen !== genRef.current) return;

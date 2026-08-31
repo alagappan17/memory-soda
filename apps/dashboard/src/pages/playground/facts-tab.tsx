@@ -11,13 +11,13 @@ import { FactRow } from './fact-row';
  * bi-temporal status + provenance, entity chips with drill-down, soft-delete.
  */
 export function FactsTab({
-  apiKey,
+  projectId,
   dataset,
   active,
   addOp,
   threshold,
 }: {
-  apiKey: string;
+  projectId: string;
   dataset: string;
   active: boolean;
   addOp: AddOp;
@@ -36,7 +36,7 @@ export function FactsTab({
   } | null>(null);
   const loadedOnce = useRef(false);
 
-  const ready = !!apiKey.trim() && !!dataset.trim();
+  const ready = !!projectId && !!dataset.trim();
   const scope = dataset.trim();
 
   const loadFacts = useCallback(async () => {
@@ -44,7 +44,7 @@ export function FactsTab({
     setLoading(true);
     setError(null);
     try {
-      const factsRes = await quiet(apiKey, (memory) =>
+      const factsRes = await quiet(projectId, (memory) =>
         memory.listFacts(scope, {
           limit: 100,
           ...(q.trim() ? { q: q.trim() } : {}),
@@ -59,20 +59,22 @@ export function FactsTab({
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, scope, q, includeInvalidated, asOf, ready]);
+     
+  }, [projectId, scope, q, includeInvalidated, asOf, ready]);
 
   // Entities don't depend on the fact filters, fetch once per scope
   // (and on explicit refresh), not on every debounced keystroke.
   const loadEntities = useCallback(async () => {
     if (!ready) return;
     try {
-      setEntities(await quiet(apiKey, (memory) => memory.listEntities(scope)));
+      setEntities(
+        await quiet(projectId, (memory) => memory.listEntities(scope)),
+      );
     } catch (err) {
       setError(describeError(err, 'Failed to load entities').message);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, scope, ready]);
+     
+  }, [projectId, scope, ready]);
 
   const load = useCallback(async () => {
     await Promise.all([loadFacts(), loadEntities()]);
@@ -85,7 +87,7 @@ export function FactsTab({
     setEntityView(null);
     setError(null);
     loadedOnce.current = false;
-  }, [apiKey, dataset]);
+  }, [projectId, dataset]);
 
   // Load on first open.
   useEffect(() => {
@@ -103,7 +105,7 @@ export function FactsTab({
 
   async function removeFact(factId: string) {
     try {
-      const { trace } = await call(apiKey, (memory) =>
+      const { trace } = await call(projectId, (memory) =>
         memory.deleteFact(scope, factId),
       );
       addOp('fact_deleted', { factId }, trace);
@@ -120,7 +122,7 @@ export function FactsTab({
 
   async function openEntity(name: string) {
     try {
-      const { facts } = await quiet(apiKey, (memory) =>
+      const { facts } = await quiet(projectId, (memory) =>
         memory.listFacts(scope, { entity: name }),
       );
       setEntityView({ name, facts });
@@ -210,7 +212,7 @@ export function FactsTab({
                 key={f.factId}
                 fact={f}
                 threshold={threshold}
-                apiKey={apiKey}
+                projectId={projectId}
                 onDelete={(id) => void removeFact(id)}
               />
             ))}
@@ -253,7 +255,7 @@ export function FactsTab({
               <p className="text-xs text-muted-foreground">
                 {ready
                   ? 'No facts yet, they extract automatically after conversations.'
-                  : 'Enter your API key and dataset above.'}
+                  : 'Select a project and dataset above.'}
               </p>
             ) : (
               <ul className="space-y-1.5">
@@ -262,7 +264,7 @@ export function FactsTab({
                     key={f.factId}
                     fact={f}
                     threshold={threshold}
-                    apiKey={apiKey}
+                    projectId={projectId}
                     onDelete={(id) => void removeFact(id)}
                   />
                 ))}

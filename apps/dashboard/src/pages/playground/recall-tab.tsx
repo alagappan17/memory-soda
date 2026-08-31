@@ -17,10 +17,10 @@ const DEFAULT_CONTROLS: RecallControls = {
 
 /**
  * Recall inspector, exercises POST /v1/memory/recall with every knob the API
- * accepts. Thread-free: only needs an API key + dataset.
+ * accepts. Thread-free: only needs a project + dataset.
  */
 export function RecallTab({
-  apiKey,
+  projectId,
   dataset,
   active,
   addOp,
@@ -28,7 +28,7 @@ export function RecallTab({
   defaultLimit,
   lastUserMessage,
 }: {
-  apiKey: string;
+  projectId: string;
   dataset: string;
   active: boolean;
   addOp: AddOp;
@@ -45,7 +45,7 @@ export function RecallTab({
   useEffect(() => {
     setResult(null);
     setError(null);
-  }, [apiKey, dataset]);
+  }, [projectId, dataset]);
 
   // Seed the query from the conversation the first time the tab opens.
   useEffect(() => {
@@ -55,7 +55,7 @@ export function RecallTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-  const ready = !!apiKey.trim() && !!dataset.trim();
+  const ready = !!projectId && !!dataset.trim();
 
   async function run() {
     if (!ready || loading) return;
@@ -80,7 +80,7 @@ export function RecallTab({
           : {}),
       };
 
-      const { data, trace } = await call(apiKey, (memory) =>
+      const { data, trace } = await call(projectId, (memory) =>
         memory.recall(body),
       );
       setResult(data);
@@ -244,7 +244,7 @@ export function RecallTab({
         <div className="flex items-center justify-center h-32 text-xs text-muted-foreground text-center px-4">
           {ready
             ? 'Run recall to inspect long-term memory. No thread required.'
-            : 'Enter your API key and dataset above.'}
+            : 'Select a project and dataset above.'}
         </div>
       ) : (
         <div className="p-3 space-y-4">
@@ -341,7 +341,7 @@ export function RecallTab({
                   <FactRow
                     key={f.factId}
                     fact={f}
-                    apiKey={apiKey}
+                    projectId={projectId}
                     threshold={controls.minConfidence ?? defaultMinConfidence}
                   />
                 ))}

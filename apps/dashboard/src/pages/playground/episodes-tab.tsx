@@ -204,7 +204,6 @@ function EpisodeCard({
  * retry for failed extractions, soft-delete.
  */
 export function EpisodesTab({
-  apiKey,
   projectId,
   dataset,
   active,
@@ -212,9 +211,7 @@ export function EpisodesTab({
   refreshKey,
   onWatchEpisode,
 }: {
-  apiKey: string;
-  /** Needed for the operator actions, which do not go through the SDK. */
-  projectId: string | null;
+  projectId: string;
   dataset: string;
   active: boolean;
   addOp: AddOp;
@@ -230,7 +227,7 @@ export function EpisodesTab({
   const [error, setError] = useState<string | null>(null);
   const loadedOnce = useRef(false);
 
-  const ready = !!apiKey.trim() && !!dataset.trim();
+  const ready = !!projectId && !!dataset.trim();
   const scope = dataset.trim();
 
   const load = useCallback(
@@ -240,7 +237,7 @@ export function EpisodesTab({
       setError(null);
       const st = opts.statusOverride ?? status;
       try {
-        const { data, trace } = await call(apiKey, (memory) =>
+        const { data, trace } = await call(projectId, (memory) =>
           memory.listEpisodes(scope, { status: st, limit: 20 }),
         );
         setEpisodes(data.episodes ?? []);
@@ -265,7 +262,7 @@ export function EpisodesTab({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [apiKey, scope, status, ready],
+    [projectId, scope, status, ready],
   );
 
   // Reset when the memory scope changes.
@@ -275,7 +272,7 @@ export function EpisodesTab({
     setSearchMode(false);
     setError(null);
     loadedOnce.current = false;
-  }, [apiKey, dataset]);
+  }, [projectId, dataset]);
 
   // Load on first open.
   useEffect(() => {
@@ -296,7 +293,7 @@ export function EpisodesTab({
     setLoading(true);
     setError(null);
     try {
-      const { data, trace } = await call(apiKey, (memory) =>
+      const { data, trace } = await call(projectId, (memory) =>
         memory.searchEpisodes(scope, searchQ.trim(), { limit: 10 }),
       );
       setEpisodes(data);
@@ -435,7 +432,7 @@ export function EpisodesTab({
             ? searchMode
               ? 'No episodes matched the search.'
               : `No ${status} episodes yet. Episodes generate after inactivity or when a thread ends.`
-            : 'Enter your API key and dataset above to view episodes.'}
+            : 'Select a project and dataset above to view episodes.'}
         </div>
       ) : (
         <div className="p-2 space-y-2">

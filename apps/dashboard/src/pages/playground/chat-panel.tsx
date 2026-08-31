@@ -308,7 +308,7 @@ export function ChatPanel({
   error,
   onSend,
   onAddManualMessage,
-  apiKeySet,
+  ready,
   inputRef,
 }: {
   messages: WMMessage[];
@@ -316,7 +316,7 @@ export function ChatPanel({
   error: string | null;
   onSend: (content: string, systemPrompt: string) => void;
   onAddManualMessage: (req: WMAddMessageRequest) => Promise<boolean>;
-  apiKeySet: boolean;
+  ready: boolean;
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   // Draft text stays local so keystrokes don't re-render the whole page
@@ -331,7 +331,7 @@ export function ChatPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, sending]);
 
-  const canSend = apiKeySet && !!input.trim() && !sending;
+  const canSend = ready && !!input.trim() && !sending;
 
   function send() {
     if (!canSend) return;
@@ -386,7 +386,7 @@ export function ChatPanel({
         {showManual && (
           <ManualMessageForm
             onSubmit={onAddManualMessage}
-            disabled={!apiKeySet || sending}
+            disabled={!ready || sending}
           />
         )}
       </div>
@@ -398,9 +398,9 @@ export function ChatPanel({
             <div className="text-center space-y-1">
               <p>No messages yet.</p>
               <p className="text-xs">
-                {apiKeySet
+                {ready
                   ? 'Type a message to start a thread.'
-                  : 'Enter your API key above first.'}
+                  : 'Select a project above first.'}
               </p>
             </div>
           </div>

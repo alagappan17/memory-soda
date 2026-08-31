@@ -1,6 +1,6 @@
 import { MemorySoda } from '@memory-soda/sdk';
 import type { WMChatResponse } from '@memory-soda/types';
-import api, { API_URL } from '../../lib/api';
+import api, { API_URL, getAuthToken } from '../../lib/api';
 import type { OpTrace } from './types';
 
 /**
@@ -11,6 +11,13 @@ import type { OpTrace } from './types';
  * only place its ergonomics get tested. The network trace the ops log renders
  * comes from the SDK's own `onRequest`/`onResponse` hooks, a feature users
  * have too, rather than instrumentation that only exists here.
+ *
+ * The client authenticates with the dashboard session, not an API key, the way
+ * AI Studio or Supabase Studio drive their own APIs. The session is a bearer
+ * token like a key is, and `/dashboard/projects/:id/v1` serves the same routes
+ * as `/v1` with the project taken from the path, since the SDK cannot add a
+ * query string or extra headers. Expired sessions surface as an error in the ops log rather
+ * than a redirect: SDK calls bypass the axios 401 interceptor.
  */
 
 export class PlaygroundError extends Error {
@@ -30,15 +37,15 @@ export class PlaygroundError extends Error {
  * call's trace, so concurrent calls cannot overwrite each other's.
  */
 export async function call<T>(
-  apiKey: string,
+  projectId: string,
   fn: (memory: MemorySoda) => Promise<T>,
 ): Promise<{ data: T; trace: OpTrace }> {
   let trace: OpTrace | undefined;
   const startedAt = Date.now();
 
   const memory = new MemorySoda({
-    baseUrl: API_URL,
-    apiKey,
+    baseUrl: `${API_URL}/dashboard/projects/${projectId}`,
+    apiKey: getAuthToken() ?? '',
     // The playground shows what the API did; a retry would hide the first
     // failure behind a success and make the ops log lie.
     maxRetries: 0,
@@ -70,10 +77,10 @@ export async function call<T>(
 
 /** `call` without the trace, for background reads that should not log an op. */
 export async function quiet<T>(
-  apiKey: string,
+  projectId: string,
   fn: (memory: MemorySoda) => Promise<T>,
 ): Promise<T> {
-  const { data } = await call(apiKey, fn);
+  const { data } = await call(projectId, fn);
   return data;
 }
 
@@ -83,8 +90,8 @@ export async function quiet<T>(
  * Compaction, thread stats, episode retry and delete, and the entity list are
  * operator tools, not things an integration does on a chat turn, so they are
  * not on the SDK. The playground still offers them, and still logs them,
- * through the session-authenticated `/dashboard/v1` mount, which serves the
- * same memory routes the API key surface does.
+ * through the session-authenticated `/dashboard/projects/:id/v1` mount, which
+ * serves the same memory routes the API key surface does.
  */
 export async function adminCall<T>(
   projectId: string,
@@ -92,12 +99,11 @@ export async function adminCall<T>(
   path: string,
 ): Promise<{ data: T; trace: OpTrace }> {
   const startedAt = Date.now();
-  const fullPath = `/dashboard/v1${path}`;
+  const fullPath = `/dashboard/projects/${projectId}/v1${path}`;
   try {
     const res = await api.request<T>({
       method,
       url: fullPath,
-      params: { projectId },
     });
     return {
       data: res.data,
@@ -138,12 +144,10 @@ export async function chatTurn(
     verbose?: boolean;
   },
 ): Promise<{ data: WMChatResponse; trace: OpTrace }> {
-  const path = `/dashboard/chat/threads/${threadId}/chat`;
+  const path = `/dashboard/projects/${projectId}/chat/threads/${threadId}/chat`;
   const startedAt = Date.now();
   try {
-    const res = await api.post<WMChatResponse>(path, body, {
-      params: { projectId },
-    });
+    const res = await api.post<WMChatResponse>(path, body);
     return {
       data: res.data,
       trace: {

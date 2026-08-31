@@ -371,7 +371,7 @@ export function SemanticPanel({
   semantic,
   onLoaded,
 }: {
-  projectId: string | null;
+  projectId: string;
   semantic: ProjectSemanticSettings | null;
   onLoaded: (s: ProjectSemanticSettings) => void;
 }) {
@@ -391,7 +391,7 @@ export function SemanticPanel({
     <PanelShell title="Semantic (project)" defaultOpen={false}>
       {!projectId ? (
         <p className="text-[10px] text-muted-foreground">
-          Start a thread to load project settings.
+          Select a project to load settings.
         </p>
       ) : error ? (
         <p className="text-[10px] text-muted-foreground">

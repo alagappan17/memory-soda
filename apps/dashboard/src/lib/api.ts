@@ -19,9 +19,14 @@ const api = axios.create({
   },
 });
 
+/** The session token, if the user is logged in. */
+export function getAuthToken(): string | null {
+  return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
 // Attach the session token (if any) to every request.
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  const token = getAuthToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

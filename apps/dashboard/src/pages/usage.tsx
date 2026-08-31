@@ -244,7 +244,6 @@ export default function UsagePage() {
     const from = new Date(to.getTime() - r.days * DAY);
     const [service, mdl] = model ? model.split('|') : [undefined, undefined];
     return {
-      projectId: selectedProject?.id,
       from: from.toISOString(),
       to: to.toISOString(),
       bucket: r.bucket satisfies UsageBucket,
@@ -254,21 +253,25 @@ export default function UsagePage() {
       service,
       model: mdl,
     };
-  }, [selectedProject?.id, range, dataset, source, stage, model]);
+  }, [range, dataset, source, stage, model]);
 
   const load = useCallback(async () => {
-    if (!params.projectId) return;
+    const projectId = selectedProject?.id;
+    if (!projectId) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<UsageSummary>('/dashboard/usage', { params });
+      const res = await api.get<UsageSummary>(
+        `/dashboard/projects/${projectId}/usage`,
+        { params },
+      );
       setData(res.data);
     } catch {
       setError('Could not load usage');
     } finally {
       setLoading(false);
     }
-  }, [params]);
+  }, [selectedProject?.id, params]);
 
   useEffect(() => {
     load();
@@ -606,7 +609,9 @@ export default function UsagePage() {
         </div>
       )}
 
-      {tab === 'logs' && <Logs params={params} />}
+      {tab === 'logs' && (
+        <Logs projectId={selectedProject.id} params={params} />
+      )}
     </div>
   );
 }
@@ -657,7 +662,13 @@ function KeyTable({
   );
 }
 
-function Logs({ params }: { params: Record<string, string | undefined> }) {
+function Logs({
+  projectId,
+  params,
+}: {
+  projectId: string;
+  params: Record<string, string | undefined>;
+}) {
   const [rows, setRows] = useState<UsageLogRow[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -667,9 +678,10 @@ function Logs({ params }: { params: Record<string, string | undefined> }) {
     async (after: string | null) => {
       setLoading(true);
       try {
-        const res = await api.get<UsageLogsResponse>('/dashboard/usage/logs', {
-          params: { ...params, limit: 50, cursor: after ?? undefined },
-        });
+        const res = await api.get<UsageLogsResponse>(
+          `/dashboard/projects/${projectId}/usage/logs`,
+          { params: { ...params, limit: 50, cursor: after ?? undefined } },
+        );
         setRows((prev) =>
           after ? [...prev, ...res.data.logs] : res.data.logs,
         );
@@ -678,7 +690,7 @@ function Logs({ params }: { params: Record<string, string | undefined> }) {
         setLoading(false);
       }
     },
-    [params],
+    [projectId, params],
   );
 
   useEffect(() => {

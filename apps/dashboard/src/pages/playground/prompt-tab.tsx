@@ -13,7 +13,7 @@ const estTokens = (s: string) => Math.ceil(s.length / 4);
  * integrator. Re-fetched whenever the thread changes.
  */
 export function PromptTab({
-  apiKey,
+  projectId,
   threadId,
   dataset,
   messageLimit,
@@ -21,7 +21,7 @@ export function PromptTab({
   addOp,
   refreshKey,
 }: {
-  apiKey: string;
+  projectId: string;
   threadId: string | null;
   dataset: string;
   messageLimit: number;
@@ -39,13 +39,13 @@ export function PromptTab({
   useEffect(() => {
     setData(null);
     setError(null);
-  }, [apiKey, threadId]);
+  }, [projectId, threadId]);
 
   useEffect(() => {
-    if (!active || !threadId || !apiKey.trim()) return;
+    if (!active || !threadId || !projectId) return;
     let cancelled = false;
     setLoading(true);
-    call(apiKey, (m) =>
+    call(projectId, (m) =>
       m.prepareAndRecall(threadId, {
         dataset: dataset.trim(),
         messageLimit,
@@ -80,7 +80,7 @@ export function PromptTab({
     };
     // addOp is stable; dataset/messageLimit are read at fetch time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, threadId, apiKey, refreshKey]);
+  }, [active, threadId, projectId, refreshKey]);
 
   const ctx = data?.recalled.context ?? '';
   const msgs = data?.prepared.messages ?? [];

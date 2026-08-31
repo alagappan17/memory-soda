@@ -10,6 +10,7 @@ import {
 } from '../lib/fact-status';
 import { EntityChip } from '../components/entity-chip';
 import api, { getProjectSettings } from '../lib/api';
+import { quiet } from './playground/api';
 import type {
   DatasetSummary,
   SemanticFact,
@@ -90,9 +91,9 @@ export default function DatasetsPage() {
     setError(null);
     try {
       const res = await api.get<{ datasets: DatasetSummary[] }>(
-        '/dashboard/browse/datasets',
+        `/dashboard/projects/${projectId}/browse/datasets`,
         {
-          params: { projectId, q: query.trim() || undefined, limit: 100 },
+          params: { q: query.trim() || undefined, limit: 100 },
         },
       );
       setDatasets(res.data.datasets);
@@ -304,24 +305,17 @@ function DossierTab({
     setLoading(true);
     setError(null);
     try {
-      const [f, e] = await Promise.all([
-        api.get<{ facts: SemanticFact[] }>(
-          `/dashboard/v1/memory/semantic/datasets/${encodeURIComponent(dataset)}/facts`,
-          {
-            params: {
-              projectId,
-              includeInvalidated: showInvalidated,
-              limit: 200,
-            },
-          },
+      const [f, entities] = await Promise.all([
+        quiet(projectId, (m) =>
+          m.listFacts(dataset, {
+            includeInvalidated: showInvalidated,
+            limit: 200,
+          }),
         ),
-        api.get<{ entities: SemanticEntity[] }>(
-          `/dashboard/v1/memory/semantic/datasets/${encodeURIComponent(dataset)}/entities`,
-          { params: { projectId } },
-        ),
+        quiet(projectId, (m) => m.listEntities(dataset)),
       ]);
-      setFacts(f.data.facts);
-      setEntities(e.data.entities);
+      setFacts(f.facts);
+      setEntities(entities);
     } catch {
       setError('Failed to load dossier');
     } finally {
@@ -335,10 +329,7 @@ function DossierTab({
 
   async function remove(factId: string) {
     try {
-      await api.delete(
-        `/dashboard/v1/memory/semantic/datasets/${encodeURIComponent(dataset)}/facts/${factId}`,
-        { params: { projectId } },
-      );
+      await quiet(projectId, (m) => m.deleteFact(dataset, factId));
       setFacts((prev) => applyFactDeletion(prev, factId, showInvalidated));
     } catch {
       setError('Failed to delete fact');
@@ -510,8 +501,8 @@ function ConversationsTab({
       setLoading(true);
       try {
         const res = await api.get<{ threads: Thread[] }>(
-          '/dashboard/browse/threads',
-          { params: { projectId, dataset, limit: 100 } },
+          `/dashboard/projects/${projectId}/browse/threads`,
+          { params: { dataset, limit: 100 } },
         );
         setThreads(res.data.threads);
       } finally {
@@ -527,8 +518,7 @@ function ConversationsTab({
     }
     (async () => {
       const m = await api.get<{ messages: Message[] }>(
-        `/dashboard/browse/threads/${selectedThreadId}/messages`,
-        { params: { projectId } },
+        `/dashboard/projects/${projectId}/browse/threads/${selectedThreadId}/messages`,
       );
       setMessages(m.data.messages);
     })();
@@ -613,11 +603,10 @@ function EpisodesTab({
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<{ episodes: Episode[] }>(
-        `/dashboard/v1/memory/episodic/datasets/${encodeURIComponent(dataset)}/episodes`,
-        { params: { projectId, status, limit: 100 } },
+      const res = await quiet(projectId, (m) =>
+        m.listEpisodes(dataset, { status, limit: 100 }),
       );
-      setEpisodes(res.data.episodes);
+      setEpisodes(res.episodes);
     } catch {
       setError('Failed to load episodes');
     } finally {

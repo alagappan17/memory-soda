@@ -8,20 +8,20 @@ import { quiet } from './api';
  * A single fact row with bi-temporal status derived by the shared
  * factStatus() helper (also used by the datasets dossier).
  *
- * With `apiKey`, clicking the row opens its lineage: the source quote, the
+ * With `projectId`, clicking the row opens its lineage: the source quote, the
  * bi-temporal stamps, and the episode it was extracted from (fetched lazily).
  */
 export function FactRow({
   fact,
   threshold,
   onDelete,
-  apiKey,
+  projectId,
   badge,
 }: {
   fact: SemanticFact;
   threshold: number | null;
   onDelete?: (factId: string) => void;
-  apiKey?: string;
+  projectId?: string;
   /** Small label after the triple, e.g. "new". */
   badge?: string;
 }) {
@@ -34,12 +34,12 @@ export function FactRow({
   );
 
   function toggle() {
-    if (!apiKey) return;
+    if (!projectId) return;
     const next = !open;
     setOpen(next);
     if (next && fact.episodeId && episode === null) {
       setEpisode('loading');
-      quiet(apiKey, (m) => m.getEpisode(fact.episodeId!))
+      quiet(projectId, (m) => m.getEpisode(fact.episodeId!))
         .then(setEpisode)
         .catch(() => setEpisode('error'));
     }
@@ -47,7 +47,7 @@ export function FactRow({
 
   return (
     <li
-      className={`group flex flex-col gap-1 rounded-md border border-border px-3 py-2 text-xs ${inactive ? 'opacity-50' : ''} ${apiKey ? 'cursor-pointer' : ''}`}
+      className={`group flex flex-col gap-1 rounded-md border border-border px-3 py-2 text-xs ${inactive ? 'opacity-50' : ''} ${projectId ? 'cursor-pointer' : ''}`}
       onClick={toggle}
     >
       <div className="flex items-center gap-2">

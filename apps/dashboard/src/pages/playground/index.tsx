@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ProjectSemanticSettings,
   WMAddMessageRequest,
@@ -12,6 +12,7 @@ import {
 } from '@memory-soda/types';
 import { call, quiet, chatTurn, adminCall, describeError } from './api';
 import { CopyButton } from '../../components/copy-button';
+import { useProject } from '../../providers/project-provider';
 import type { WMSettings } from './types';
 import { useOps } from './use-ops';
 import { useExtractionPoller } from './use-extraction-poller';
@@ -35,14 +36,15 @@ let requestIdSeq = 0;
 type RightTab = 'ops' | 'prompt' | 'episodes' | 'recall' | 'facts';
 
 export default function PlaygroundPage() {
-  const [apiKey, setApiKey] = useState('');
-  const [showKey, setShowKey] = useState(false);
+  // The playground runs against the project picked in the sidebar, under the
+  // dashboard session; there is no key to paste.
+  const { selectedProject } = useProject();
+  const projectId = selectedProject?.id ?? '';
   const [dataset, setDataset] = useState(
     () => `ds_${Math.random().toString(36).slice(2, 10)}`,
   );
 
   const [threadId, setThreadId] = useState<string | null>(null);
-  const [projectId, setProjectId] = useState<string | null>(null);
   const [threadStartedAt, setThreadStartedAt] = useState<number | null>(null);
   const [messages, setMessages] = useState<WMMessage[]>([]);
   const [rightTab, setRightTab] = useState<RightTab>('ops');
@@ -73,7 +75,7 @@ export default function PlaygroundPage() {
   const seenFactIds = useRef<Set<string>>(new Set());
 
   const poller = useExtractionPoller({
-    apiKey,
+    projectId,
     dataset,
     addOp,
     onEpisodesChanged: () => setEpisodesRefreshKey((k) => k + 1),
@@ -97,14 +99,13 @@ export default function PlaygroundPage() {
   }
 
   async function refreshStats(tid: string) {
-    const project = projectIdRef.current;
-    if (!project) return;
+    if (!projectId) return;
     setStatsLoading(true);
     try {
       // Thread stats are arithmetic over token counts the caller supplied, so
       // they are a dashboard readout rather than part of the SDK.
       const { data: res } = await adminCall<WMThreadStatsResponse>(
-        project,
+        projectId,
         'get',
         `/memory/working/threads/${tid}/stats`,
       );
@@ -118,18 +119,10 @@ export default function PlaygroundPage() {
   }
   const threadIdRef = useRef<string | null>(null);
   threadIdRef.current = threadId;
-  const projectIdRef = useRef<string | null>(null);
-  projectIdRef.current = projectId;
-
   /** Create the thread on first use; settings freeze at creation. */
-  async function ensureThread(): Promise<{
-    threadId: string;
-    projectId: string;
-  }> {
-    if (threadId && projectIdRef.current) {
-      return { threadId, projectId: projectIdRef.current };
-    }
-    const { data, trace } = await call(apiKey, (memory) =>
+  async function ensureThread(): Promise<string> {
+    if (threadId) return threadId;
+    const { data, trace } = await call(projectId, (memory) =>
       memory.createThread({
         ...(dataset.trim() ? { dataset: dataset.trim() } : {}),
         ...(settings.autoCompactEnabled
@@ -140,8 +133,6 @@ export default function PlaygroundPage() {
     );
     setThreadId(data.threadId);
     threadIdRef.current = data.threadId;
-    setProjectId(data.projectId);
-    projectIdRef.current = data.projectId;
     setThreadStartedAt((prev) => prev ?? Date.now());
     addOp(
       'thread_created',
@@ -153,7 +144,7 @@ export default function PlaygroundPage() {
       },
       trace,
     );
-    return { threadId: data.threadId, projectId: data.projectId };
+    return data.threadId;
   }
 
   function noteEpisodeScheduling() {
@@ -167,7 +158,7 @@ export default function PlaygroundPage() {
   }
 
   async function sendMessage(content: string, systemPrompt: string) {
-    if (!content || sending || compacting || !apiKey.trim()) return;
+    if (!content || sending || compacting || !projectId) return;
     setError(null);
     setSending(true);
 
@@ -176,7 +167,7 @@ export default function PlaygroundPage() {
     let optimisticId: string | null = null;
 
     try {
-      const { threadId: tid, projectId: project } = await ensureThread();
+      const tid = await ensureThread();
 
       // Optimistically show the user's message immediately
       const optimisticSeq =
@@ -209,7 +200,7 @@ export default function PlaygroundPage() {
       // Chat runs the model server-side, so it goes over the dashboard's own
       // session route rather than the SDK, the project comes from the thread
       // the playground just created.
-      const { data: chatRes, trace } = await chatTurn(project, tid, body);
+      const { data: chatRes, trace } = await chatTurn(projectId, tid, body);
 
       // One HTTP call, four logical memory ops, each gets the response
       // slice it's about; the recall op carries the full injected payload.
@@ -279,7 +270,7 @@ export default function PlaygroundPage() {
           setMessages((prev) =>
             prev.filter((m) => m.messageId !== optimisticId),
           );
-          await refreshMessages(apiKey, tid);
+          await refreshMessages(projectId, tid);
         } else {
           // The response already carries both rows, no refetch needed.
           const blank = {
@@ -315,11 +306,11 @@ export default function PlaygroundPage() {
 
   /** Raw addMessage, inserts without triggering an AI reply. */
   async function addManualMessage(req: WMAddMessageRequest): Promise<boolean> {
-    if (!apiKey.trim()) return false;
+    if (!projectId) return false;
     setError(null);
     try {
-      const { threadId: tid } = await ensureThread();
-      const { data, trace } = await call(apiKey, (memory) =>
+      const tid = await ensureThread();
+      const { data, trace } = await call(projectId, (memory) =>
         memory.addMessage(tid, req),
       );
       addOp(
@@ -334,7 +325,7 @@ export default function PlaygroundPage() {
         });
       }
       noteEpisodeScheduling();
-      await refreshMessages(apiKey, tid);
+      await refreshMessages(projectId, tid);
       void refreshStats(tid);
       return true;
     } catch (err) {
@@ -346,7 +337,7 @@ export default function PlaygroundPage() {
   }
 
   async function compactNow() {
-    if (!threadId || !apiKey.trim() || compacting) return;
+    if (!threadId || !projectId || compacting) return;
     setCompacting(true);
     setError(null);
 
@@ -355,7 +346,7 @@ export default function PlaygroundPage() {
 
     try {
       const { data: result, trace: compactTrace } = await call(
-        apiKey,
+        projectId,
         (memory) => memory.compact(threadId),
       );
 
@@ -370,10 +361,12 @@ export default function PlaygroundPage() {
       }
 
       // The summary text itself comes back through prepare.
-      const { data: prepRes, trace: prepTrace } = await call(apiKey, (memory) =>
-        memory.prepare(threadId, {
-          messageLimit: settings.messageLimit,
-        }),
+      const { data: prepRes, trace: prepTrace } = await call(
+        projectId,
+        (memory) =>
+          memory.prepare(threadId, {
+            messageLimit: settings.messageLimit,
+          }),
       );
 
       const summary = prepRes.messages.find((m) => m.role === 'system');
@@ -400,7 +393,7 @@ export default function PlaygroundPage() {
       );
 
       if (requestId === currentRequestId.current) {
-        await refreshMessages(apiKey, threadId);
+        await refreshMessages(projectId, threadId);
         void refreshStats(threadId);
       }
     } catch (err: unknown) {
@@ -417,7 +410,7 @@ export default function PlaygroundPage() {
   }
 
   async function endThreadNow() {
-    if (!threadId || !apiKey.trim() || sending || compacting) return;
+    if (!threadId || !projectId || sending || compacting) return;
     setError(null);
     setSending(true);
 
@@ -425,7 +418,7 @@ export default function PlaygroundPage() {
     currentRequestId.current = requestId;
 
     try {
-      const { data: ended, trace } = await call(apiKey, (memory) =>
+      const { data: ended, trace } = await call(projectId, (memory) =>
         memory.endThread(threadId),
       );
       addOp('thread_ended', { episodeQueued: ended.episodeQueued }, trace);
@@ -464,13 +457,13 @@ export default function PlaygroundPage() {
     poller.reset();
   }
 
-  function handleApiKeyChange(value: string) {
+  // New project = new memory scope; everything resets. Dataset-scoped tabs
+  // watch projectId themselves.
+  useEffect(() => {
+    // '' means projects have not loaded yet; nothing to reset.
+    if (!projectId) return;
     currentRequestId.current = ++requestIdSeq;
-    setApiKey(value);
-    // New key = possibly a new project; everything resets. Dataset-scoped
-    // tabs watch apiKey themselves.
     setThreadId(null);
-    setProjectId(null);
     setSemanticSettings(null);
     setThreadStartedAt(null);
     setMessages([]);
@@ -480,32 +473,21 @@ export default function PlaygroundPage() {
     setError(null);
     setSending(false);
     setCompacting(false);
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on project change
+  }, [projectId]);
 
   const hasThread = !!threadId;
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Top bar, API key + actions */}
+      {/* Top bar, project + actions */}
       <div className="border-b border-border px-4 py-2 bg-card flex items-center gap-3 flex-wrap text-sm shrink-0">
         <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-          API Key
+          Project
         </span>
-        <div className="flex items-center gap-1 flex-1 min-w-0 max-w-xs">
-          <input
-            type={showKey ? 'text' : 'password'}
-            value={apiKey}
-            onChange={(e) => handleApiKeyChange(e.target.value)}
-            placeholder="ms_..."
-            className="flex-1 min-w-0 rounded border border-input bg-background px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring font-mono"
-          />
-          <button
-            onClick={() => setShowKey((v) => !v)}
-            className="shrink-0 text-xs text-muted-foreground hover:text-foreground px-1.5 py-1 rounded transition-colors"
-          >
-            {showKey ? 'hide' : 'show'}
-          </button>
-        </div>
+        <span className="text-xs font-mono truncate max-w-xs">
+          {selectedProject?.name ?? 'none selected'}
+        </span>
 
         <div className="flex items-center gap-1">
           <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
@@ -524,14 +506,14 @@ export default function PlaygroundPage() {
         <div className="flex items-center gap-2 ml-auto">
           <button
             onClick={() => void compactNow()}
-            disabled={!hasThread || !apiKey.trim() || compacting || sending}
+            disabled={!hasThread || !projectId || compacting || sending}
             className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors"
           >
             {compacting ? 'Compacting…' : 'Compact now'}
           </button>
           <button
             onClick={() => void endThreadNow()}
-            disabled={!hasThread || !apiKey.trim() || sending || compacting}
+            disabled={!hasThread || !projectId || sending || compacting}
             className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors"
           >
             End thread
@@ -557,7 +539,7 @@ export default function PlaygroundPage() {
             void sendMessage(content, systemPrompt)
           }
           onAddManualMessage={addManualMessage}
-          apiKeySet={!!apiKey.trim()}
+          ready={!!projectId}
           inputRef={inputRef}
         />
 
@@ -622,7 +604,7 @@ export default function PlaygroundPage() {
             <OpsTab ops={ops} relTime={relTime} onClear={clearOps} />
           </div>
           <PromptTab
-            apiKey={apiKey}
+            projectId={projectId}
             threadId={threadId}
             dataset={dataset}
             messageLimit={settings.messageLimit}
@@ -631,7 +613,6 @@ export default function PlaygroundPage() {
             refreshKey={messages.length}
           />
           <EpisodesTab
-            apiKey={apiKey}
             projectId={projectId}
             dataset={dataset}
             active={rightTab === 'episodes'}
@@ -640,7 +621,7 @@ export default function PlaygroundPage() {
             onWatchEpisode={poller.watch}
           />
           <RecallTab
-            apiKey={apiKey}
+            projectId={projectId}
             dataset={dataset}
             active={rightTab === 'recall'}
             addOp={addOp}
@@ -651,7 +632,7 @@ export default function PlaygroundPage() {
             lastUserMessage={lastUserMessage}
           />
           <FactsTab
-            apiKey={apiKey}
+            projectId={projectId}
             dataset={dataset}
             active={rightTab === 'facts'}
             addOp={addOp}
