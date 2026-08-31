@@ -8,7 +8,7 @@ import recallRouter from './recall.js';
 /**
  * Every project-scoped memory route.
  *
- * Mounted twice, once at `/v1` behind an API key, once at `/dashboard/v1`
+ * Mounted twice, once at `/v1` behind an API key, once per project at `/dashboard/projects/:projectId/v1`
  * behind a login session, because the dashboard needs the same reads the SDK
  * does and holds a different credential. Mounting one router beats maintaining
  * a parallel set of dashboard-only endpoints that drift from these.

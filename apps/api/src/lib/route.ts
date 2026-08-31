@@ -21,8 +21,9 @@ export interface Schemas {
   params?: ZodTypeAny;
 }
 
-type Parsed<S extends ZodTypeAny | undefined> =
-  S extends ZodTypeAny ? z.infer<S> : undefined;
+type Parsed<S extends ZodTypeAny | undefined> = S extends ZodTypeAny
+  ? z.infer<S>
+  : undefined;
 
 export interface RequestInput<S extends Schemas> {
   body: Parsed<S['body']>;
@@ -107,7 +108,7 @@ export function route<S extends Schemas>(
  * A route scoped to one project.
  *
  * `projectId` is resolved by whichever guard the router was mounted behind,
- * the API key for `/v1`, the query parameter for `/dashboard`. Its absence is a
+ * the API key for `/v1`, the `:projectId` path segment for `/dashboard`. Its absence is a
  * mounting mistake rather than a client error, so it fails loudly as a 500
  * instead of being asserted away with `!`.
  */
@@ -118,10 +119,7 @@ export function projectRoute<S extends Schemas>(
   return route(schemas, async (input) => {
     const projectId = input.res.locals.projectId;
     if (typeof projectId !== 'string') {
-      throw new AppError(
-        500,
-        'Route is not mounted behind a project guard',
-      );
+      throw new AppError(500, 'Route is not mounted behind a project guard');
     }
     return handler({ ...input, projectId });
   });

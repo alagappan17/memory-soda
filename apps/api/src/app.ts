@@ -9,7 +9,7 @@ import morgan from 'morgan';
 import { config } from './config.js';
 import { isAppError } from './lib/errors.js';
 import { requireApiKey, requireSession } from './middleware/authenticate.js';
-import { projectFromQuery } from './middleware/project-scope.js';
+import { projectScope } from './middleware/project-scope.js';
 import { usageContext } from './middleware/usage-context.js';
 
 import healthRouter from './routes/health.js';
@@ -32,6 +32,7 @@ app.use(express.json({ limit: '1mb' }));
 if (process.env['NODE_ENV'] !== 'test') app.use(morgan('dev'));
 
 app.use('/health', healthRouter);
+
 app.use('/auth', authRouter);
 
 // ── SDK surface ──────────────────────────────────────────────────────────────
@@ -39,24 +40,27 @@ app.use('/auth', authRouter);
 app.use('/v1', requireApiKey, usageContext, memoryRouter);
 
 // ── Dashboard surface ────────────────────────────────────────────────────────
-// The same memory router under a login session. A session can see several
-// projects, so the project comes from `?projectId=` instead of the credential.
+// The same memory router (and the dashboard-only routers) under a login
+// session. A session can see several projects, so the project is named in the
+// path: /dashboard/projects/:projectId/<surface>. The `/v1` mount ends where
+// the SDK's own path prefix begins, so the playground can drive the published
+// SDK by pointing its baseUrl at /dashboard/projects/:projectId.
+const scoped = [requireSession, projectScope];
 app.use(
-  '/dashboard/v1',
-  requireSession,
-  projectFromQuery,
+  '/dashboard/projects/:projectId/v1',
+  scoped,
   usageContext,
   memoryRouter,
 );
 app.use(
-  '/dashboard/chat',
-  requireSession,
-  projectFromQuery,
+  '/dashboard/projects/:projectId/chat',
+  scoped,
   usageContext,
   chatRouter,
 );
-app.use('/dashboard/browse', requireSession, projectFromQuery, browseRouter);
-app.use('/dashboard/usage', requireSession, projectFromQuery, usageRouter);
+app.use('/dashboard/projects/:projectId/browse', scoped, browseRouter);
+app.use('/dashboard/projects/:projectId/usage', scoped, usageRouter);
+// Cross-project collections stay outside the :projectId scope by design.
 app.use('/dashboard/projects', requireSession, projectsRouter);
 app.use('/dashboard/api-keys', requireSession, apiKeysRouter);
 app.use('/dashboard/users', requireSession, usersRouter);

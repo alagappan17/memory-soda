@@ -2,22 +2,21 @@ import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import { AppError } from '../lib/errors.js';
 
-const projectQuery = z.object({ projectId: z.string().uuid() });
+const projectId = z.string().uuid();
 
 /**
- * Resolve the project from `?projectId=` for the dashboard mount of the memory
- * router.
+ * Resolve the project from the `/dashboard/projects/:projectId/*` mount path.
  *
  * An API key names its own project; a dashboard session does not, because one
- * operator can see several. This is the only difference between the two mounts,
- * so it is the only thing that needs its own middleware.
+ * operator can see several. This is the only difference between the two mounts
+ * of the memory router, so it is the only thing that needs its own middleware.
  */
-export const projectFromQuery: RequestHandler = (req, res, next) => {
-  const parsed = projectQuery.safeParse(req.query);
+export const projectScope: RequestHandler = (req, res, next) => {
+  const parsed = projectId.safeParse(req.params['projectId']);
   if (!parsed.success) {
-    next(AppError.badRequest('A projectId query parameter is required'));
+    next(AppError.badRequest('A valid projectId is required'));
     return;
   }
-  res.locals.projectId = parsed.data.projectId;
+  res.locals.projectId = parsed.data;
   next();
 };

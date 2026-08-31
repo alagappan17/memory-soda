@@ -109,21 +109,32 @@ test('/v1 requires a valid, unrevoked API key', async () => {
   );
 });
 
-test('/dashboard/v1 requires a session and a projectId', async () => {
+test('the project-scoped dashboard mount requires a session and a valid projectId', async () => {
   const { token } = await api.login();
   const { projectId } = await api.project();
-  const noProject = await api.call('POST', '/dashboard/v1/threads', {
-    token,
-    body: {},
-  });
-  assert.equal(noProject.status, 400);
+  // What the playground's SDK client uses.
   const ok = await api.call(
     'POST',
-    `/dashboard/v1/threads?projectId=${projectId}`,
+    `/dashboard/projects/${projectId}/v1/threads`,
     { token, body: {} },
   );
   assert.equal(ok.status, 201);
   assert.equal(ok.body.projectId, projectId);
+  const badPath = await api.call(
+    'POST',
+    '/dashboard/projects/nope/v1/threads',
+    {
+      token,
+      body: {},
+    },
+  );
+  assert.equal(badPath.status, 400);
+  const noSession = await api.call(
+    'POST',
+    `/dashboard/projects/${projectId}/v1/threads`,
+    { body: {} },
+  );
+  assert.equal(noSession.status, 401);
   assert.equal((await api.call('GET', '/dashboard/projects')).status, 401);
 });
 

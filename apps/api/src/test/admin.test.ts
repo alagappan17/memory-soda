@@ -41,7 +41,11 @@ test('projects: create, list, update, settings patch, delete', async () => {
   const second = await call('PATCH', `/dashboard/projects/${id}/settings`, {
     episodic: { enabled: false },
   });
-  assert.equal(second.body.settings.semantic.factsInContext, 3, 'merge, not replace');
+  assert.equal(
+    second.body.settings.semantic.factsInContext,
+    3,
+    'merge, not replace',
+  );
   assert.equal(second.body.settings.episodic.enabled, false);
 
   const bad = await call('PATCH', `/dashboard/projects/${id}/settings`, {
@@ -75,8 +79,14 @@ test('api keys: create returns plaintext once, list hides it, revoke blocks use'
     (await api.call('POST', '/v1/threads', { token: key, body: {} })).status,
     201,
   );
-  assert.equal((await call('DELETE', `/dashboard/api-keys/${apiKey.id}`)).status, 204);
-  const revoked = await api.call('POST', '/v1/threads', { token: key, body: {} });
+  assert.equal(
+    (await call('DELETE', `/dashboard/api-keys/${apiKey.id}`)).status,
+    204,
+  );
+  const revoked = await api.call('POST', '/v1/threads', {
+    token: key,
+    body: {},
+  });
   assert.equal(revoked.status, 401);
   assert.equal(revoked.body.error, 'API key has been revoked');
 
@@ -111,8 +121,14 @@ test('users: create, duplicate conflict, cannot delete self or last user', async
   assert.equal(self.status, 400);
   assert.match(self.body.error, /own account/);
 
-  assert.equal((await call('DELETE', `/dashboard/users/${secondId}`)).status, 204);
-  assert.equal((await call('DELETE', `/dashboard/users/${secondId}`)).status, 404);
+  assert.equal(
+    (await call('DELETE', `/dashboard/users/${secondId}`)).status,
+    204,
+  );
+  assert.equal(
+    (await call('DELETE', `/dashboard/users/${secondId}`)).status,
+    404,
+  );
 
   const users = await call('GET', '/dashboard/users');
   assert.equal(users.body.users.length, 1);
@@ -121,18 +137,30 @@ test('users: create, duplicate conflict, cannot delete self or last user', async
 test('browse: datasets and threads listing scoped to the project', async () => {
   const { projectId, key } = await api.project();
   const other = await api.project();
-  await api.call('POST', '/v1/threads', { token: key, body: { dataset: 'alice' } });
-  await api.call('POST', '/v1/threads', { token: key, body: { dataset: 'alice' } });
-  await api.call('POST', '/v1/threads', { token: other.key, body: { dataset: 'bob' } });
+  await api.call('POST', '/v1/threads', {
+    token: key,
+    body: { dataset: 'alice' },
+  });
+  await api.call('POST', '/v1/threads', {
+    token: key,
+    body: { dataset: 'alice' },
+  });
+  await api.call('POST', '/v1/threads', {
+    token: other.key,
+    body: { dataset: 'bob' },
+  });
 
-  const datasets = await call('GET', `/dashboard/browse/datasets?projectId=${projectId}`);
+  const datasets = await call(
+    'GET',
+    `/dashboard/projects/${projectId}/browse/datasets`,
+  );
   assert.equal(datasets.status, 200);
   const names = datasets.body.datasets.map((d: any) => d.dataset);
   assert.deepEqual(names, ['alice']);
 
   const threads = await call(
     'GET',
-    `/dashboard/browse/threads?projectId=${projectId}&dataset=alice`,
+    `/dashboard/projects/${projectId}/browse/threads?dataset=alice`,
   );
   assert.equal(threads.status, 200);
   assert.equal(threads.body.threads.length, 2);
