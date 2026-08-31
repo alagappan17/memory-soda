@@ -23,9 +23,24 @@ function walk(dir, acc = []) {
   return acc;
 }
 
-function resolves(href) {
+function resolvedFile(href) {
   const base = join(DIST, href);
-  return existsSync(base) || existsSync(`${base}.html`) || existsSync(join(base, 'index.html'));
+  if (existsSync(base) && statSync(base).isFile()) return base;
+  if (existsSync(`${base}.html`)) return `${base}.html`;
+  if (existsSync(join(base, 'index.html'))) return join(base, 'index.html');
+  return null;
+}
+
+const idCache = new Map();
+function idsOf(file) {
+  if (!idCache.has(file)) {
+    const html = readFileSync(file, 'utf8');
+    idCache.set(
+      file,
+      new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1])),
+    );
+  }
+  return idCache.get(file);
 }
 
 if (!existsSync(DIST)) {
@@ -38,16 +53,23 @@ let checked = 0;
 
 for (const file of walk(DIST)) {
   const html = readFileSync(file, 'utf8');
-  for (const [, href] of html.matchAll(/href="(\/[^"#?]*)/g)) {
-    if (IGNORED_PREFIXES.some((p) => href.startsWith(p))) continue;
+  for (const [, path, hash] of html.matchAll(/href="(\/[^"#?]*)(#[^"?]*)?/g)) {
+    if (IGNORED_PREFIXES.some((p) => path.startsWith(p))) continue;
     checked++;
-    if (!resolves(href)) {
-      dead.push(`${file.slice(DIST.length)} → ${href}`);
+    const target = resolvedFile(path);
+    if (!target) {
+      dead.push(`${file.slice(DIST.length)} → ${path}${hash ?? ''}`);
+    } else if (hash && !idsOf(target).has(hash.slice(1))) {
+      dead.push(
+        `${file.slice(DIST.length)} → ${path}${hash} (anchor not found)`,
+      );
     }
   }
 }
 
-console.log(`checked ${checked} internal links across ${walk(DIST).length} pages`);
+console.log(
+  `checked ${checked} internal links across ${walk(DIST).length} pages`,
+);
 
 if (dead.length > 0) {
   console.error(`\n${dead.length} dead link(s):`);

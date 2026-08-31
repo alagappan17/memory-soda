@@ -27,7 +27,7 @@ listFacts(dataset: string, opts?: {
 | Option               | Default | Notes                                                        |
 | -------------------- | ------- | ------------------------------------------------------------ |
 | `q`                  | ,       | Keyword (full-text) filter over subject + predicate + object |
-| `limit`              | `50`    | 1–100                                                        |
+| `limit`              | `50`    | 1–200                                                        |
 | `includeInvalidated` | `false` | Include superseded and soft-deleted facts                    |
 | `asOf`               | ,       | Point-in-time. **Overrides `includeInvalidated`.**           |
 

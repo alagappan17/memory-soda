@@ -132,16 +132,22 @@ still on file.
 2026-03-01  "I drive a Honda Civic."
             → honda civic   validAt 03-01  validUntil null  invalidAt null
 
-2026-05-10  "I'm keeping the Civic until August, then a Model 3."
-            → honda civic   validAt 03-01  validUntil 08-01  invalidAt null      (updated window)
-            → tesla model 3   validAt 08-01  validUntil null   invalidAt null      (future-dated)
+2026-08-16  "Actually I traded it in for a Tesla Model 3."
+            → same predicate, different object: judged a contradiction
+            → honda civic     invalidAt 08-16   (superseded)
+            → tesla model 3   validAt 08-16  validUntil null  invalidAt null
 
 2026-08-16  recall()
-            → tesla model 3 is live; honda civic expired on its own, nothing invalidated it
+            → tesla model 3 is live
 
 2026-08-16  recall({ asOf: '2026-06-01' })
             → honda civic, on 1 June that was both true and believed
 ```
+
+Note what this is not: restating the exact same fact (same subject, predicate
+and object) never reaches contradiction judging at all, it is dropped as a
+duplicate before that step runs. Only a genuinely different statement, a
+different object for the same predicate, gets judged.
 
 ## Next
 

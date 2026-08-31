@@ -52,7 +52,6 @@ Validation failures add the raw zod issues:
 | `Missing or invalid Authorization header` | No header, or missing the `Bearer ` prefix                           |
 | `Invalid API key`                         | No matching hash, typo, truncation, or a key from another deployment |
 | `API key has been revoked`                | `revokedAt` is set                                                   |
-| `API key is not linked to a project`      | Orphaned row; create a new key                                       |
 
 ### Session, `/dashboard/*`
 
@@ -72,37 +71,38 @@ same scrypt work so latency cannot enumerate accounts.
 
 ## By endpoint
 
+Every `500` below is the same generic body, `{ "error": "Internal server error" }`,
+regardless of which route raised it — the detail is logged server-side, never
+returned. Only `400`/`404`/`409` carry a specific message.
+
 ### Threads
 
-| Endpoint                   | Code  | Message                 |
-| -------------------------- | ----- | ----------------------- |
-| `POST /v1/threads`         | `400` | Validation error        |
-|                            | `500` | Failed to create thread |
-| `GET /v1/threads/:id`      | `404` | Thread not found        |
-| `PATCH /v1/threads/:id`    | `400` | Validation error        |
-|                            | `404` | Thread not found        |
-| `POST /v1/threads/:id/end` | `404` | Thread not found        |
+| Endpoint                   | Code  | Message          |
+| -------------------------- | ----- | ---------------- |
+| `POST /v1/threads`         | `400` | Validation error |
+| `GET /v1/threads/:id`      | `404` | Thread not found |
+| `PATCH /v1/threads/:id`    | `400` | Validation error |
+|                            | `404` | Thread not found |
+| `POST /v1/threads/:id/end` | `404` | Thread not found |
 
 ### Working memory
 
-| Endpoint          | Code  | Message                  |
-| ----------------- | ----- | ------------------------ |
-| `POST …/messages` | `400` | Validation error         |
-|                   | `404` | Thread not found         |
-| `GET …/messages`  | `400` | Validation error         |
-|                   | `404` | Thread not found         |
-| `POST …/prepare`  | `404` | Thread not found         |
-| `POST …/chat`     | `404` | Thread not found         |
-|                   | `500` | Failed to generate reply |
-| `POST …/compact`  | `404` | Thread not found         |
-| `GET …/stats`     | `404` | Thread not found         |
+| Endpoint          | Code  | Message          |
+| ----------------- | ----- | ---------------- |
+| `POST …/messages` | `400` | Validation error |
+|                   | `404` | Thread not found |
+| `GET …/messages`  | `400` | Validation error |
+|                   | `404` | Thread not found |
+| `POST …/prepare`  | `404` | Thread not found |
+| `POST …/chat`     | `404` | Thread not found |
+| `POST …/compact`  | `404` | Thread not found |
+| `GET …/stats`     | `404` | Thread not found |
 
 ### Recall
 
 | Code  | Message                                                                            |
 | ----- | ---------------------------------------------------------------------------------- |
 | `400` | Validation error, `dataset` missing, `query` over 2000 chars, `limit` out of 1–100 |
-| `500` | Failed to recall memory                                                            |
 
 Recall degrades internally rather than failing: a failed query embedding falls
 back to keyword and recency, a failed episode fetch returns `episodes: null`, a
@@ -115,7 +115,6 @@ failed.
 | ---------------------------- | ----- | -------------------------------------------------------------- |
 | `GET …/facts`                | `400` | Validation error                                               |
 | `DELETE …/facts/:id`         | `404` | Fact not found, unknown, wrong dataset, or already invalidated |
-| `GET …/entities`             | `500` | Failed to list entities                                        |
 | `GET …/entities/:name/facts` | ,     | Unknown entity returns `{ "facts": [] }`, not `404`            |
 
 ### Episodic memory

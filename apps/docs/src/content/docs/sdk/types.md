@@ -56,6 +56,7 @@ interface WMCreateThreadRequest {
 
 interface WMCreateThreadResponse {
   threadId: string;
+  projectId: string; // the project the API key belongs to
   dataset: string;
   createdAt: string;
   settings: WMThreadSettings;

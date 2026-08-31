@@ -57,7 +57,7 @@ POST /v1/memory/working/threads/:id/messages
 └─────────────────────────────────────────────┘
 ```
 
-**Three LLM calls and two embedding batches per episode.** Extraction is
+**Three LLM calls and three embedding batches per episode.** Extraction is
 asynchronous by design: batching a whole stretch of conversation into one pass
 keeps LLM usage flat, at the cost of a delay between a message and the fact it
 produces.

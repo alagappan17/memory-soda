@@ -1,21 +1,24 @@
 ---
 title: 'Testing'
-description: 'Coverage is thin. One suite exists, apps/api/src/lib/password.test.ts, and it covers password hashing only.'
+description: 'node:test, no framework. Unit tests in apps/api/src/lib, integration tests over real Postgres, plus an SDK suite.'
 ---
 
 ## Current state
 
-Coverage is thin. One suite exists, `apps/api/src/lib/password.test.ts`, and it
-covers password hashing only.
+Unit tests cover `apps/api/src/lib` (password hashing, opaque tokens, the
+`route()` wrapper, usage/cost logging, extraction post-processing, and
+`fact-context.ts` — anchor derivation, cosine, RRF fusion, context rendering).
+Integration tests over a real Postgres cover threads, working memory, semantic
+memory, recall, episodes, dataset export/forget, projects, API keys, users,
+browse, and auth. The SDK has its own suite for the HTTP client and the AI SDK
+middleware/tool/message bridge.
 
 The pieces that most need tests and do not have them:
 
-- bi-temporal predicates (`isLiveFact`, `isLiveFactAsOf`)
 - fact deduplication, exact, near-duplicate, within-batch
 - contradiction reconciliation (`old` / `new` / `neither`)
-- compaction, rolling summaries, the `messageLimit` interaction
-- RRF fusion ordering
 - entity resolution and merging
+- compaction actually producing a rolling summary (only the no-op path is covered)
 
 Contributions there are the highest-value thing in the repo.
 

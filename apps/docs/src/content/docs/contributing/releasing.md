@@ -12,7 +12,7 @@ SDK's declarations.
 ```json
 {
   "name": "@memory-soda/sdk",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

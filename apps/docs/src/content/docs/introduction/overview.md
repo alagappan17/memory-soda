@@ -122,8 +122,9 @@ contradiction-judging call run. Call `endThread()` when you want it sooner.
 **Scope is `(project, dataset)` only.** There is no finer-grained notion of an
 agent or a run built in; if you need one, encode it into your `dataset` key.
 
-**No bulk delete.** Facts can be soft-deleted one at a time. There is no
-`DELETE /datasets/:id` for a full erasure request. See
+**No bulk delete of individual facts.** `deleteFact()` takes one `factId` at a
+time; there is no "delete these facts" batch call. Erasing an entire dataset is
+a single call, `forgetDataset()`, see
 [Privacy and data deletion](/operations/privacy-and-deletion/).
 
 **Gemini is hard-wired.** `GOOGLE_GENERATIVE_AI_API_KEY` is required to boot at

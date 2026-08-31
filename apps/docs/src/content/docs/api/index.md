@@ -135,7 +135,7 @@ GET /dashboard/projects/:projectId/browse/threads?limit=20&offset=40
 → { threads, total }
 ```
 
-Facts and entities are **not paginated**, `listFacts` caps at `limit` (max 100)
+Facts and entities are **not paginated**, `listFacts` caps at `limit` (max 200)
 with a `total`, and `listEntities` returns everything.
 
 ## Query parameter coercion

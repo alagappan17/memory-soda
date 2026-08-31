@@ -126,14 +126,14 @@ Calls `GET /health`. Green when Postgres answers `SELECT 1`.
 
 Worth knowing before you go looking:
 
-|                                          | Where to go instead                                                                   |
-| ---------------------------------------- | ------------------------------------------------------------------------------------- |
-| See failed episodes or extraction errors | Query `episodes` in SQL, `semanticStatus` is not surfaced anywhere                    |
-| Delete an entire dataset                 | No UI and no endpoint. [Privacy and data deletion](/operations/privacy-and-deletion/) |
-| Change your password                     | Create a new user and delete the old one                                              |
-| See which facts drove a past reply       | Only the Playground, and only for the current session                                 |
-| View the knowledge graph as a graph      | Not implemented, facts and entities are flat lists                                    |
-| Per-user project permissions             | Any signed-in user can see every project                                              |
+|                                          | Where to go instead                                                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| See failed episodes or extraction errors | Query `episodes` in SQL, `semanticStatus` is not surfaced anywhere                                      |
+| Delete an entire dataset                 | No UI button; `forgetDataset()` does it. [Privacy and data deletion](/operations/privacy-and-deletion/) |
+| Reset another user's password            | `npm run admin:reset-password` from the shell, or delete and recreate their account                     |
+| See which facts drove a past reply       | Only the Playground, and only for the current session                                                   |
+| View the knowledge graph as a graph      | Not implemented, facts and entities are flat lists                                                      |
+| Per-user project permissions             | Any signed-in user can see every project                                                                |
 
 ## Security
 

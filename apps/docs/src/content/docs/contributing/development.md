@@ -35,7 +35,7 @@ apps/
     src/
       db/                 schema.ts, postgres.ts
       lib/                gemini.ts, semantic-extraction.ts, password.ts
-      middleware/         auth.ts (API key), session.ts, validate.ts
+      middleware/         authenticate.ts (API key + session), project-scope.ts
       routes/             one router per resource, thin, HTTP only
       services/           the logic
       main.ts             wiring, first-boot seed, background jobs
@@ -54,10 +54,11 @@ HTTP. No business logic.
 **Services own everything else**, database access, LLM calls, transactions.
 They throw plain errors; routes translate them to status codes.
 
-**`packages/types` is type-only at runtime.** The API cannot import a runtime
-value from it. That is why `ENTITY_TYPES` is duplicated as a `const` in
-`semantic-extraction.ts`, the type union lives in `packages/types`, the runtime
-allow-list has to be local.
+**`packages/types` is a real runtime package, not just a source of types.**
+`ENTITY_TYPES`, the `const` array `EntityType` is derived from, lives there and
+is imported directly (`extraction-normalize.ts` uses it to coerce a
+model-supplied type to a known one, defaulting to `THING`), so the type union
+and its runtime allow-list can never drift apart.
 
 ## Commands
 

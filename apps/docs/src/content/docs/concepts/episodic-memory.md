@@ -113,8 +113,9 @@ const block =
     .join('\n\n') ?? '';
 ```
 
-Admin operations (list, search, delete, retry) live on the HTTP API only, not
-the SDK: [Episodic memory API](/api/episodic-memory/).
+`listEpisodes`, `searchEpisodes` and `getEpisode` are on the SDK too. Deleting
+and retrying an episode are admin operations with no SDK method, HTTP API
+only: [Episodic memory API](/api/episodic-memory/).
 
 ## Overlap with semantic memory
 

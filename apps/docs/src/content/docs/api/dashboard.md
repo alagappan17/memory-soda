@@ -239,7 +239,7 @@ Takes the **key id**, not the key value.
 | Param     | Required | Default      |
 | --------- | -------- | ------------ |
 | `dataset` | no       | ,            |
-| `limit`   | no       | `20` (1–100) |
+| `limit`   | no       | `50` (1–100) |
 | `offset`  | no       | `0`          |
 
 ```json

@@ -128,14 +128,13 @@ scrypt$32768$8$3$<salt hex>$<derived key hex>
 
 ## Known gaps
 
-| Gap                               | Consequence                                 |
-| --------------------------------- | ------------------------------------------- |
-| No password change endpoint       | Create a new account, delete the old one    |
-| No password reset                 | Recovery requires database access           |
-| No roles or permissions           | Every account is a full administrator       |
-| No rate limiting on `/auth/login` | Put a proxy in front if exposed             |
-| Token in `localStorage`           | Readable by any XSS on the dashboard origin |
-| No audit log                      | No record of who deleted what               |
+| Gap                                         | Consequence                                               |
+| ------------------------------------------- | --------------------------------------------------------- |
+| No admin password reset for another account | Recovery requires database access, `admin:reset-password` |
+| No roles or permissions                     | Every account is a full administrator                     |
+| No rate limiting on `/auth/login`           | Put a proxy in front if exposed                           |
+| Token in `localStorage`                     | Readable by any XSS on the dashboard origin               |
+| No audit log                                | No record of who deleted what                             |
 
 ## Next
 

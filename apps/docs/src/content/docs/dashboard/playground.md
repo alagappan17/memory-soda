@@ -136,7 +136,7 @@ thread; that fires immediately.
 ## The chat panel
 
 Messages are sent through
-[`POST …/chat`](/api/working-memory/#post-v1memoryworkingthreadsthreadidchat),
+[`POST …/chat`](/api/working-memory/#post-dashboardprojectsprojectidchatthreadsthreadidchat),
 which runs the whole turn server-side against Gemini.
 
 > **This endpoint exists for the playground.** Your application should use

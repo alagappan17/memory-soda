@@ -20,7 +20,7 @@ SDK equivalent: [`memory.facts`](/sdk/semantic-memory/)
 | Param                | Type    | Default | Notes                                                               |
 | -------------------- | ------- | ------- | ------------------------------------------------------------------- |
 | `q`                  | string  | ,       | Full-text filter over subject + predicate + object. Max 1000 chars. |
-| `limit`              | integer | `50`    | 1–100                                                               |
+| `limit`              | integer | `50`    | 1–200                                                               |
 | `includeInvalidated` | boolean | `false` | Include superseded and soft-deleted                                 |
 | `asOf`               | date    | ,       | Point-in-time. **Overrides `includeInvalidated`.**                  |
 | `episodeId`          | uuid    | ,       | Only facts extracted from this episode                              |

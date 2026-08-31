@@ -160,7 +160,7 @@ async function* allMessages(threadId: string) {
 ## `compact()`
 
 ```ts
-compact(threadId: string): Promise<WMCompactResult>
+compact(threadId: string): Promise<WMCompactResult | WMNothingToCompact>
 ```
 
 ```ts

@@ -73,7 +73,7 @@ retrieval immediately, and stays queryable by history and `asOf`. See
 The resolved canonical nouns, name and type (`PERSON`, `ORG`, `PLACE`,
 `PRODUCT`, …), most recently mentioned first.
 
-Use it to check [entity resolution](/concepts/semantic-memory/#resolution).
+Use it to check [entity resolution](/concepts/semantic-memory/#entities).
 Two entities that should be one, `toyota corolla hybrid` and `corolla hybrid`, means the
 similarity threshold did not merge them, and the user's memory is split.
 
@@ -136,9 +136,9 @@ Everything here is available programmatically:
 | Dataset list  | `GET /dashboard/projects/:projectId/browse/datasets`                                       |
 | Conversations | `GET /dashboard/projects/:projectId/browse/threads?dataset=`                               |
 | Messages      | `GET /dashboard/projects/:projectId/browse/threads/:id/messages`                           |
-| Episodes      | `GET /dashboard/projects/:projectId/browse/datasets/:dataset/episodes`                     |
-| Facts         | `GET /dashboard/projects/:projectId/browse/datasets/:dataset/facts`                        |
-| Entities      | `GET /dashboard/projects/:projectId/browse/datasets/:dataset/entities`                     |
+| Episodes      | `GET /dashboard/projects/:projectId/v1/memory/episodic/datasets/:dataset/episodes`         |
+| Facts         | `GET /dashboard/projects/:projectId/v1/memory/semantic/datasets/:dataset/facts`            |
+| Entities      | `GET /dashboard/projects/:projectId/v1/memory/semantic/datasets/:dataset/entities`         |
 | Delete a fact | `DELETE /dashboard/projects/:projectId/v1/memory/semantic/datasets/:dataset/facts/:factId` |
 
 The `/v1` equivalents do the same with an API key,

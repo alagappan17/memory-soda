@@ -15,15 +15,15 @@ memory-soda/
 │   │   └── src/
 │   │       ├── db/        schema.ts, postgres.ts (pool)
 │   │       ├── lib/       gemini.ts, semantic-extraction.ts, password.ts
-│   │       ├── middleware/ auth.ts (API key), session.ts (dashboard), validate.ts
+│   │       ├── middleware/ authenticate.ts (API key + session), project-scope.ts
 │   │       ├── routes/    one router per resource
 │   │       ├── services/  the actual logic
 │   │       └── main.ts    wiring, first-boot seed, background jobs
-│   └── dashboard/         Vite + React 19 + React Router + Tailwind/shadcn
-├── packages/
-│   ├── sdk/               @memory-soda/sdk, published to npm
-│   └── types/             shared TypeScript types, type-only at runtime
-└── developer-docs/        this documentation
+│   ├── dashboard/         Vite + React 19 + React Router + Tailwind/shadcn
+│   └── docs/              this documentation, Astro Starlight
+└── packages/
+    ├── sdk/               @memory-soda/sdk, published to npm
+    └── types/             shared TypeScript types, type-only at runtime
 ```
 
 There is **one process**, the API, plus a static frontend. No queue, no
@@ -44,7 +44,7 @@ only dependency.
                     │  localhost:3004        │
                     │                        │
                     │  ┌──────────────────┐  │
-                    │  │ 3 setInterval    │  │  retry / sweep / scheduled episodes
+                    │  │ 1 setInterval    │  │  scheduled episodes, retry, sweep
                     │  │ background jobs  │  │
                     │  └──────────────────┘  │
                     └──────┬──────────┬──────┘
@@ -78,7 +78,7 @@ They are entirely separate and never mix.
 
 ## Data model
 
-Ten tables. Full DDL in [Database schema](/reference/database-schema/).
+Eleven tables. Full DDL in [Database schema](/reference/database-schema/).
 
 ```
 projects ──┬── api_keys
@@ -88,6 +88,8 @@ projects ──┬── api_keys
            │      └──── episodes ──── facts ──┐
            │                                  │
            ├── scheduled_episodes             │
+           │                                  │
+           ├── usage_logs                     │
            │                                  │
            └── entities ◄─────────────────────┘
                                     (by name, not FK)
@@ -117,27 +119,29 @@ request
   ├─ /health                 public
   ├─ /auth/*                 public (login/logout/me)
   │
-  ├─ /dashboard/*            requireSession ──► req.user, req.sessionId
+  ├─ /dashboard/*            requireSession ──► res.locals.session
   │
-  └─ /v1/*                   requireApiKey  ──► req.projectId, req.apiKey
+  └─ /v1/*                   requireApiKey  ──► res.locals.projectId, res.locals.apiKey
        │
-       ├─ zod validation     validateBody / validateQuery middleware
+       ├─ zod validation     schemas passed to the route() handler wrapper
        └─ route handler ───► service ───► drizzle ───► Postgres
 ```
 
-Each route handler owns its own `try/catch` and error shape. There is no shared
-error middleware yet, see [Errors](/reference/errors/).
+Handlers throw `AppError`; one shared error-handling middleware in `app.ts`
+turns it into a response. Anything else that throws becomes a generic `500`,
+see [Errors](/reference/errors/).
 
 ## Background jobs
 
-All three run in-process via `setInterval` in `main.ts`, and all are `unref`'d so
-they never keep the process alive.
+One `setInterval` in `main.ts`, `unref`'d so it never keeps the process alive,
+ticks every 5 s; each job below runs every Nth tick rather than on its own timer.
 
-| Every | Job                        | Does                                                                                         |
-| ----- | -------------------------- | -------------------------------------------------------------------------------------------- |
-| 5 s   | `processScheduledEpisodes` | drains due rows from `scheduled_episodes` and starts episode processing                      |
-| 120 s | `retryFailedEpisodes`      | retries up to 20 failed episodes, bounded by `maxRetries`                                    |
-| 120 s | `sweepSemanticMemory`      | picks up episodes whose semantic extraction is pending, failed, or orphaned by a dead worker |
+| Effective interval      | Job                        | Does                                                                                         |
+| ----------------------- | -------------------------- | -------------------------------------------------------------------------------------------- |
+| 5 s (every tick)        | `processScheduledEpisodes` | drains due rows from `scheduled_episodes` and starts episode processing                      |
+| 120 s (every 24th tick) | `retryFailedEpisodes`      | retries up to 20 failed episodes, bounded by `maxRetries`                                    |
+| 120 s (every 24th tick) | `sweepSemanticMemory`      | picks up episodes whose semantic extraction is pending, failed, or orphaned by a dead worker |
+| 1 h (every 720th tick)  | `sweepAbandonedThreads`    | backstop for threads with uncaptured messages and no pending timer                           |
 
 Work is claimed with atomic `UPDATE … WHERE status IN (…) RETURNING`, so a
 duplicate tick cannot double-process. A `processing` claim older than 10 minutes

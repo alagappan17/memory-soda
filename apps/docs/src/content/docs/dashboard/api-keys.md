@@ -125,7 +125,6 @@ Full reference: [Dashboard routes](/api/dashboard/#api-keys).
 | `401 Missing or invalid Authorization header` | No header, or missing the `Bearer ` prefix                         |
 | `401 Invalid API key`                         | Typo, truncation, or a key from a different deployment             |
 | `401 API key has been revoked`                | Revoked here                                                       |
-| `401 API key is not linked to a project`      | Orphaned row, create a new key                                     |
 | Recall returns nothing                        | Often the **wrong project's** key, memory lives in a different one |
 
 That last one is the common trap. A key silently scopes every call; if your data

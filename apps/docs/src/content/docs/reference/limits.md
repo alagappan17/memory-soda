@@ -24,19 +24,17 @@ change.
 
 ## Pagination
 
-| Endpoint                                             | Default              | Max |
-| ---------------------------------------------------- | -------------------- | --- |
-| `GET …/messages`                                     | 20                   | 100 |
-| `prepare` `messageLimit`                             | 20                   | 100 |
-| `recall` `limit`                                     | 8 (`factsInContext`) | 100 |
-| `GET …/facts` (`/v1`)                                | 50                   | 100 |
-| `GET …/facts` (dashboard)                            | 100                  | 200 |
-| `GET …/episodes` (`/v1`)                             | 10                   | 50  |
-| `GET …/episodes` (dashboard)                         | 50                   | 100 |
-| `GET …/episodes/search`                              | 5                    | 20  |
-| `GET /dashboard/projects/:projectId/browse/threads`  | 20                   | 100 |
-| `GET /dashboard/projects/:projectId/browse/datasets` | 50                   | 100 |
-| `GET …/entities`                                     | **unpaginated**      | ,   |
+| Endpoint                                                          | Default              | Max |
+| ----------------------------------------------------------------- | -------------------- | --- |
+| `GET …/messages`                                                  | 20                   | 100 |
+| `prepare` `messageLimit`                                          | 20                   | 100 |
+| `recall` `limit`                                                  | 8 (`factsInContext`) | 100 |
+| `GET …/facts` (same router, mounted under `/v1` and dashboard)    | 50                   | 200 |
+| `GET …/episodes` (same router, mounted under `/v1` and dashboard) | 10                   | 100 |
+| `GET …/episodes/search`                                           | 5                    | 20  |
+| `GET /dashboard/projects/:projectId/browse/threads`               | 50                   | 100 |
+| `GET /dashboard/projects/:projectId/browse/datasets`              | 50                   | 100 |
+| `GET …/entities`                                                  | **unpaginated**      | ,   |
 
 `listEntities` returns every entity for a dataset. Keep it off hot paths.
 

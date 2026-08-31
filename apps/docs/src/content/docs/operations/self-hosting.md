@@ -39,10 +39,11 @@ Two memory notes:
 
 > **The background jobs assume a single process.**
 
-Three `setInterval` jobs run in-process: scheduled episodes (5 s), failed-episode
-retry (120 s) and the semantic sweep (120 s). Work is claimed atomically, so
-duplicates do not corrupt data, but N replicas do N times the polling and N
-times the wake-ups, with no leader election.
+One `setInterval` clock ticks every 5 s in-process, running scheduled-episode
+processing every tick and the failed-episode retry and semantic sweep every
+24th tick (120 s). Work is claimed atomically, so duplicates do not corrupt
+data, but N replicas do N times the polling and N times the wake-ups, with no
+leader election.
 
 Scale vertically, or run one instance and accept it. If you need more, add
 `pg_try_advisory_lock` around each tick, a few lines. See
@@ -272,7 +273,7 @@ Plus one embedding per `recall()` with a query, and one LLM call per
 
 **The biggest lever is `autoEpisodeIntervalMs`.** At the default of 30 minutes
 one session gap costs one episode. Lowering it trades money for freshness. See
-[Tuning retrieval](/guides/tuning-retrieval/#autoepisodeintervalms-1800000-the-cost-lever).
+[Tuning retrieval](/guides/tuning-retrieval/#the-write-path-settings).
 
 ## Next
 

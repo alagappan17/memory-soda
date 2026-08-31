@@ -135,7 +135,7 @@ which is what catches `works at` vs `is employed by`.
 
 ### `anchorVectorMin` / `anchorVectorTopK`
 
-Control the [entity-anchor signal](/concepts/retrieval/#signal-2--entity-anchor):
+Control the [entity-anchor signal](/concepts/retrieval/#signal-2-entity-anchor):
 the minimum query↔entity similarity to become an anchor, and how many
 vector-matched anchors to admit. Entities named literally in the query are
 always anchors regardless.
@@ -194,8 +194,10 @@ await memory.createThread({
 });
 ```
 
-Null and undefined values are stripped before merging, so a partial override
-cannot erase a project default.
+Omitted keys are left out of the merge, so a partial override cannot erase a
+project default just by not mentioning a field. `autoEpisodeIntervalMs: null`
+is the one exception, it is a legal value in its own right (disables the
+timer), not a way to unset the override.
 
 The service layer supports semantic overrides per thread
 (`threads.semantic_settings`), but **no API accepts them**.

@@ -168,11 +168,11 @@ import type {
 
 Deliberate omissions. Call the HTTP API directly if you need them.
 
-|                           | Why                                                                                            | Endpoint                                                                |
-| ------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `chat`                    | A demo endpoint that runs the model server-side. Use `prepare` + `recall` with your own model. | [`POST /v1/memory/working/threads/:id/chat`](/api/working-memory/#chat) |
-| Episodic CRUD             | Admin surface. Normal reads go through `recall({ include: ['episodes'] })`.                    | [Episodic memory](/api/episodic-memory/)                                |
-| Projects, API keys, users | Session-authenticated dashboard routes, not integration surface.                               | [Dashboard routes](/api/dashboard/)                                     |
+|                           | Why                                                                                                         | Endpoint                                                                                     |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `chat`                    | Dashboard-only demo endpoint that runs the model server-side. Use `prepare` + `recall` with your own model. | [`POST …/chat`](/api/working-memory/#post-dashboardprojectsprojectidchatthreadsthreadidchat) |
+| Episodic CRUD             | Admin surface. Normal reads go through `recall({ include: ['episodes'] })`.                                 | [Episodic memory](/api/episodic-memory/)                                                     |
+| Projects, API keys, users | Session-authenticated dashboard routes, not integration surface.                                            | [Dashboard routes](/api/dashboard/)                                                          |
 
 There is also **no `add()`**, facts cannot be written directly, only derived
 from messages. See [Known limitations](/introduction/overview/#known-limitations).

@@ -15,14 +15,13 @@ Concepts: [Episodic memory](/concepts/episodic-memory/)
 
 ### Query
 
-| Param    | Type         | Default     | Notes                                          |
-| -------- | ------------ | ----------- | ---------------------------------------------- |
-| `limit`  | integer      | `10`        | 1–50                                           |
-| `before` | ISO datetime | ,           | Cursor on `endedAt`                            |
-| `status` | enum         | `completed` | `pending`, `processing`, `completed`, `failed` |
+| Param    | Type         | Default     | Notes                                                             |
+| -------- | ------------ | ----------- | ----------------------------------------------------------------- |
+| `limit`  | integer      | `10`        | 1–100                                                             |
+| `before` | ISO datetime | ,           | Cursor on `endedAt`                                               |
+| `status` | enum         | `completed` | `pending`, `processing`, `completed`, `failed`, `archived`, `all` |
 
-> The enum here does **not** accept `archived` or `all`, unlike the equivalent
-> dashboard route.
+`all` skips the status filter entirely.
 
 ### Response `200`
 
@@ -152,15 +151,17 @@ Re-queue a failed episode.
 { "episodeId": "8b21…", "status": "pending" }
 ```
 
-| Code  | Body                                                 | Cause                  |
-| ----- | ---------------------------------------------------- | ---------------------- |
-| `400` | `{ "error": "Only failed episodes can be retried" }` | Status is not `failed` |
-| `404` | `{ "error": "Episode not found" }`                   |                        |
+| Code  | Body                                                    | Cause                                |
+| ----- | ------------------------------------------------------- | ------------------------------------ |
+| `400` | `{ "error": "Only failed episodes can be retried" }`    | Status is not `failed`               |
+| `400` | `{ "error": "Episode has used its full retry budget" }` | `retryCount` already at `maxRetries` |
+| `404` | `{ "error": "Episode not found" }`                      |                                      |
 
 Resets to `pending`, increments `retryCount`, and starts processing
-asynchronously. The background retry job does this automatically every 120
-seconds up to `maxRetries` (default 3), this endpoint is for pushing past that
-cap or retrying immediately.
+asynchronously. The background retry job does the same thing automatically
+every 120 seconds, so this endpoint is only for retrying **immediately**
+instead of waiting for the next sweep. It is bound by the same `maxRetries`
+(default 3) as the background job, it cannot push an episode past its cap.
 
 ```bash
 curl -X POST "http://localhost:3004/v1/memory/episodic/episodes/8b21…/retry" \

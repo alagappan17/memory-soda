@@ -1,21 +1,25 @@
 ---
 title: 'Background jobs'
-description: 'Three timers in the API process drive everything asynchronous. There is no queue and no separate worker.'
+description: 'One clock in the API process drives everything asynchronous. There is no queue and no separate worker.'
 ---
 
-Three timers in the API process drive everything asynchronous. There is no queue
-and no separate worker.
+One clock in the API process drives everything asynchronous. There is no queue
+and no separate worker: a single `setInterval(...).unref()` ticks every 5
+seconds, and each job runs every Nth tick rather than on its own timer, one
+`processScheduledEpisodes` call gets a slow sweep out of the way before the
+next tick starts, instead of two independent intervals racing each other.
 
-## The three jobs
+## The jobs
 
-| Interval  | Job                        | Does                                                                        |
-| --------- | -------------------------- | --------------------------------------------------------------------------- |
-| **5 s**   | `processScheduledEpisodes` | Drains due rows from `scheduled_episodes`; creates and processes episodes   |
-| **120 s** | `retryFailedEpisodes`      | Retries up to 20 failed episodes, bounded by `maxRetries`                   |
-| **120 s** | `sweepSemanticMemory`      | Picks up episodes whose fact extraction is pending, failed or orphaned      |
-| **1 h**   | `sweepAbandonedThreads`    | Opens episodes for threads quiet 24 h with uncaptured messages and no timer |
+| Effective interval          | Job                        | Does                                                                        |
+| --------------------------- | -------------------------- | --------------------------------------------------------------------------- |
+| **5 s** (every tick)        | `processScheduledEpisodes` | Drains due rows from `scheduled_episodes`; creates and processes episodes   |
+| **120 s** (every 24th tick) | `retryFailedEpisodes`      | Retries up to 20 failed episodes, bounded by `maxRetries`                   |
+| **120 s** (every 24th tick) | `sweepSemanticMemory`      | Picks up episodes whose fact extraction is pending, failed or orphaned      |
+| **1 h** (every 720th tick)  | `sweepAbandonedThreads`    | Opens episodes for threads quiet 24 h with uncaptured messages and no timer |
 
-All are `setInterval(...).unref()`, they never keep the process alive.
+A tick that overruns delays the next one rather than stacking a second copy on
+top of it.
 
 ## `processScheduledEpisodes` (5 s)
 
@@ -64,8 +68,10 @@ WHERE id = $id AND status = 'failed' AND retry_count = $old
 RETURNING id;
 ```
 
-Episodes past the cap are left alone permanently. Retry them by hand with
-[`POST …/episodes/:id/retry`](/api/episodic-memory/).
+Episodes past the cap are left alone permanently.
+[`POST …/episodes/:id/retry`](/api/episodic-memory/) shares this same cap
+check, so it cannot push one past it either, it only lets you retry sooner
+than the next sweep. To force one past the cap, reset `retry_count` in SQL.
 
 ## `sweepSemanticMemory` (120 s)
 
@@ -116,7 +122,7 @@ invalidate-and-insert.
 
 > **Run one API process.**
 
-Nothing coordinates the timers across replicas, no leader election, no
+Nothing coordinates the clock across replicas, no leader election, no
 distributed lock around the ticks. Atomic claims mean duplicates do not corrupt
 data, but N replicas do N times the polling for no benefit.
 

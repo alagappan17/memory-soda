@@ -117,7 +117,7 @@ GET /dashboard/projects/<uuid>/browse/datasets?q=&limit=50&offset=0
 
 ```json
 {
-  "users": [
+  "datasets": [
     {
       "dataset": "user_42",
       "threadCount": 3,

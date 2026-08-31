@@ -84,39 +84,22 @@ material. Move it in steps of `0.05` and watch what appears.
 
 ## The write-path settings
 
-These change **how facts are stored** and are not retroactive. Get them wrong
-and you corrupt data rather than just degrade a query. Test on a throwaway
-dataset.
+`entityResolutionThreshold`, `factDedupThreshold`, `contradictionBandMin`, and
+`autoEpisodeIntervalMs` change **how facts are stored** and are not
+retroactive — get one wrong and you corrupt data rather than just degrade a
+query. Test on a throwaway dataset. Definitions, defaults and bounds:
+[Project settings](/reference/project-settings/#semantic).
 
-**`entityResolutionThreshold` (0.88).** Cosine above which two same-type
-entities merge. Too high: `toyota corolla hybrid` and `corolla hybrid` stay
-separate, memory splits across two anchors. Too low: distinct entities collapse
-into one, **irreversibly**. Check the [Entities](/dashboard/datasets/) tab for
-near-duplicates before touching this.
-
-**`factDedupThreshold` (0.95).** Cosine above which a new fact is a duplicate.
-It also sets the **top of the contradiction band**
-(`[contradictionBandMin, factDedupThreshold)` = `[0.80, 0.95)`), so lowering it
-both widens deduplication and narrows contradiction detection. These two
-settings are not independent.
-
-**`contradictionBandMin` (0.80).** Lower bound of that band; pairs in it go to
-the LLM judge even when predicates differ (`works at` vs `is employed by`).
-Lower = more pairs judged, more cost, more risk of wrongly discarding a fact.
-
-**`autoEpisodeIntervalMs` (1800000).** The cost lever: each episode costs three
-LLM calls and three embedding batches, and this decides how often conversations
-that trail off pay it. `null` = only on explicit `threads.end()`. Anything down
-to `1000` is accepted, handy for tests.
+The one to lower with the most caution is `entityResolutionThreshold`: too low
+and distinct entities collapse into one **irreversibly**. Check the
+[Entities](/dashboard/datasets/) tab for near-duplicates first.
 
 ## Rules
 
 1. **One setting at a time.** They interact; a combined change tells you nothing.
-2. **Read-path settings are safe to revert.** `factsInContext`,
-   `retrievalMinConfidence`, the anchor settings, `contextEpisodes`.
-3. **Write-path settings are not.** Nothing is retroactive and there is no
-   reprocessing command.
-4. **Prompt beats parameters.** How you frame `context` in your system prompt
+2. **There is no reprocessing command.** A write-path change never touches
+   what is already stored.
+3. **Prompt beats parameters.** How you frame `context` in your system prompt
    usually moves answer quality more than any of these.
 
 ## When tuning won't help

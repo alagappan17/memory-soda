@@ -57,8 +57,8 @@ class AuthError extends MemorySodaError {
 }
 ```
 
-Causes: wrong key, revoked key, key not linked to a project, missing
-`Authorization` header. Not retryable, it is a configuration problem.
+Causes: wrong key, revoked key, missing `Authorization` header. Not retryable,
+it is a configuration problem.
 
 ### `NetworkError`
 

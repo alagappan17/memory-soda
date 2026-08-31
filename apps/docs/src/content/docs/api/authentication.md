@@ -82,12 +82,11 @@ permanent; `revokedAt` is stamped and the row is kept.
 
 ### Failure modes
 
-| Response                                      | Cause                          |
-| --------------------------------------------- | ------------------------------ |
-| `401 Missing or invalid Authorization header` | No header, or not `Bearer `    |
-| `401 Invalid API key`                         | No matching hash               |
-| `401 API key has been revoked`                | `revokedAt` is set             |
-| `401 API key is not linked to a project`      | Orphaned row, recreate the key |
+| Response                                      | Cause                       |
+| --------------------------------------------- | --------------------------- |
+| `401 Missing or invalid Authorization header` | No header, or not `Bearer ` |
+| `401 Invalid API key`                         | No matching hash            |
+| `401 API key has been revoked`                | `revokedAt` is set          |
 
 The SDK surfaces all of these as [`AuthError`](/sdk/errors/#autherror).
 

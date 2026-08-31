@@ -194,6 +194,7 @@ pg_dump "$DATABASE_URL" --format=custom --file=pre-migrate-$(date +%F).dump
 | 0008 | `confidence_retrieval`  | `facts.confidence`                                                 |
 | 0009 | `brown_lilandra`        | `users` and `sessions` for dashboard auth                          |
 | 0010 | `tokens_rename`         | Dropped `threads.message_count`; `messages.token_count` → `tokens` |
+| 0011 | `overjoyed_owl`         | `usage_logs`                                                       |
 
 ## Other commands
 

@@ -90,10 +90,13 @@ Key properties:
   always exactly one active summary.
 - **Non-destructive.** Original rows are kept and stamped with `compactedAt`.
   `listMessages()` still returns them; `prepare()` does not.
-- **The triggering message is kept verbatim** (`keepLast: 1`) so the next turn
-  sees the user's actual words rather than a paraphrase.
+- **When triggered automatically** (crossing `autoCompactThreshold` inside
+  `addMessage`), the message that tripped it is kept verbatim (`keepLast: 1`)
+  so the next turn sees the user's actual words rather than a paraphrase.
 
-Manual compaction: `await memory.compact(threadId)`.
+Manual compaction, `await memory.compact(threadId)`, folds **everything**
+uncompacted into the summary (`keepLast: 0`), there is no message left
+outside it.
 
 ### The `messageLimit` trap
 
