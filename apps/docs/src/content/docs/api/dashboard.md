@@ -244,14 +244,13 @@ Takes the **key id**, not the key value.
 
 ## Threads
 
-### `GET /dashboard/browse/threads`
+### `GET /dashboard/projects/:projectId/browse/threads`
 
-| Param       | Required | Default      |
-| ----------- | -------- | ------------ |
-| `projectId` | **yes**  | ,            |
-| `dataset`   | no       | ,            |
-| `limit`     | no       | `20` (1–100) |
-| `offset`    | no       | `0`          |
+| Param     | Required | Default      |
+| --------- | -------- | ------------ |
+| `dataset` | no       | ,            |
+| `limit`   | no       | `20` (1–100) |
+| `offset`  | no       | `0`          |
 
 ```json
 {
@@ -274,9 +273,7 @@ Takes the **key id**, not the key value.
 
 `messageCount` is derived live with a correlated subquery, not stored.
 
-### `GET /dashboard/browse/threads/:threadId/messages`
-
-Requires `?projectId=`.
+### `GET /dashboard/projects/:projectId/browse/threads/:threadId/messages`
 
 ```json
 { "thread": { "…": "…" }, "messages": [{ "…": "…" }] }
@@ -284,23 +281,22 @@ Requires `?projectId=`.
 
 Every message in sequence order, including compacted ones.
 
-### `GET /dashboard/browse/threads/:threadId/episodes`
+### `GET /dashboard/projects/:projectId/browse/threads/:threadId/episodes`
 
-Requires `?projectId=`. Every episode for the thread, newest first, regardless of
+Every episode for the thread, newest first, regardless of
 status.
 
 ---
 
 ## Datasets
 
-### `GET /dashboard/browse/datasets`
+### `GET /dashboard/projects/:projectId/browse/datasets`
 
-| Param       | Required | Default                              |
-| ----------- | -------- | ------------------------------------ |
-| `projectId` | **yes**  | ,                                    |
-| `q`         | no       | , (ILIKE filter on the dataset name) |
-| `limit`     | no       | `50` (1–100)                         |
-| `offset`    | no       | `0`                                  |
+| Param    | Required | Default                              |
+| -------- | -------- | ------------------------------------ |
+| `q`      | no       | , (ILIKE filter on the dataset name) |
+| `limit`  | no       | `50` (1–100)                         |
+| `offset` | no       | `0`                                  |
 
 ```json
 {
@@ -323,21 +319,22 @@ status.
 
 ## The memory routes, under session auth
 
-Everything under `/v1` is mounted a second time at **`/dashboard/v1`**. Same
-router, same handlers, same response shapes, the only difference is the
-credential and where the project comes from.
+Everything under `/v1` is mounted a second time at
+**`/dashboard/projects/:projectId/v1`**. Same router, same handlers, same
+response shapes, the only difference is the credential and where the project
+comes from.
 
-|            | `/v1/…`           | `/dashboard/v1/…`              |
-| ---------- | ----------------- | ------------------------------ |
-| Credential | API key           | session token                  |
-| Project    | the key's project | `?projectId=` on every request |
+|            | `/v1/…`           | `/dashboard/projects/:projectId/v1/…` |
+| ---------- | ----------------- | ------------------------------------- |
+| Credential | API key           | session token                         |
+| Project    | the key's project | named in the path                     |
 
 ```bash
 # Identical results, different callers.
 curl "$API/v1/memory/semantic/datasets/user_42/facts" \
   -H "Authorization: Bearer ms_…"
 
-curl "$API/dashboard/v1/memory/semantic/datasets/user_42/facts?projectId=$PROJECT" \
+curl "$API/dashboard/projects/$PROJECT/v1/memory/semantic/datasets/user_42/facts" \
   -H "Authorization: Bearer ms_sess_…"
 ```
 
@@ -348,8 +345,9 @@ had already drifted from them, the dashboard copy never grew `asOf` or
 
 See [Semantic memory](/api/semantic-memory/), [Episodic
 memory](/api/episodic-memory/), [Recall](/api/recall/), [Threads](/api/threads/)
-and [Working memory](/api/working-memory/) for the routes themselves; prefix any
-of them with `/dashboard` and add `?projectId=`.
+and [Working memory](/api/working-memory/) for the routes themselves; the same
+paths are served under `/dashboard/projects/:projectId` with a session instead
+of an API key.
 
 ---
 

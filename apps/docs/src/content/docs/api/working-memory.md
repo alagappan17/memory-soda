@@ -1,7 +1,8 @@
 ---
-title: "Working memory API"
-description: "Base path: /v1/memory/working · Auth: API key"
+title: 'Working memory API'
+description: 'Base path: /v1/memory/working · Auth: API key'
 ---
+
 Base path: `/v1/memory/working` · Auth: [API key](/api/authentication/)
 
 SDK equivalent: [`memory.working`](/sdk/working-memory/)
@@ -25,14 +26,14 @@ Append a message. `sequenceNumber` is assigned by the server.
 }
 ```
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `role` | `user` \| `assistant` \| `system` \| `tool` | yes | |
-| `content` | string | yes | Non-empty |
-| `tokens` | object | no | `input`, `output`, `total`, non-negative integers |
-| `model` | string | no | |
-| `latencyMs` | integer | no | Non-negative |
-| `metadata` | object | no | Only `stopReason` and `agentName` are accepted |
+| Field       | Type                                        | Required | Notes                                             |
+| ----------- | ------------------------------------------- | -------- | ------------------------------------------------- |
+| `role`      | `user` \| `assistant` \| `system` \| `tool` | yes      |                                                   |
+| `content`   | string                                      | yes      | Non-empty                                         |
+| `tokens`    | object                                      | no       | `input`, `output`, `total`, non-negative integers |
+| `model`     | string                                      | no       |                                                   |
+| `latencyMs` | integer                                     | no       | Non-negative                                      |
+| `metadata`  | object                                      | no       | Only `stopReason` and `agentName` are accepted    |
 
 ### Response `201`
 
@@ -61,10 +62,10 @@ the token data **silently discarded**.
 
 ### Errors
 
-| Code | Body |
-|---|---|
+| Code  | Body                                               |
+| ----- | -------------------------------------------------- |
 | `400` | `{ "error": "Validation error", "issues": [...] }` |
-| `404` | `{ "error": "Thread not found" }` |
+| `404` | `{ "error": "Thread not found" }`                  |
 
 ---
 
@@ -74,11 +75,11 @@ Raw message rows, including compacted ones.
 
 ### Query
 
-| Param | Default | Notes |
-|---|---|---|
-| `limit` | `20` | 1–100 |
-| `before` |, | Cursor: `sequenceNumber` strictly less than this |
-| `order` | `asc` | or `desc` |
+| Param    | Default | Notes                                            |
+| -------- | ------- | ------------------------------------------------ |
+| `limit`  | `20`    | 1–100                                            |
+| `before` | ,       | Cursor: `sequenceNumber` strictly less than this |
+| `order`  | `asc`   | or `desc`                                        |
 
 ### Response `200`
 
@@ -123,9 +124,9 @@ The LLM-ready conversation window. Pure SQL, no embeddings, no model calls.
 { "messageLimit": 20 }
 ```
 
-| Field | Default | Range |
-|---|---|---|
-| `messageLimit` | `20` | 1–100 |
+| Field          | Default | Range |
+| -------------- | ------- | ----- |
+| `messageLimit` | `20`    | 1–100 |
 
 An empty body `{}` is valid.
 
@@ -147,14 +148,14 @@ An empty body `{}` is valid.
 }
 ```
 
-| Field | Meaning |
-|---|---|
-| `messages` | Oldest first. Ready for a chat-completion request. |
-| `dataset` | Handy for a follow-up `recall`. |
-| `messageCount` | Un-compacted, non-summary messages in the thread. |
-| `truncated` | `messageCount > messageLimit`. |
-| `compacted` | A compact summary is present, first in the array. |
-| `warning` | Only when `messageLimit < autoCompactThreshold`. Act on it. |
+| Field          | Meaning                                                     |
+| -------------- | ----------------------------------------------------------- |
+| `messages`     | Oldest first. Ready for a chat-completion request.          |
+| `dataset`      | Handy for a follow-up `recall`.                             |
+| `messageCount` | Un-compacted, non-summary messages in the thread.           |
+| `truncated`    | `messageCount > messageLimit`.                              |
+| `compacted`    | A compact summary is present, first in the array.           |
+| `warning`      | Only when `messageLimit < autoCompactThreshold`. Act on it. |
 
 The active compact summary is always first and **never counts against
 `messageLimit`**.
@@ -168,7 +169,7 @@ curl -X POST http://localhost:3004/v1/memory/working/threads/$THREAD/prepare \
 
 ---
 
-## `POST /dashboard/chat/threads/:threadId/chat`
+## `POST /dashboard/projects/:projectId/chat/threads/:threadId/chat`
 
 Runs a complete turn **server-side**: appends the user message, prepares, recalls,
 calls Gemini, appends the reply.
@@ -179,8 +180,6 @@ calls Gemini, appends the reply.
 > format, so shipping it on the `/v1` surface would advertise a demo as part of
 > the product. For real integrations use `prepare` + `recall` with your own
 > model, or the [AI SDK middleware](/sdk/ai-sdk/).
->
-> Takes `?projectId=` like every other dashboard route.
 
 ### Request
 
@@ -193,23 +192,38 @@ calls Gemini, appends the reply.
 }
 ```
 
-| Field | Required | Notes |
-|---|---|---|
-| `content` | yes | The user message |
-| `systemPrompt` | no | Appended after the memory blocks |
-| `messageLimit` | no | Default 20, 1–100 |
-| `verbose` | no | Include the full recall payload in the response |
+| Field          | Required | Notes                                           |
+| -------------- | -------- | ----------------------------------------------- |
+| `content`      | yes      | The user message                                |
+| `systemPrompt` | no       | Appended after the memory blocks                |
+| `messageLimit` | no       | Default 20, 1–100                               |
+| `verbose`      | no       | Include the full recall payload in the response |
 
 ### Response `201`
 
 ```json
 {
-  "userMessage": { "messageId": "…", "sequenceNumber": 7, "role": "user", "createdAt": "…" },
-  "assistantMessage": { "messageId": "…", "sequenceNumber": 8, "role": "assistant",
-                        "content": "Hybrids hold their value…", "createdAt": "…" },
+  "userMessage": {
+    "messageId": "…",
+    "sequenceNumber": 7,
+    "role": "user",
+    "createdAt": "…"
+  },
+  "assistantMessage": {
+    "messageId": "…",
+    "sequenceNumber": 8,
+    "role": "assistant",
+    "content": "Hybrids hold their value…",
+    "createdAt": "…"
+  },
   "compacted": false,
   "prepare": { "messageCount": 8, "truncated": false, "compacted": false },
-  "recallSummary": { "episodeCount": 2, "factCount": 4, "hasContext": true, "hasSynthesis": true },
+  "recallSummary": {
+    "episodeCount": 2,
+    "factCount": 4,
+    "hasContext": true,
+    "hasSynthesis": true
+  },
   "recall": { "…": "only when verbose: true" }
 }
 ```

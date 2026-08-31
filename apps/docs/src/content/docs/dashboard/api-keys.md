@@ -1,7 +1,8 @@
 ---
-title: "API keys"
-description: "Issue and revoke the credentials your application uses against /v1/."
+title: 'API keys'
+description: 'Issue and revoke the credentials your application uses against /v1/.'
 ---
+
 Issue and revoke the credentials your application uses against `/v1/*`.
 
 Keys belong to the **currently selected project**, check the switcher in the
@@ -13,13 +14,13 @@ sidebar footer before creating one.
 
 Lists every key for the project:
 
-| Column | |
-|---|---|
-| Name | Whatever you called it |
-| Key | A preview, `ms_3f9a4c…0161`. The full value is never shown again. |
-| Created | |
+| Column    |                                                                     |
+| --------- | ------------------------------------------------------------------- |
+| Name      | Whatever you called it                                              |
+| Key       | A preview, `ms_3f9a4c…0161`. The full value is never shown again.   |
+| Created   |                                                                     |
 | Last used | Updated on every request that key authenticates. `-` if never used. |
-| Status | `Active` or `Revoked` |
+| Status    | `Active` or `Revoked`                                               |
 
 **Last used** is the useful one: it tells you which keys are dead and safe to
 revoke.
@@ -133,13 +134,13 @@ Full reference: [Dashboard routes](/api/dashboard/#api-keys).
 
 ## Troubleshooting
 
-| Symptom | Cause |
-|---|---|
-| `401 Missing or invalid Authorization header` | No header, or missing the `Bearer ` prefix |
-| `401 Invalid API key` | Typo, truncation, or a key from a different deployment |
-| `401 API key has been revoked` | Revoked here |
-| `401 API key is not linked to a project` | Orphaned row, create a new key |
-| Recall returns nothing | Often the **wrong project's** key, memory lives in a different one |
+| Symptom                                       | Cause                                                              |
+| --------------------------------------------- | ------------------------------------------------------------------ |
+| `401 Missing or invalid Authorization header` | No header, or missing the `Bearer ` prefix                         |
+| `401 Invalid API key`                         | Typo, truncation, or a key from a different deployment             |
+| `401 API key has been revoked`                | Revoked here                                                       |
+| `401 API key is not linked to a project`      | Orphaned row, create a new key                                     |
+| Recall returns nothing                        | Often the **wrong project's** key, memory lives in a different one |
 
 That last one is the common trap. A key silently scopes every call; if your data
 seems to have vanished, confirm the key belongs to the project you wrote to.
@@ -150,4 +151,4 @@ seems to have vanished, confirm the key belongs to the project you wrote to.
 
 - [Authentication](/api/authentication/)
 - [Projects](/dashboard/projects/)
-- [Playground](/dashboard/playground/), needs a key
+- [Playground](/dashboard/playground/), try the API without a key

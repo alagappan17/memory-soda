@@ -1,7 +1,8 @@
 ---
-title: "Playground"
-description: "An interactive console that drives the real /v1 API and shows every request and response as it happens."
+title: 'Playground'
+description: 'An interactive console that drives the real /v1 API and shows every request and response as it happens.'
 ---
+
 An interactive console that drives the real `/v1` API and shows every request and
 response as it happens.
 
@@ -12,12 +13,12 @@ understand why something was or was not extracted, start here.
 
 ## Setup
 
-The playground authenticates with an **API key**, not your dashboard session,
-because it exercises the same surface your application does.
+The playground runs against the project selected in the sidebar, under your
+dashboard session. No API key is needed: it drives the same SDK your
+application uses, pointed at a session-authenticated mount of the same routes.
 
-1. Create a key on [API Keys](/dashboard/api-keys/).
-2. Paste it into the key field at the top.
-3. Accept the generated `dataset` (`ds_a1b2c3d4`) or type your own.
+1. Pick a project in the sidebar (switching projects resets the playground).
+2. Accept the generated `dataset` (`ds_a1b2c3d4`) or type your own.
 
 Using a throwaway dataset keeps experiments out of real users' memory.
 
@@ -72,8 +73,7 @@ tells you exactly which facts came out of that episode.
 
 ## Watching extraction
 
-`useExtractionPoller` polls for new episodes every 2.5 seconds (giving up after
-90) and, when one completes, fetches the facts it produced and emits a
+`useExtractionPoller` polls for new episodes every 2.5 seconds (giving up after 90) and, when one completes, fetches the facts it produced and emits a
 `facts_extracted` op.
 
 So the normal loop is:
@@ -96,28 +96,32 @@ queues extraction immediately.
 ## Tabs
 
 ### Ops
+
 The log described above. Click any entry to expand the full request and response.
 
 ### Recall
+
 Run [`recall()`](/api/recall/) by hand against the current dataset, with all
 the controls exposed:
 
-| Control | Maps to |
-|---|---|
-| Query | `query` |
-| Min confidence | `minConfidence` |
-| Limit | `limit` |
-| Include episodes / synthesis / raw | `include` |
-| As of | `asOf` |
+| Control                            | Maps to         |
+| ---------------------------------- | --------------- |
+| Query                              | `query`         |
+| Min confidence                     | `minConfidence` |
+| Limit                              | `limit`         |
+| Include episodes / synthesis / raw | `include`       |
+| As of                              | `asOf`          |
 
 The rendered `context` block is shown exactly as your application would receive
 it. This is the fastest way to see what your prompt is actually going to contain.
 
 ### Facts
+
 Live facts for the dataset, refreshed as extraction lands. Individual facts can
 be deleted, which emits a `fact_deleted` op.
 
 ### Episodes
+
 Episodes for the dataset, with summaries, key learnings and status. Failed ones
 can be retried.
 
@@ -127,11 +131,11 @@ can be retried.
 
 Working, episodic and semantic settings for the session.
 
-| Panel | Notes |
-|---|---|
+| Panel              | Notes                                                                   |
+| ------------------ | ----------------------------------------------------------------------- |
 | **Working memory** | `autoCompactThreshold`, `messageLimit`, applied to threads created here |
-| **Episodic** | `autoEpisodeIntervalMs`, `contextEpisodes`, weights |
-| **Semantic** | `factsInContext`, thresholds |
+| **Episodic**       | `autoEpisodeIntervalMs`, `contextEpisodes`, weights                     |
+| **Semantic**       | `factsInContext`, thresholds                                            |
 
 > These are **playground-local**. They do not change project settings, and they
 > reset on reload. To change real defaults use
@@ -164,27 +168,26 @@ Replies are **not streamed**; they appear when the call completes.
 
 ## What it is good for
 
-| Question | How |
-|---|---|
-| Why wasn't that extracted? | Send it, wait for `facts_extracted`, inspect the response |
-| What will my prompt contain? | Recall tab, read the rendered `context` |
-| Is the pipeline working at all? | Ops log shows every call and its status |
-| How long does extraction really take? | Relative timestamps between `message_added` and `facts_extracted` |
-| Does raising `factsInContext` help? | Change it in the semantic panel, re-run recall, compare |
-| What does a contradiction do? | State something, then contradict it, watch the old fact become superseded |
+| Question                              | How                                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| Why wasn't that extracted?            | Send it, wait for `facts_extracted`, inspect the response                 |
+| What will my prompt contain?          | Recall tab, read the rendered `context`                                   |
+| Is the pipeline working at all?       | Ops log shows every call and its status                                   |
+| How long does extraction really take? | Relative timestamps between `message_added` and `facts_extracted`         |
+| Does raising `factsInContext` help?   | Change it in the semantic panel, re-run recall, compare                   |
+| What does a contradiction do?         | State something, then contradict it, watch the old fact become superseded |
 
 ---
 
 ## Limitations
 
-| | |
-|---|---|
-| Ops log is ephemeral | No persistence, no export, no sharing |
-| Needs an API key pasted in | Cannot use your dashboard session |
-| Settings are local | Do not affect the project |
-| No streaming | Replies arrive all at once |
-| Facts/Episodes tabs duplicate [Datasets](/dashboard/datasets/) | Same data, narrower view |
-| Gemini only | The `chat` endpoint hard-codes it |
+|                                                                |                                       |
+| -------------------------------------------------------------- | ------------------------------------- |
+| Ops log is ephemeral                                           | No persistence, no export, no sharing |
+| Settings are local                                             | Do not affect the project             |
+| No streaming                                                   | Replies arrive all at once            |
+| Facts/Episodes tabs duplicate [Datasets](/dashboard/datasets/) | Same data, narrower view              |
+| Gemini only                                                    | The `chat` endpoint hard-codes it     |
 
 ---
 

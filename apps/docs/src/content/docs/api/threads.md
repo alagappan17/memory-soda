@@ -1,7 +1,8 @@
 ---
-title: "Threads API"
-description: "Base path: /v1/threads · Auth: API key"
+title: 'Threads API'
+description: 'Base path: /v1/threads · Auth: API key'
 ---
+
 Base path: `/v1/threads` · Auth: [API key](/api/authentication/)
 
 SDK equivalent: [`memory.threads`](/sdk/threads/)
@@ -26,13 +27,13 @@ Create a conversation thread.
 }
 ```
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `dataset` | string | no | Min 1 char. **Randomly generated if omitted.** |
-| `tags` | string[] | no | |
-| `metadata` | object | no | Arbitrary JSON |
-| `autoCompactThreshold` | integer | no | `>= 2`. Omit to disable compaction. |
-| `settings.episodic` | object | no | Partial override of project episodic settings |
+| Field                  | Type     | Required | Notes                                          |
+| ---------------------- | -------- | -------- | ---------------------------------------------- |
+| `dataset`              | string   | no       | Min 1 char. **Randomly generated if omitted.** |
+| `tags`                 | string[] | no       |                                                |
+| `metadata`             | object   | no       | Arbitrary JSON                                 |
+| `autoCompactThreshold` | integer  | no       | `>= 2`. Omit to disable compaction.            |
+| `settings.episodic`    | object   | no       | Partial override of project episodic settings  |
 
 `settings.episodic` accepts: `enabled`, `autoEpisodeIntervalMs` (`>= 1000` or
 `null`), `maxMessages` (1–1000), `maxRetries` (0–10), `contextEpisodes` (1–20),
@@ -97,8 +98,8 @@ curl -X POST http://localhost:3004/v1/threads \
 
 ### Errors
 
-| Code | Body |
-|---|---|
+| Code  | Body                                                                      |
+| ----- | ------------------------------------------------------------------------- |
 | `404` | `{ "error": "Thread not found" }`, missing, or belongs to another project |
 
 ---
@@ -140,7 +141,7 @@ and writing the whole object back.
 Queue [episode extraction](/concepts/episodic-memory/) immediately.
 
 > **The thread is not closed.** It stays writable and you can keep appending.
-> Read this as *checkpoint*, not *close*.
+> Read this as _checkpoint_, not _close_.
 
 ### Response `200`
 
@@ -170,11 +171,11 @@ curl -X POST http://localhost:3004/v1/threads/$THREAD/end \
 
 ## Not available
 
-| Operation | Status |
-|---|---|
-| Delete a thread | No endpoint. Deleting the row in SQL cascades to messages. |
-| List threads | Dashboard only, [`GET /dashboard/browse/threads`](/api/dashboard/). |
-| Reassign a thread to another dataset | Not supported. |
+| Operation                            | Status                                                                                  |
+| ------------------------------------ | --------------------------------------------------------------------------------------- |
+| Delete a thread                      | No endpoint. Deleting the row in SQL cascades to messages.                              |
+| List threads                         | Dashboard only, [`GET /dashboard/projects/:projectId/browse/threads`](/api/dashboard/). |
+| Reassign a thread to another dataset | Not supported.                                                                          |
 
 ---
 

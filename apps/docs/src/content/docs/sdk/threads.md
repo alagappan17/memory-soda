@@ -1,7 +1,8 @@
 ---
-title: "Threads"
-description: "Thread lifecycle. A thread is one conversation; memory belongs to the dataset, not the thread."
+title: 'Threads'
+description: 'Thread lifecycle. A thread is one conversation; memory belongs to the dataset, not the thread.'
 ---
+
 Thread lifecycle. A thread is one conversation; memory belongs to the
 [dataset](/concepts/projects-and-datasets/), not the thread.
 
@@ -17,13 +18,13 @@ const thread = await memory.createThread({ dataset: 'user_42' });
 create(opts: WMCreateThreadRequest): Promise<WMCreateThreadResponse>
 ```
 
-| Option | Type | Default | Notes |
-|---|---|---|---|
-| `dataset` | `string` | *generated* | Stable user identifier. **Always pass this.** |
-| `tags` | `string[]` | `[]` | Free labels. |
-| `metadata` | `Record<string, unknown>` | `null` | Arbitrary JSON. |
-| `autoCompactThreshold` | `number` | `null` | Compact after this many un-compacted messages. Minimum 2. `null` disables. |
-| `settings.episodic` | `Partial<ProjectEpisodicSettings>` | project defaults | Per-thread episodic overrides. |
+| Option                 | Type                               | Default          | Notes                                                                      |
+| ---------------------- | ---------------------------------- | ---------------- | -------------------------------------------------------------------------- |
+| `dataset`              | `string`                           | _generated_      | Stable user identifier. **Always pass this.**                              |
+| `tags`                 | `string[]`                         | `[]`             | Free labels.                                                               |
+| `metadata`             | `Record<string, unknown>`          | `null`           | Arbitrary JSON.                                                            |
+| `autoCompactThreshold` | `number`                           | `null`           | Compact after this many un-compacted messages. Minimum 2. `null` disables. |
+| `settings.episodic`    | `Partial<ProjectEpisodicSettings>` | project defaults | Per-thread episodic overrides.                                             |
 
 ```ts
 const { threadId, dataset, createdAt, settings } = await memory.createThread({
@@ -135,7 +136,7 @@ const { threadId, episodeQueued } = await memory.endThread(threadId);
 > appending to it. `end()` queues [episode extraction](/concepts/episodic-memory/)
 > immediately instead of waiting out the inactivity timer.
 >
-> Read it as *checkpoint*, not *close*.
+> Read it as _checkpoint_, not _close_.
 
 `episodeQueued` is `false` when episodic memory is disabled for the thread or
 project.
@@ -184,9 +185,11 @@ const { threadId } = await memory.createThread({
 
 ```ts
 socket.on('disconnect', () => {
-  memory.endThread(threadId).catch((err) =>
-    logger.warn({ err, threadId }, 'failed to queue extraction'),
-  );
+  memory
+    .endThread(threadId)
+    .catch((err) =>
+      logger.warn({ err, threadId }, 'failed to queue extraction'),
+    );
 });
 ```
 
@@ -194,11 +197,11 @@ socket.on('disconnect', () => {
 
 ## Not available
 
-| | Status |
-|---|---|
-| Delete a thread | No endpoint. Deleting the row cascades to messages; do it in SQL. |
-| List threads for a dataset | Dashboard only, [`GET /dashboard/browse/threads`](/api/dashboard/). |
-| Change `tags` or `autoCompactThreshold` after creation | Not patchable. |
+|                                                        | Status                                                                                  |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Delete a thread                                        | No endpoint. Deleting the row cascades to messages; do it in SQL.                       |
+| List threads for a dataset                             | Dashboard only, [`GET /dashboard/projects/:projectId/browse/threads`](/api/dashboard/). |
+| Change `tags` or `autoCompactThreshold` after creation | Not patchable.                                                                          |
 
 ---
 

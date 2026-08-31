@@ -56,7 +56,8 @@ tests — keep logic in `apps/api/src/lib` so it is testable without DB or Gemin
 - Facts about entities are anchored on the entity; facts about the user on `user`.
 - Retrieval = vector + entity-anchor + full-text, fused by rank; thresholds live
   in project settings (`packages/types/src/lib/project-settings.ts`).
-- Routes under `/v1` (API key) and `/dashboard/v1` (session) share one router.
+- Routes under `/v1` (API key) and `/dashboard/projects/:projectId/v1`
+  (session) share one router.
 
 ## Docs example world
 

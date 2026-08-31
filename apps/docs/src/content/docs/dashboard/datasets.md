@@ -1,7 +1,8 @@
 ---
-title: "Datasets"
-description: "The memory browser. Everything the system knows about each user, and where it came from."
+title: 'Datasets'
+description: 'The memory browser. Everything the system knows about each user, and where it came from.'
 ---
+
 The memory browser. Everything the system knows about each user, and where it
 came from.
 
@@ -13,12 +14,12 @@ This is the page you will spend the most time on.
 
 Every dataset in the selected project, newest activity first:
 
-| Column | Meaning |
-|---|---|
-| Dataset | The identifier you passed as `dataset` |
-| Threads | Conversations recorded for them |
-| Facts | **Live** facts only, superseded and expired ones are not counted |
-| Last activity | Most recent message across all their threads |
+| Column        | Meaning                                                          |
+| ------------- | ---------------------------------------------------------------- |
+| Dataset       | The identifier you passed as `dataset`                           |
+| Threads       | Conversations recorded for them                                  |
+| Facts         | **Live** facts only, superseded and expired ones are not counted |
+| Last activity | Most recent message across all their threads                     |
 
 Search filters by dataset name (a substring match).
 
@@ -40,14 +41,14 @@ timestamp, and any `tokens` / `model` / `latencyMs` you supplied.
 **Compacted messages are shown too**, unlike `prepare()`, which hides them. This
 is the only place to see what a summary replaced.
 
-Use it to answer: *what did the user actually say?*
+Use it to answer: _what did the user actually say?_
 
 ### Episodes
 
 Every [episode](/concepts/episodic-memory/) for the dataset, the summary,
 its key learnings, the message count, and the window it covered.
 
-Use it to answer: *what did the system think this conversation was about?*
+Use it to answer: _what did the system think this conversation was about?_
 
 > Episode `status` is shown, but **`semanticStatus` is not**. An episode can read
 > `completed` while its fact extraction failed. See
@@ -59,11 +60,11 @@ The extracted [semantic memory](/concepts/semantic-memory/), newest first.
 
 Each row shows subject, predicate, object, the validity window, and the state:
 
-| State | Meaning |
-|---|---|
-| **current** | Live and retrievable now |
+| State          | Meaning                                         |
+| -------------- | ----------------------------------------------- |
+| **current**    | Live and retrievable now                        |
 | **superseded** | A contradicting fact won, or someone deleted it |
-| **expired** | Its `validUntil` passed |
+| **expired**    | Its `validUntil` passed                         |
 
 A toggle includes superseded and expired facts. Leave it on when debugging,
 "the memory is wrong" is usually "the memory changed and you are seeing the new
@@ -127,14 +128,14 @@ LIMIT 20;
 
 ## What this page cannot do
 
-| | Alternative |
-|---|---|
-| Delete a whole dataset | No UI, no endpoint, [Privacy and data deletion](/operations/privacy-and-deletion/) |
-| Edit or add a fact | Delete only; facts are derived |
-| See extraction failures | SQL, as above |
-| See which facts a past reply used | [Playground](/dashboard/playground/), current session only |
-| Export | No export button, use the API or `pg_dump` |
-| Visualise the graph | Not implemented |
+|                                   | Alternative                                                                        |
+| --------------------------------- | ---------------------------------------------------------------------------------- |
+| Delete a whole dataset            | No UI, no endpoint, [Privacy and data deletion](/operations/privacy-and-deletion/) |
+| Edit or add a fact                | Delete only; facts are derived                                                     |
+| See extraction failures           | SQL, as above                                                                      |
+| See which facts a past reply used | [Playground](/dashboard/playground/), current session only                         |
+| Export                            | No export button, use the API or `pg_dump`                                         |
+| Visualise the graph               | Not implemented                                                                    |
 
 ---
 
@@ -142,15 +143,15 @@ LIMIT 20;
 
 Everything here is available programmatically:
 
-| View | Endpoint |
-|---|---|
-| Dataset list | `GET /dashboard/browse/datasets?projectId=` |
-| Conversations | `GET /dashboard/browse/threads?projectId=&dataset=` |
-| Messages | `GET /dashboard/browse/threads/:id/messages?projectId=` |
-| Episodes | `GET /dashboard/browse/datasets/:dataset/episodes?projectId=` |
-| Facts | `GET /dashboard/browse/datasets/:dataset/facts?projectId=` |
-| Entities | `GET /dashboard/browse/datasets/:dataset/entities?projectId=` |
-| Delete a fact | `DELETE /dashboard/v1/memory/semantic/datasets/:dataset/facts/:factId?projectId=` |
+| View          | Endpoint                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------ |
+| Dataset list  | `GET /dashboard/projects/:projectId/browse/datasets`                                       |
+| Conversations | `GET /dashboard/projects/:projectId/browse/threads?dataset=`                               |
+| Messages      | `GET /dashboard/projects/:projectId/browse/threads/:id/messages`                           |
+| Episodes      | `GET /dashboard/projects/:projectId/browse/datasets/:dataset/episodes`                     |
+| Facts         | `GET /dashboard/projects/:projectId/browse/datasets/:dataset/facts`                        |
+| Entities      | `GET /dashboard/projects/:projectId/browse/datasets/:dataset/entities`                     |
+| Delete a fact | `DELETE /dashboard/projects/:projectId/v1/memory/semantic/datasets/:dataset/facts/:factId` |
 
 The `/v1` equivalents do the same with an API key,
 [Semantic memory API](/api/semantic-memory/).

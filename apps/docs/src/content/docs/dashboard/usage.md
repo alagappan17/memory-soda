@@ -79,9 +79,9 @@ request id, dataset, thread, episode, error and `meta`.
 Dashboard-only, session-authenticated; there is no SDK counterpart.
 
 ```
-GET /dashboard/usage?projectId=…&from=…&to=…&bucket=day|week|month
+GET /dashboard/projects/:projectId/usage?from=…&to=…&bucket=day|week|month
     [&dataset=&source=&operation=&stage=&kind=&service=&model=&apiKeyId=]
-GET /dashboard/usage/logs?projectId=…&limit=50[&cursor=<createdAt>]  (+ same filters)
+GET /dashboard/projects/:projectId/usage/logs?limit=50[&cursor=<createdAt>]  (+ same filters)
 ```
 
 `from` / `to` default to the last 30 days.

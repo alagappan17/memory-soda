@@ -1,7 +1,8 @@
 ---
-title: "API conventions"
-description: "Everything on this page applies to every endpoint."
+title: 'API conventions'
+description: 'Everything on this page applies to every endpoint.'
 ---
+
 Everything on this page applies to every endpoint.
 
 **Base URL:** `http://localhost:3004` by default (`HOST` + `PORT`).
@@ -12,12 +13,12 @@ Everything on this page applies to every endpoint.
 
 Three, with different auth.
 
-| Prefix | Audience | Auth |
-|---|---|---|
-| `/health` | monitoring | none |
-| `/auth/*` | dashboard sign-in | none for `login`; session for `logout`, `me` |
-| `/dashboard/*` | the dashboard UI | login session |
-| `/v1/*` | your application | API key |
+| Prefix         | Audience          | Auth                                         |
+| -------------- | ----------------- | -------------------------------------------- |
+| `/health`      | monitoring        | none                                         |
+| `/auth/*`      | dashboard sign-in | none for `login`; session for `logout`, `me` |
+| `/dashboard/*` | the dashboard UI  | login session                                |
+| `/v1/*`        | your application  | API key                                      |
 
 Only `/v1/*` is a stable integration surface. `/dashboard/*` exists for the
 bundled UI and may change without notice.
@@ -65,17 +66,17 @@ Collections use a named key plus counts:
 
 ### Status codes
 
-| Code | When |
-|---|---|
-| `200` | Success |
+| Code  | When                                           |
+| ----- | ---------------------------------------------- |
+| `200` | Success                                        |
 | `201` | Created, `POST /v1/threads`, `POST …/messages` |
-| `204` | Success, no body, logout, delete |
-| `400` | Validation failed |
-| `401` | Missing, invalid or revoked credential |
-| `404` | Not found, or not yours |
-| `409` | Conflict |
-| `500` | Server error |
-| `503` | `/health` only, when a dependency is down |
+| `204` | Success, no body, logout, delete               |
+| `400` | Validation failed                              |
+| `401` | Missing, invalid or revoked credential         |
+| `404` | Not found, or not yours                        |
+| `409` | Conflict                                       |
+| `500` | Server error                                   |
+| `503` | `/health` only, when a dependency is down      |
 
 ---
 
@@ -91,8 +92,13 @@ Validation failures add the raw zod issues:
 {
   "error": "Validation error",
   "issues": [
-    { "code": "too_small", "minimum": 1, "type": "string",
-      "path": ["content"], "message": "String must contain at least 1 character(s)" }
+    {
+      "code": "too_small",
+      "minimum": 1,
+      "type": "string",
+      "path": ["content"],
+      "message": "String must contain at least 1 character(s)"
+    }
   ]
 }
 ```
@@ -139,7 +145,7 @@ GET /v1/memory/episodic/datasets/:dataset/episodes?limit=10&before=2026-08-01T00
 **Offset**, dashboard lists only:
 
 ```
-GET /dashboard/browse/threads?projectId=…&limit=20&offset=40
+GET /dashboard/projects/:projectId/browse/threads?limit=20&offset=40
 → { threads, total }
 ```
 
@@ -164,14 +170,14 @@ Out-of-range values return `400` rather than clamping.
 
 There are no idempotency keys.
 
-| Endpoint | Repeat behaviour |
-|---|---|
-| `POST /v1/threads` | New thread each time |
-| `POST …/messages` | Duplicate message appended |
-| `POST …/end` | Another episode (harmless, costs 3 LLM calls) |
-| `POST …/compact` | No-op when nothing to compact |
-| `DELETE …/facts/:id` | `404` on the second call |
-| All `GET`s | Safe |
+| Endpoint             | Repeat behaviour                              |
+| -------------------- | --------------------------------------------- |
+| `POST /v1/threads`   | New thread each time                          |
+| `POST …/messages`    | Duplicate message appended                    |
+| `POST …/end`         | Another episode (harmless, costs 3 LLM calls) |
+| `POST …/compact`     | No-op when nothing to compact                 |
+| `DELETE …/facts/:id` | `404` on the second call                      |
+| All `GET`s           | Safe                                          |
 
 ---
 
@@ -204,15 +210,15 @@ change; changes will be noted in the changelog.
 
 ## Endpoint index
 
-| Endpoint | Page |
-|---|---|
-| `POST /v1/threads`, `GET/PATCH /v1/threads/:id`, `POST /v1/threads/:id/end` | [Threads](/api/threads/) |
-| `POST/GET …/threads/:id/messages`, `…/prepare`, `…/compact`, `…/stats` | [Working memory](/api/working-memory/) |
-| `POST /v1/memory/recall` | [Recall](/api/recall/) |
-| `GET/DELETE …/semantic/datasets/:dataset/facts`, `…/entities` | [Semantic memory](/api/semantic-memory/) |
-| `GET/DELETE/POST …/episodic/…` | [Episodic memory](/api/episodic-memory/) |
-| `/auth/*`, `/dashboard/*` | [Dashboard routes](/api/dashboard/) |
-| `GET /health` | below |
+| Endpoint                                                                    | Page                                     |
+| --------------------------------------------------------------------------- | ---------------------------------------- |
+| `POST /v1/threads`, `GET/PATCH /v1/threads/:id`, `POST /v1/threads/:id/end` | [Threads](/api/threads/)                 |
+| `POST/GET …/threads/:id/messages`, `…/prepare`, `…/compact`, `…/stats`      | [Working memory](/api/working-memory/)   |
+| `POST /v1/memory/recall`                                                    | [Recall](/api/recall/)                   |
+| `GET/DELETE …/semantic/datasets/:dataset/facts`, `…/entities`               | [Semantic memory](/api/semantic-memory/) |
+| `GET/DELETE/POST …/episodic/…`                                              | [Episodic memory](/api/episodic-memory/) |
+| `/auth/*`, `/dashboard/*`                                                   | [Dashboard routes](/api/dashboard/)      |
+| `GET /health`                                                               | below                                    |
 
 ---
 

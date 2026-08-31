@@ -15,7 +15,7 @@ none silently — say which you skipped and why.
 3. **Route** — `apps/api/src/routes/memory/<area>.ts` (or `admin/`). Use
    `projectRoute` from `lib/route.ts`; validate with the schema from step 1;
    throw `AppError.*` for failures. Memory routes are auto-mounted at both
-   `/v1` and `/dashboard/v1`.
+   `/v1` and `/dashboard/projects/:projectId/v1`.
 4. **SDK** — `packages/sdk/src/client.ts`: one flat method, JSDoc, re-export any
    new types from `src/index.ts`. Add a case to `client.test.ts`.
 5. **Integration test** — `apps/api/src/test/memory.test.ts` (or `admin.test.ts`)
@@ -26,6 +26,7 @@ none silently — say which you skipped and why.
 7. **Verify** — `npm run build && npm run typecheck && npm test && npm run docs:build`.
 
 Checklist before reporting done:
+
 - [ ] new schema exported from `packages/types`
 - [ ] route reachable via `/v1` with an API key
 - [ ] SDK method + unit test
