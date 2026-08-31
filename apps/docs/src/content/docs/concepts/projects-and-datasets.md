@@ -3,15 +3,12 @@ title: 'Projects and datasets'
 description: 'Every row of memory is scoped by two keys. Understanding them takes two minutes and prevents most integration mistakes.'
 ---
 
-Every row of memory is scoped by two keys. Understanding them takes two minutes
-and prevents most integration mistakes.
+Every row of memory is scoped by two keys.
 
 ```
 project  ──►  "which application is this?"     a UUID, resolved from your API key
 dataset  ──►  "whose memory is this?"          a string you choose
 ```
-
----
 
 ## Projects
 
@@ -32,8 +29,6 @@ deployment.
 // Nothing to configure, the key decides.
 const memory = new MemorySoda({ baseUrl, apiKey: STAGING_KEY });
 ```
-
----
 
 ## Datasets
 
@@ -94,8 +89,6 @@ const { threadId, dataset } = await memory.createThread({});
 // dataset === 'usr_9f3ka2be', keep it or lose it
 ```
 
----
-
 ## Isolation guarantees
 
 | Boundary           | Enforced by                                                  |
@@ -111,8 +104,6 @@ A request bearing project A's key cannot see project B's data, and
 for that project. There are no per-dataset or read-only keys. If you are
 multi-tenant and tenants must not see each other even by mistake, give each
 tenant its own project and its own key.
-
----
 
 ## Enumerating datasets
 
@@ -141,8 +132,6 @@ GET /dashboard/projects/<uuid>/browse/datasets?q=&limit=50&offset=0
 The list is derived from `threads`, so a dataset with facts but no threads will
 not appear.
 
----
-
 ## Cardinality
 
 Nothing is provisioned per dataset, no table, no index, no namespace. A dataset
@@ -153,8 +142,6 @@ Millions of datasets are fine. A single dataset with a very large number of live
 facts is the thing to watch: the extraction pipeline loads **all** live facts for
 a dataset into memory on every run. See
 [Limits and defaults](/reference/limits/).
-
----
 
 ## Next
 

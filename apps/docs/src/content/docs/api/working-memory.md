@@ -7,8 +7,6 @@ Base path: `/v1/memory/working` · Auth: [API key](/api/authentication/)
 
 SDK equivalent: [`memory.working`](/sdk/working-memory/)
 
----
-
 ## `POST /v1/memory/working/threads/:threadId/messages`
 
 Append a message. `sequenceNumber` is assigned by the server.
@@ -67,8 +65,6 @@ the token data **silently discarded**.
 | `400` | `{ "error": "Validation error", "issues": [...] }` |
 | `404` | `{ "error": "Thread not found" }`                  |
 
----
-
 ## `GET /v1/memory/working/threads/:threadId/messages`
 
 Raw message rows, including compacted ones.
@@ -111,8 +107,6 @@ Raw message rows, including compacted ones.
 curl "http://localhost:3004/v1/memory/working/threads/$THREAD/messages?limit=50&order=desc" \
   -H "Authorization: Bearer $KEY"
 ```
-
----
 
 ## `POST /v1/memory/working/threads/:threadId/prepare`
 
@@ -166,8 +160,6 @@ curl -X POST http://localhost:3004/v1/memory/working/threads/$THREAD/prepare \
   -H 'Content-Type: application/json' \
   -d '{"messageLimit":30}'
 ```
-
----
 
 ## `POST /dashboard/projects/:projectId/chat/threads/:threadId/chat`
 
@@ -234,8 +226,6 @@ makes **two or three LLM calls** per turn.
 Recall failure is non-fatal, the user message is already persisted, so the turn
 proceeds without long-term memory rather than returning 500.
 
----
-
 ## `POST /v1/memory/working/threads/:threadId/compact`
 
 Summarise un-compacted messages into a single rolling summary.
@@ -264,8 +254,6 @@ using the result.
 Makes an LLM call; takes seconds. See
 [Handling long conversations](/guides/long-conversations/).
 
----
-
 ## `GET /v1/memory/working/threads/:threadId/stats`
 
 ### Response `200`
@@ -290,8 +278,6 @@ Makes an LLM call; takes seconds. See
   counted for you.
 - `sessionDuration` is `null` for threads with fewer than two real messages.
 - `messageCount` counts un-compacted messages including the summary row.
-
----
 
 ## Next
 

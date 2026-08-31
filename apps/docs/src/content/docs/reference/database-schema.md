@@ -22,8 +22,6 @@ users ──── sessions              (dashboard login only)
 
 **Tenancy** is `(project_id, dataset)` on every memory table.
 
----
-
 ## `projects`
 
 ```sql
@@ -36,8 +34,6 @@ created_at   timestamp NOT NULL DEFAULT now()
 
 `settings` stores **only what was overridden**, so new defaults in a future
 version reach projects that never changed them.
-
----
 
 ## `api_keys`
 
@@ -54,8 +50,6 @@ revoked_at   timestamp
 
 `last_used_at` is written on **every authenticated request**, one UPDATE per
 API call.
-
----
 
 ## `users` / `sessions`
 
@@ -81,8 +75,6 @@ revoked_at   timestamptz
 INDEX sessions_user_idx (user_id)
 ```
 
----
-
 ## `threads`
 
 ```sql
@@ -107,8 +99,6 @@ INDEX threads_project_idx  (project_id)
 > There is **no `message_count`**. It was a denormalised counter that could drift
 > and was dropped in migration 0010; counts are derived with a correlated
 > subquery.
-
----
 
 ## `messages`
 
@@ -136,8 +126,6 @@ row. It is the pagination cursor and the compaction watermark.
 Summary rows carry `metadata.type = 'compact_summary'` with a `compactedRange`.
 
 > The column was renamed from `token_count` to `tokens` in migration 0010.
-
----
 
 ## `episodes`
 
@@ -187,8 +175,6 @@ semantic_status : pending | processing | completed | failed | skipped
 `[start_sequence, end_sequence]` is the message window extraction reads. `NULL`
 on legacy rows, which fall back to the whole un-compacted thread.
 
----
-
 ## `scheduled_episodes`
 
 A one-row-per-thread timer.
@@ -207,8 +193,6 @@ rather than queuing many episodes. Creating a thread sets every sibling's
 `fire_at` (same project and dataset) to `LEAST(fire_at, now() + 5 min)`.
 
 Claimed with `DELETE … RETURNING`, so each row fires exactly once.
-
----
 
 ## `facts`
 
@@ -293,8 +277,6 @@ AND (invalid_at  IS NULL OR invalid_at  > $asOf)
 
 See [The bi-temporal model](/concepts/bi-temporal-model/).
 
----
-
 ## `entities`
 
 ```sql
@@ -316,8 +298,6 @@ INDEX entities_embedding_idx ivfflat (embedding vector_cosine_ops) WITH (lists=1
 the write path free of lookups and makes the anchor query a plain `IN (…)`.
 The cost is no referential integrity, a renamed entity would orphan its facts,
 which is why entity names are never updated in place.
-
----
 
 ## `usage_logs`
 
@@ -358,8 +338,6 @@ so a price change or a new provider needs no backfill. Thread, episode and
 API-key ids are plain columns, not foreign keys: the log must outlive what it
 describes.
 
----
-
 ## Vector storage
 
 - pgvector, **768 dimensions**, from `gemini-embedding-001`.
@@ -369,8 +347,6 @@ describes.
 > The IVFFlat indexes were created on empty tables, so their centroids are
 > degenerate. On a populated instance, `REINDEX` or switch to HNSW,
 > see [Migrations](/operations/migrations/#a-note-on-the-ivfflat-indexes).
-
----
 
 ## Cascade behaviour
 
@@ -384,8 +360,6 @@ describes.
 Facts and entities are scoped to the **dataset**, not the thread, and outlive
 both. Deleting a conversation does not delete what was learned from it. See
 [Privacy and data deletion](/operations/privacy-and-deletion/).
-
----
 
 ## Useful queries
 
@@ -417,8 +391,6 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
 SELECT relname, pg_size_pretty(pg_total_relation_size(relid)) AS size
 FROM pg_catalog.pg_statio_user_tables ORDER BY pg_total_relation_size(relid) DESC;
 ```
-
----
 
 ## Next
 

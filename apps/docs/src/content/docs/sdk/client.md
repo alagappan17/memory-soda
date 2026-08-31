@@ -14,8 +14,6 @@ const memory = new MemorySoda({
 });
 ```
 
----
-
 ## Constructor
 
 ```ts
@@ -49,8 +47,6 @@ through. The pages below group them by what you are doing.
 | Durable facts               | `listFacts`, `deleteFact`, `listEntities`                         | [facts and entities](/sdk/semantic-memory/) |
 | What was learned, and when  | `listEpisodes`, `searchEpisodes`, `getEpisode`                    | [episodes](/sdk/episodes/)                  |
 | Export and erasure          | `exportDataset`, `forgetDataset`                                  | [datasets](/sdk/datasets/)                  |
-
----
 
 ## `recall()`
 
@@ -117,8 +113,6 @@ const past = await memory.recall({
 
 Concepts: [Retrieval](/concepts/retrieval/) · API: [`POST /v1/memory/recall`](/api/recall/)
 
----
-
 ## `prepareAndRecall()`
 
 Convenience for a chat turn: working memory and long-term memory together.
@@ -162,8 +156,6 @@ const [prepared, recalled] = await Promise.all([
 Use the explicit form when you want independent error handling, as written,
 one failure rejects both.
 
----
-
 ## `health()`
 
 ```ts
@@ -186,8 +178,6 @@ try {
   }
 }
 ```
-
----
 
 ## Full turn
 
@@ -216,8 +206,6 @@ async function turn(userId: string, threadId: string, message: string) {
   return reply;
 }
 ```
-
----
 
 ## Next
 

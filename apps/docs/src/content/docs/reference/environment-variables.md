@@ -6,8 +6,6 @@ description: 'Read from .env in the repo root during development, and from the p
 Read from `.env` in the repo root during development, and from the process
 environment in production.
 
----
-
 ## API server
 
 ### Required
@@ -96,8 +94,6 @@ than failing silently:
 > the old model, mixing them in one index gives meaningless similarities even
 > when the dimensions happen to match.
 
----
-
 ## Dashboard
 
 Build-time only. Vite inlines these into the bundle.
@@ -121,8 +117,6 @@ value. Move the dashboard off `3000` and `CORS_ORIGIN` on the API has to follow,
 or the browser's requests are rejected. `npm create memory-soda@latest` writes
 both from one answer.
 
----
-
 ## SDK (your application)
 
 Read by `new MemorySoda()` in your app, not by the server.
@@ -138,8 +132,6 @@ const memory = new MemorySoda();
 
 Throws a plain `Error` if either is missing, a startup misconfiguration, not a
 runtime failure.
-
----
 
 ## Full `.env.example`
 
@@ -172,8 +164,6 @@ GOOGLE_GENERATIVE_AI_API_KEY=
 VITE_API_URL=http://localhost:3004
 ```
 
----
-
 ## Not configurable
 
 Hard-coded in the source. Changing them means editing code.
@@ -191,8 +181,6 @@ Hard-coded in the source. Changing them means editing code.
 | Request body limit      | 1 MB                | `apps/api/src/main.ts`                             |
 | Session lifetime        | 7 days              | `apps/api/src/services/session.service.ts`         |
 | scrypt parameters       | `N=2^15, r=8, p=3`  | `apps/api/src/lib/password.ts`                     |
-
----
 
 ## Precedence and loading
 
@@ -224,8 +212,6 @@ installer asks for, `DATABASE_URL`, the Gemini key, and the admin login.
 Everything else stays on the defaults in `config.ts` rather than being pinned to
 a copy of them, so the file does not go stale when a default changes.
 
----
-
 ## Validating a deployment
 
 ```bash
@@ -238,8 +224,6 @@ psql "$DATABASE_URL" -c "SELECT extname FROM pg_extension WHERE extname = 'vecto
 # API healthy?
 curl -fsS "http://$HOST:$PORT/health" | jq
 ```
-
----
 
 ## Next
 

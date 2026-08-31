@@ -9,8 +9,6 @@ Every type exported from `@memory-soda/sdk`. All are type-only exports.
 import type { RecallResponse, SemanticFact } from '@memory-soda/sdk';
 ```
 
----
-
 ## Client
 
 ```ts
@@ -27,8 +25,6 @@ interface HealthResponse {
   services: { postgres: ServiceStatus };
 }
 ```
-
----
 
 ## Threads
 
@@ -76,8 +72,6 @@ interface WMEndThreadResponse {
 ```
 
 > `WMThread` has **no** `messageCount`. Use `WMThreadStatsResponse`.
-
----
 
 ## Messages
 
@@ -143,8 +137,6 @@ interface WMListMessagesResponse {
 > The token field is `tokens`. It was renamed from `tokenCount`; the old name is
 > silently ignored if sent.
 
----
-
 ## Prepare
 
 ```ts
@@ -162,8 +154,6 @@ interface WMPrepareResponse {
   warning?: string; // messageLimit < autoCompactThreshold
 }
 ```
-
----
 
 ## Compaction and stats
 
@@ -202,8 +192,6 @@ interface WMThreadStatsResponse {
 > when there is nothing to compact, which does not match `WMCompactResult`.
 > Narrow before use.
 
----
-
 ## Recall
 
 ```ts
@@ -239,8 +227,6 @@ interface RankedContextGroup {
   groupRelevance: number; // max score in the group
 }
 ```
-
----
 
 ## Semantic memory
 
@@ -308,8 +294,6 @@ interface SemanticEntityFactsResponse {
 }
 ```
 
----
-
 ## Episodic
 
 ```ts
@@ -327,8 +311,6 @@ interface EpisodeContext {
   episodeCount: number; // total for the dataset, not the array length
 }
 ```
-
----
 
 ## Settings
 
@@ -362,8 +344,6 @@ interface ProjectSettings {
 
 Defaults: [Project settings](/reference/project-settings/).
 
----
-
 ## Errors
 
 ```ts
@@ -381,8 +361,6 @@ class NetworkError extends MemorySodaError {
 }
 ```
 
----
-
 ## Conventions
 
 - **All timestamps are ISO 8601 UTC strings**, never `Date` objects. Parse with
@@ -391,8 +369,6 @@ class NetworkError extends MemorySodaError {
   request".
 - Fields documented as "only with `include`" are `null`, not missing, when not
   requested.
-
----
 
 ## Next
 

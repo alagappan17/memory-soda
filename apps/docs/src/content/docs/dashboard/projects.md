@@ -1,13 +1,12 @@
 ---
-title: "Projects"
-description: "A project is the top-level tenant: it owns API keys, threads, episodes, facts, entities and settings."
+title: 'Projects'
+description: 'A project is the top-level tenant: it owns API keys, threads, episodes, facts, entities and settings.'
 ---
+
 A project is the top-level tenant: it owns API keys, threads, episodes, facts,
 entities and settings.
 
 See [Projects and datasets](/concepts/projects-and-datasets/) for the model.
-
----
 
 ## The project switcher
 
@@ -20,17 +19,15 @@ Users, Status) ignores it.
 The selection persists across page loads. If you are looking at an empty Datasets
 page, check the switcher first.
 
----
-
 ## The Projects page
 
 Lists every project with its name, description and creation date.
 
 ### Creating
 
-| Field | Rule |
-|---|---|
-| Name | 1–100 characters, required |
+| Field       | Rule                                       |
+| ----------- | ------------------------------------------ |
+| Name        | 1–100 characters, required                 |
 | Description | Up to 500 characters, required by the form |
 
 A new project starts empty: no keys, no data, and default settings.
@@ -56,8 +53,6 @@ Take a backup first if there is any doubt:
 pg_dump "$DATABASE_URL" > backup-$(date +%F).sql
 ```
 
----
-
 ## When to use more than one
 
 The default deployment has a single project called `default`, created
@@ -66,17 +61,15 @@ fine for most cases.
 
 Add projects when you want **separate settings** or **separate blast radius**:
 
-| Situation | Why |
-|---|---|
-| Staging vs production | Different data, different keys, no chance of cross-contamination |
-| Two unrelated products on one deployment | Independent tuning, independent keys |
-| A tenant that must never see another tenant | The only real isolation boundary, see below |
+| Situation                                   | Why                                                              |
+| ------------------------------------------- | ---------------------------------------------------------------- |
+| Staging vs production                       | Different data, different keys, no chance of cross-contamination |
+| Two unrelated products on one deployment    | Independent tuning, independent keys                             |
+| A tenant that must never see another tenant | The only real isolation boundary, see below                      |
 
 Do **not** use a project per end user. That is what
 [datasets](/concepts/projects-and-datasets/) are for, and they need no
 provisioning.
-
----
 
 ## Isolation
 
@@ -92,9 +85,7 @@ another, give each tenant its own project and its own key. Otherwise a single
 project with one dataset per user is simpler and correct.
 
 > Dashboard access is **not** scoped by project. Any signed-in user sees all of
-> them. Projects isolate *API keys*, not *operators*.
-
----
+> them. Projects isolate _API keys_, not _operators_.
 
 ## Settings
 
@@ -103,8 +94,6 @@ built-in defaults, a project row only stores what you changed.
 
 Reach them from the sidebar's **Project Settings** entry, or the card on Home.
 See [Project settings](/dashboard/project-settings/).
-
----
 
 ## Scripting
 
@@ -128,8 +117,6 @@ curl -s -X POST $API/dashboard/api-keys \
 ```
 
 Full reference: [Dashboard routes](/api/dashboard/).
-
----
 
 ## Next
 

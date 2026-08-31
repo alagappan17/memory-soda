@@ -22,8 +22,9 @@
 
 :root {
   --sl-font: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
-  --sl-font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono',
-    Menlo, Consolas, monospace;
+  --sl-font-mono:
+    ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas,
+    monospace;
 
   /* Starlight's ramp runs light → dark; in dark mode gray-1 is brightest. */
   --sl-color-white: oklch(0.985 0 0);
@@ -190,7 +191,14 @@
 
 /* ── Header ───────────────────────────────────────────────────────────────── */
 
-.header {
+/*
+ * `header.header`, not `.header`: Starlight renders TWO elements with this
+ * class, the fixed outer <header> and a content-height inner <div> from
+ * Header.astro. A bare `.header` border draws on both, and the inner one's
+ * bottom edge sits a nav-pad above the outer's, a second stray hairline
+ * across the whole bar.
+ */
+header.header {
   border-bottom: 1px solid var(--sl-color-hairline);
   box-shadow: none;
   background: var(--sl-color-bg-nav);
@@ -228,12 +236,18 @@
 /*
  * Search.
  *
- * The field keeps Starlight's 22rem so it spans the free column instead of
- * leaving a void beside the right-hand controls, but loses 0.25rem of height so
+ * Sits at the right edge of its column, next to the GitHub icon, instead of
+ * stranded mid-bar; capped at 13.5rem so it reads as a control in the
+ * right-hand cluster rather than a spanning field. Loses 0.25rem of height so
  * it sits centred in a 3.5rem bar rather than filling it.
  */
+.header > .sl-flex:has(site-search) {
+  justify-content: flex-end;
+}
+
 site-search button[data-open-modal] {
   height: 2.25rem;
+  max-width: 13.5rem;
   border-radius: 0.5rem;
   font-size: 0.8125rem;
   padding-inline: 0.75rem 0.5rem;

@@ -7,8 +7,6 @@ description: "@memory-soda/sdk is the only published package. The API and dashbo
 deployed, not published; `@memory-soda/types` is private and bundled into the
 SDK's declarations.
 
----
-
 ## What ships
 
 ```json
@@ -36,8 +34,6 @@ ls packages/sdk/dist
 # index.js  index.cjs  index.d.ts  index.d.cts  + maps
 ```
 
----
-
 ## Publishing
 
 Local, from the repo root (npm will prompt for your OTP):
@@ -57,8 +53,6 @@ cd packages/sdk && npm pack --dry-run
 
 `dist/` and `README.md` only. If `src/` or `node_modules/` appear, the `files`
 field has been broken.
-
----
 
 ## Versioning
 
@@ -80,8 +74,6 @@ endpoints it calls. There is no version negotiation and no capability discovery.
 **State the minimum API version in the changelog for any release that depends on
 a new endpoint or field.** A self-hoster running an older API with a newer SDK
 will get a `404` or a silently missing field, with nothing to explain it.
-
----
 
 ## Checklist
 
@@ -121,8 +113,6 @@ Check CJS too, since it is a separate build output:
 node -e "const { MemorySoda } = require('@memory-soda/sdk'); console.log(typeof MemorySoda)"
 ```
 
----
-
 ## Documentation
 
 The SDK's JSDoc is the source of truth for method behaviour, and
@@ -136,8 +126,6 @@ signature, update:
 
 Docs drifting from code is how a README ends up documenting three methods that do
 not exist. It has happened here before.
-
----
 
 ## Deprecating
 
@@ -155,8 +143,6 @@ async oldMethod() {
 
 Keep the alias for one minor release, note it in the changelog, then remove it.
 
----
-
 ## Releasing the API and dashboard
 
 Not published to a registry, deployed from source.
@@ -171,8 +157,6 @@ git pull && npm ci && npm run build
 
 If a release includes a migration and you run several replicas, set
 `MIGRATE_ON_START=false` and migrate as an explicit deploy step.
-
----
 
 ## Next
 

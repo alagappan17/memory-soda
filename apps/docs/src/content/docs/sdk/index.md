@@ -5,8 +5,6 @@ description: '@memory-soda/sdk, a typed, zero-dependency TypeScript client.'
 
 `@memory-soda/sdk`, a typed, zero-dependency TypeScript client.
 
----
-
 ## Install
 
 ```bash
@@ -19,8 +17,6 @@ npm install @memory-soda/sdk
 | Formats      | ESM and CJS                                              |
 | Dependencies | none                                                     |
 | Types        | bundled                                                  |
-
----
 
 ## Initialise
 
@@ -43,8 +39,6 @@ const memory = new MemorySoda();
 
 > **Server-side only.** The API key grants full read and write access to every
 > dataset in its project. Never ship it to a browser or a mobile app.
-
----
 
 ## Shape
 
@@ -81,9 +75,6 @@ MemorySoda
 └── health()
 ```
 
-Names carry the tiering: the calls a chat turn makes are short, `recall`,
-`prepare`, `addMessage`, and the occasional ones are compound.
-
 A separate subpath, `@memory-soda/sdk/ai`, wires all of this into the
 Vercel AI SDK, see [AI SDK integration](/sdk/ai-sdk/).
 
@@ -96,8 +87,6 @@ Vercel AI SDK, see [AI SDK integration](/sdk/ai-sdk/).
 | [Episodes](/sdk/episodes/)                  | `listEpisodes`, `searchEpisodes`, `getEpisode`      |
 | [Datasets](/sdk/datasets/)                  | export and erase                                    |
 | [AI SDK integration](/sdk/ai-sdk/)          | middleware, tool, message bridge                    |
-
----
 
 ## The minimum you need
 
@@ -114,8 +103,6 @@ await memory.addMessage(threadId, { role: 'user', content: message });
 
 Everything else is inspection, curation or convenience.
 
----
-
 ## Conventions
 
 **Every method returns a promise** and throws on failure. Nothing returns `null`
@@ -129,8 +116,6 @@ retry helper.
 
 **Requests are not batched or deduplicated.** Two identical `recall()` calls make
 two HTTP requests and two embedding calls.
-
----
 
 ## Import surface
 
@@ -179,8 +164,6 @@ import type {
 } from '@memory-soda/sdk';
 ```
 
----
-
 ## Not in the SDK
 
 Deliberate omissions. Call the HTTP API directly if you need them.
@@ -193,8 +176,6 @@ Deliberate omissions. Call the HTTP API directly if you need them.
 
 There is also **no `add()`**, facts cannot be written directly, only derived
 from messages. See [Known limitations](/introduction/overview/#known-limitations).
-
----
 
 ## Next
 

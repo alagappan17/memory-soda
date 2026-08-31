@@ -1,7 +1,8 @@
 ---
-title: "Database migrations"
-description: "Drizzle Kit, with plain SQL files checked into the repo."
+title: 'Database migrations'
+description: 'Drizzle Kit, with plain SQL files checked into the repo.'
 ---
+
 Drizzle Kit, with plain SQL files checked into the repo.
 
 ```
@@ -14,8 +15,6 @@ apps/api/drizzle/
     ├── _journal.json          the ordered list of applied migrations
     └── NNNN_snapshot.json     schema state after each one
 ```
-
----
 
 ## Applying
 
@@ -49,8 +48,6 @@ npm run --workspace=apps/api db:migrate   # once, before rolling out
 # then start instances
 ```
 
----
-
 ## Prerequisite
 
 The `vector` extension must exist **before** the first migration:
@@ -60,8 +57,6 @@ CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
 Superuser, once per database. Migrations do not create it.
-
----
 
 ## Checking state
 
@@ -74,8 +69,6 @@ Against the journal:
 ```bash
 cat apps/api/drizzle/meta/_journal.json | jq '.entries[] | {idx, tag}'
 ```
-
----
 
 ## Writing one
 
@@ -126,8 +119,6 @@ Multiple statements in one file must be separated by:
 
 Without it Drizzle sends the file as a single statement and Postgres rejects it.
 
----
-
 ## Indexes Drizzle cannot generate
 
 The pgvector and full-text indexes are **hand-written** in migration SQL, because
@@ -172,8 +163,6 @@ CREATE INDEX facts_embedding_idx ON facts
   USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
 ```
 
----
-
 ## Rollback
 
 **There is none.** Drizzle does not generate down migrations, and none are
@@ -190,25 +179,21 @@ To undo:
 pg_dump "$DATABASE_URL" --format=custom --file=pre-migrate-$(date +%F).dump
 ```
 
----
-
 ## Migration history
 
-| # | Tag | Change |
-|---|---|---|
-| 0000 | `init` | Projects, API keys, threads, messages, episodes; pgvector indexes |
-| 0001 | `broad_william_stryker` | `scheduled_episodes` |
-| 0002 | `fast_firestar` | `facts` and `entities`; their vector and GIN indexes |
-| 0003 | `short_metal_master` | Semantic refinements |
-| 0004 | `flowery_owl` | Object and recency indexes on `facts` |
-| 0005 | `left_mad_thinker` | tsvector index rework |
-| 0006 | `fine_sue_storm` | tsvector expression narrowed to subject/predicate/object |
-| 0007 | `dataset_rename` | `user_id` → `dataset` across all tables |
-| 0008 | `confidence_retrieval` | `facts.confidence` |
-| 0009 | `brown_lilandra` | `users` and `sessions` for dashboard auth |
-| 0010 | `tokens_rename` | Dropped `threads.message_count`; `messages.token_count` → `tokens` |
-
----
+| #    | Tag                     | Change                                                             |
+| ---- | ----------------------- | ------------------------------------------------------------------ |
+| 0000 | `init`                  | Projects, API keys, threads, messages, episodes; pgvector indexes  |
+| 0001 | `broad_william_stryker` | `scheduled_episodes`                                               |
+| 0002 | `fast_firestar`         | `facts` and `entities`; their vector and GIN indexes               |
+| 0003 | `short_metal_master`    | Semantic refinements                                               |
+| 0004 | `flowery_owl`           | Object and recency indexes on `facts`                              |
+| 0005 | `left_mad_thinker`      | tsvector index rework                                              |
+| 0006 | `fine_sue_storm`        | tsvector expression narrowed to subject/predicate/object           |
+| 0007 | `dataset_rename`        | `user_id` → `dataset` across all tables                            |
+| 0008 | `confidence_retrieval`  | `facts.confidence`                                                 |
+| 0009 | `brown_lilandra`        | `users` and `sessions` for dashboard auth                          |
+| 0010 | `tokens_rename`         | Dropped `threads.message_count`; `messages.token_count` → `tokens` |
 
 ## Other commands
 
@@ -221,12 +206,10 @@ npm run --workspace=apps/api db:push     # push schema without a migration file
 > schema directly with no migration record, which desynchronises the journal from
 > reality. Development scratch databases only.
 
----
-
 ## Troubleshooting
 
 **`extension "vector" is not available`**, pgvector is not installed for your
-Postgres *major version*.
+Postgres _major version_.
 
 **`permission denied for schema public`**, the role in `DATABASE_URL` must own
 the database: `ALTER DATABASE memory_db OWNER TO memory_user;`
@@ -237,8 +220,6 @@ from backup.
 
 **Migration hangs**, another connection holds a conflicting lock. Check
 `pg_stat_activity` for idle-in-transaction sessions.
-
----
 
 ## Next
 

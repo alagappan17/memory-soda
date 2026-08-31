@@ -1,11 +1,10 @@
 ---
-title: "How it works"
-description: "Two paths, deliberately separate: the write path is asynchronous and expensive; the read path is synchronous and cheap."
+title: 'How it works'
+description: 'Two paths, deliberately separate: the write path is asynchronous and expensive; the read path is synchronous and cheap.'
 ---
+
 Two paths, deliberately separate: the **write path** is asynchronous and
 expensive; the **read path** is synchronous and cheap.
-
----
 
 ## The write path
 
@@ -58,9 +57,10 @@ POST /v1/memory/working/threads/:id/messages
 └─────────────────────────────────────────────┘
 ```
 
-**Three LLM calls and two embedding batches per episode.** This is why it is
-asynchronous, and why a fact is typically retrievable 20–60 seconds after the
-message that produced it.
+**Three LLM calls and two embedding batches per episode.** Extraction is
+asynchronous by design: batching a whole stretch of conversation into one pass
+keeps LLM usage flat, at the cost of a delay between a message and the fact it
+produces.
 
 See [The extraction pipeline](/concepts/extraction-pipeline/) for each step
 in detail.
@@ -70,14 +70,12 @@ in detail.
 The extraction prompt is aggressive about discarding noise. From a
 car-shopping conversation it emits roughly four facts, not forty:
 
-| Kept | Dropped |
-|---|---|
-| `user is interested in toyota corolla hybrid` | `user is asking about cars` (task chatter) |
-| `user finds too big suvs` | `toyota corolla hybrid gets 50 mpg` (the assistant said it) |
-| `user does city commuting` | `user wants a hybrid` (fragment of a fuller fact) |
+| Kept                                                               | Dropped                                                        |
+| ------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `user is interested in toyota corolla hybrid`                      | `user is asking about cars` (task chatter)                     |
+| `user finds too big suvs`                                          | `toyota corolla hybrid gets 50 mpg` (the assistant said it)    |
+| `user does city commuting`                                         | `user wants a hybrid` (fragment of a fuller fact)              |
 | `user wants a family car that is hybrid, easy to park, under $30k` | a `corola hybrid` entity (typo, folded into the canonical one) |
-
----
 
 ## The read path
 
@@ -130,8 +128,6 @@ when neither vector nor keyword search would bridge that gap.
 
 See [Retrieval](/concepts/retrieval/).
 
----
-
 ## Putting a turn together
 
 ```ts
@@ -156,21 +152,17 @@ await memory.addMessage(threadId, { role: 'assistant', content: reply });
 [Your first integration](/getting-started/your-first-integration/) for the
 complete version.
 
----
-
 ## Where the time goes
 
 Rough numbers from a local instance.
 
-| Operation | Typical | Notes |
-|---|---|---|
-| `addMessage` | 5–15 ms | occasionally ~30 s when it triggers auto-compaction |
-| `prepare` | 10–30 ms | three parallel `SELECT`s |
-| `recall` | 200–500 ms | dominated by the one embedding round trip |
-| `recall` with `synthesis` | 1.5–3.5 s | adds an LLM call to the read path |
-| message → fact retrievable | 20–60 s | asynchronous, see the write path above |
-
----
+| Operation                  | Typical               | Notes                                               |
+| -------------------------- | --------------------- | --------------------------------------------------- |
+| `addMessage`               | 5–15 ms               | occasionally ~30 s when it triggers auto-compaction |
+| `prepare`                  | 10–30 ms              | three parallel `SELECT`s                            |
+| `recall`                   | 200–500 ms            | dominated by the one embedding round trip           |
+| `recall` with `synthesis`  | 1.5–3.5 s             | adds an LLM call to the read path                   |
+| message → fact retrievable | after extraction runs | asynchronous, see the write path above              |
 
 ## Next
 

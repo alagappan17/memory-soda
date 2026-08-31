@@ -1,11 +1,10 @@
 ---
-title: "Datasets"
-description: "Export or erase everything held about one dataset."
+title: 'Datasets'
+description: 'Export or erase everything held about one dataset.'
 ---
+
 A dataset usually maps to a person, so these are the two things a person is
 entitled to ask for: everything you hold about me, and none of it.
-
----
 
 ## `exportDataset()`
 
@@ -20,7 +19,7 @@ Everything stored for a dataset, threads with their messages, episodes, facts
 const dump = await memory.exportDataset('u_42');
 
 dump.threads.length; // 3
-dump.facts.length;   // 27
+dump.facts.length; // 27
 ```
 
 Scoped to the API key's project, so one project can never export another's
@@ -29,8 +28,6 @@ memory.
 This is a full read, not a paginated one. For a dataset with a long history it
 is a large response; treat it as an export endpoint, not a listing endpoint,
 use [`memory.listFacts()`](/sdk/semantic-memory/) for anything interactive.
-
----
 
 ## `forgetDataset()`
 

@@ -6,8 +6,6 @@ description: 'Store your first memory and read it back. Assumes you have complet
 Store your first memory and read it back. Assumes you have completed
 [Installation](/getting-started/installation/) and the API is running on port 3004.
 
----
-
 ## With the SDK
 
 ```bash
@@ -83,8 +81,6 @@ integration.
 > [How it works](/introduction/how-it-works/#the-write-path). To watch it
 > happen live, use the [Playground](/dashboard/playground/).
 
----
-
 ## With curl
 
 ```bash
@@ -119,8 +115,6 @@ curl -s -X POST $API/v1/memory/recall \
   -d '{"dataset":"user_42","query":"where does the user live?"}' | jq -r .context
 ```
 
----
-
 ## Skipping the wait
 
 Extraction normally waits for a lull in conversation. To force it immediately:
@@ -133,8 +127,6 @@ Despite the name, this does not close the thread, it remains writable. It just
 queues extraction now instead of on the timer. See
 [`threads.end()`](/sdk/threads/#endthread).
 
----
-
 ## What just happened
 
 | Step             | Stored                                                              |
@@ -146,8 +138,6 @@ queues extraction now instead of on the timer. See
 
 Open the dashboard's [Datasets](/dashboard/datasets/) page and select
 `user_42` to see all of it.
-
----
 
 ## Next
 

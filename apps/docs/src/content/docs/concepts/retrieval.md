@@ -1,13 +1,10 @@
 ---
-title: "Retrieval"
-description: "How recall() decides which facts you get."
+title: 'Retrieval'
+description: 'How recall() decides which facts you get.'
 ---
-How `recall()` decides which facts you get.
 
 Three independent signals run in parallel and are fused by rank. No single
 similarity score decides anything.
-
----
 
 ## The pipeline
 
@@ -19,7 +16,7 @@ query ──► embed once (768-dim)
  VECTOR   ENTITY ANCHOR                    KEYWORD
  cosine   entities named in the query,     postgres full-text over
  over     plus the query's nearest         subject + predicate + object
- facts    entities by embedding;           
+ facts    entities by embedding;
           then every live fact touching them
    │        │                                │
    └────────┴────────────┬───────────────────┘
@@ -33,15 +30,13 @@ query ──► embed once (768-dim)
                  render to text
 ```
 
-Each signal scans `max(limit × 4, 20)` candidates.
-
----
+Before ranking, candidates must be live, in your `(dataset, project)`, and at
+or above the confidence floor (`retrievalMinConfidence`, default 0.5).
 
 ## Signal 1, vector
 
-Plain cosine similarity over `facts.embedding`, ordered ascending by distance.
-
-Fact embeddings are enriched with their anchor before embedding:
+Cosine similarity over `facts.embedding`. Fact embeddings are enriched with
+their anchor before embedding:
 
 ```
 "user is interested in toyota corolla hybrid. About: toyota corolla hybrid."
@@ -50,10 +45,8 @@ Fact embeddings are enriched with their anchor before embedding:
 This makes the anchor prominent in vector space and measurably improves
 entity-centric retrieval over embedding the bare triple.
 
-Skipped when the query embedding is unavailable, a failed embedding call
-degrades to keyword and recency rather than failing the request.
-
----
+A failed embedding call degrades to keyword and recency rather than failing the
+request.
 
 ## Signal 2, entity anchor
 
@@ -67,10 +60,7 @@ Two ways an entity becomes an anchor for a query:
    entities whose embedding similarity to the query is at least
    `anchorVectorMin` (default 0.75).
 
-Then *every live fact touching those names*, as subject or object, is pulled
-in.
-
-### Why it matters
+Then _every live fact touching those names_, as subject or object, is pulled in.
 
 ```
 query:  "anything good on Netflix tonight?"
@@ -84,31 +74,17 @@ anchor  → "netflix" is an entity in this user's graph
 ```
 
 Pure vector search cannot bridge that gap. The anchor signal is what makes
-memory feel like it *knows* someone rather than pattern-matching their words.
+memory feel like it _knows_ someone rather than pattern-matching their words.
 
 > **Known issue.** The anchor query has no `ORDER BY`, so the ranks it
 > contributes to fusion reflect physical row order rather than relevance. The set
 > of facts it surfaces is correct; their ordering within that set is arbitrary.
 
----
-
 ## Signal 3, keyword
 
-Postgres full-text search:
-
-```sql
-to_tsvector('english', subject || ' ' || predicate || ' ' || object)
-  @@ plainto_tsquery('english', $query)
-ORDER BY ts_rank(…) DESC
-```
-
-Backed by a GIN index. Catches exact terms, product names, place names, numbers
-that embeddings blur.
-
-> The index expression and the query expression must stay byte-identical or the
-> planner silently stops using the index.
-
----
+Postgres full-text search over `subject || predicate || object`, backed by a
+GIN index. Catches exact terms, product names, place names, numbers that
+embeddings blur.
 
 ## Fusion
 
@@ -127,33 +103,11 @@ change of embedding model.
 A fact appearing in two lists at middling rank beats one appearing in a single
 list at rank 1. Agreement across signals wins.
 
----
-
-## Filters applied first
-
-Before ranking, candidates must satisfy:
-
-| Filter | Source |
-|---|---|
-| `dataset` and `projectId` | the request and your API key |
-| liveness | `invalid_at IS NULL AND valid_at <= now() AND (valid_until IS NULL OR valid_until > now())` |
-| `confidence >= minConfidence` | request override, else `retrievalMinConfidence` (default 0.5) |
-
----
-
 ## No query
 
 `recall()` without a `query` skips all three signals and returns the most recent
-live facts by `validAt`, each with `relevanceScore: 1`.
-
-Right for a session opener, "what do I know about this person", where there is
-no message to be relevant to yet.
-
-```ts
-const { context } = await memory.recall({ dataset: 'user_42' });
-```
-
----
+live facts by `validAt`. Right for a session opener, "what do I know about this
+person", where there is no message to be relevant to yet.
 
 ## Grouping and rendering
 
@@ -182,70 +136,21 @@ to a single line so it cannot break out of the block.
 > `sourceQuote` and `confidence` are stored but **not rendered**. If you need
 > provenance in a UI, request `include: ['raw']` and read the structured facts.
 
----
-
 ## Optional extras
 
-```ts
-await memory.recall({
-  dataset: 'user_42',
-  query: userMessage,
-  include: ['episodes', 'synthesis', 'raw'],
-});
-```
-
-| `include` | Adds | Cost |
-|---|---|---|
-| `episodes` | `episodes`, cross-thread summaries | one vector search |
-| `synthesis` | `synthesis`, an LLM prose summary of the block | **one LLM call, 1–3 s** |
-| `raw` | `facts[]` and `groups[]`, structured, with scores and quotes | free |
-
-`synthesis` is the only thing that puts a model call on the read path. Use it
-when a paragraph reads better than a bullet list, and measure the latency first.
-
----
-
-## Tuning
-
-| Setting | Default | Effect |
-|---|---|---|
-| `factsInContext` | 8 | Facts in the block. The main quality/token dial. |
-| `retrievalMinConfidence` | 0.5 | Confidence floor. Raise to reduce noise, lower to recall more. |
-| `anchorVectorMin` | 0.75 | How close an entity must be to anchor. Lower = broader. |
-| `anchorVectorTopK` | 3 | How many vector-matched anchors to admit. |
-
-Per-call overrides:
-
-```ts
-await memory.recall({
-  dataset: 'user_42',
-  query: userMessage,
-  limit: 15,
-  minConfidence: 0.7,
-});
-```
-
-See [Tuning retrieval quality](/guides/tuning-retrieval/).
-
----
+`include: ['episodes']` adds cross-thread summaries (one vector search).
+`include: ['raw']` adds structured facts with scores and quotes (free).
+`include: ['synthesis']` adds an LLM prose summary, **the only thing that puts
+a model call on the read path, 1–3 s**; measure the latency before adopting it.
+Full request/response shapes: [Recall API](/api/recall/).
 
 ## Performance
 
-| Step | Typical |
-|---|---|
-| embed the query | 150–400 ms |
-| three signals (parallel) | 20–80 ms |
-| entity lookup for rendering | 10–30 ms |
-| **total** | **200–500 ms** |
-| with `synthesis` | 1.5–3.5 s |
-
-The embedding round trip dominates. If you already have an embedding of the
-user's message, there is currently no way to pass it in, every `recall()`
-embeds again.
-
----
+The embedding round trip dominates: 150–400 ms of a 200–500 ms total. If you
+already have an embedding of the user's message, there is currently no way to
+pass it in, every `recall()` embeds again.
 
 ## Next
 
-- [Tuning retrieval quality](/guides/tuning-retrieval/)
+- [Tuning retrieval quality](/guides/tuning-retrieval/), the settings and how to move them
 - [Recall API](/api/recall/), full request and response reference

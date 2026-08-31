@@ -8,8 +8,6 @@ The bundled web UI, at **http://localhost:3000**.
 It is a debugging and administration tool, not an end-user product. Everything it
 does goes through [`/dashboard/*` and `/auth/*`](/api/dashboard/).
 
----
-
 ## What it is for
 
 | Question                                     | Page                                             |
@@ -21,8 +19,6 @@ does goes through [`/dashboard/*` and `/auth/*`](/api/dashboard/).
 | How do I change retrieval behaviour?         | [Project settings](/dashboard/project-settings/) |
 | Who can sign in here?                        | [Users and sign-in](/dashboard/users-and-auth/)  |
 | Is anything broken?                          | Status                                           |
-
----
 
 ## Layout
 
@@ -56,8 +52,6 @@ The sidebar splits into two groups:
 The footer holds your **account avatar** (click for sign-out) and the **project
 switcher**. Changing the project changes what every Project-group page shows.
 
----
-
 ## Signing in
 
 The first admin user is `admin` / `open-sesame`, and a project named `default` is created alongside it. Change the password when the
@@ -65,8 +59,6 @@ sidebar asks. See [Users and sign-in](/dashboard/users-and-auth/).
 
 Sessions last 7 days and are revocable server-side. Deep links survive sign-in,
 visiting `/datasets?q=abc` while signed out returns you there afterwards.
-
----
 
 ## Stack
 
@@ -81,8 +73,6 @@ visiting `/datasets?q=abc` while signed out returns you there afterwards.
 It is a **single-page app**, not server-rendered. `VITE_API_URL` (default
 `http://localhost:3004`) is baked in at build time and must match what the
 browser can reach, not what the server can reach.
-
----
 
 ## Pages
 
@@ -132,8 +122,6 @@ Calls `GET /health`. Green when Postgres answers `SELECT 1`.
 > extraction pipeline is keeping up. A green Status page is compatible with every
 > episode failing.
 
----
-
 ## What it cannot do
 
 Worth knowing before you go looking:
@@ -147,8 +135,6 @@ Worth knowing before you go looking:
 | View the knowledge graph as a graph      | Not implemented, facts and entities are flat lists                                    |
 | Per-user project permissions             | Any signed-in user can see every project                                              |
 
----
-
 ## Security
 
 The dashboard is an **administration surface**. Anyone who can sign in can read
@@ -160,8 +146,6 @@ every dataset in every project, issue API keys, and delete memory.
 - There is no rate limiting on `/auth/login`.
 
 See [Self-hosting](/operations/self-hosting/).
-
----
 
 ## Next
 

@@ -10,8 +10,6 @@ Thread lifecycle. A thread is one conversation; memory belongs to the
 const thread = await memory.createThread({ dataset: 'user_42' });
 ```
 
----
-
 ## `createThread()`
 
 ```ts
@@ -55,8 +53,6 @@ await memory.createThread({
 
 Messages are still stored and `prepare()` still works, nothing becomes a fact.
 
----
-
 ## `getThread()`
 
 ```ts
@@ -90,8 +86,6 @@ to another project**, the two are deliberately indistinguishable.
 > `WMThread` has no `messageCount`. Counts come from
 > [thread stats](/sdk/working-memory/#thread-stats), an HTTP-only endpoint.
 
----
-
 ## `updateThread()`
 
 Merge-updates metadata. Existing keys are preserved; only the keys you send are
@@ -119,8 +113,6 @@ await memory.updateThread(threadId, { metadata: metadata! });
 Only `metadata` is patchable. `tags`, `autoCompactThreshold` and `settings` are
 fixed at creation.
 
----
-
 ## `endThread()`
 
 ```ts
@@ -145,13 +137,11 @@ project.
 
 - The user closed the chat window or the session expired
 - A support ticket was resolved
-- A test needs facts to exist now rather than in 30 seconds
+- A test needs facts to exist now rather than after the deferred pipeline
 
 Calling it repeatedly creates multiple episodes; each one archives the previous
 and covers only the messages since the last. Harmless, but each costs three LLM
 calls.
-
----
 
 ## Patterns
 
@@ -193,8 +183,6 @@ socket.on('disconnect', () => {
 });
 ```
 
----
-
 ## Not available
 
 |                                                        | Status                                                                                  |
@@ -202,8 +190,6 @@ socket.on('disconnect', () => {
 | Delete a thread                                        | No endpoint. Deleting the row cascades to messages; do it in SQL.                       |
 | List threads for a dataset                             | Dashboard only, [`GET /dashboard/projects/:projectId/browse/threads`](/api/dashboard/). |
 | Change `tags` or `autoCompactThreshold` after creation | Not patchable.                                                                          |
-
----
 
 ## Next
 

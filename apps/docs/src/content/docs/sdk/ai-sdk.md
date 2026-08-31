@@ -16,8 +16,6 @@ import {
 It is a separate entry point, so importing the client never pulls in code that
 only makes sense alongside `ai`.
 
----
-
 ## The middleware
 
 `wrapLanguageModel` gives a memory layer exactly the two seams it needs:
@@ -60,9 +58,6 @@ const { text } = await generateText({ model, prompt: 'What should I cook?' });
 
 ### Two guarantees
 
-Both matter, because breaking either makes the middleware worse than no memory
-at all.
-
 **A recall failure never fails the call.** If memory is down, slow, or empty,
 `transformParams` returns the prompt untouched and the model answers without
 context. The timeout is part of this: past `recallTimeoutMs` the call proceeds
@@ -95,8 +90,6 @@ memoryMiddleware({
 Cache it as shown, a function that creates a thread on every call produces one
 thread per turn, and each thread's episode then sees a single message.
 
----
-
 ## The tool
 
 The middleware recalls on every turn, which is right for a chat assistant and
@@ -121,8 +114,6 @@ an answer the model should act on, not a failure it should retry.
 You can use both: the middleware for ambient personalisation, the tool for
 deliberate lookups.
 
----
-
 ## The message bridge
 
 The AI SDK models a message as a role plus an array of parts. Memory stores
@@ -146,8 +137,6 @@ to prevent. They render as `[called getProfile({"id":"42"})]` and
 Messages that flatten to nothing, a bare file attachment, an empty assistant
 turn, are skipped rather than stored blank, and roles memory does not model are
 skipped rather than coerced.
-
----
 
 ## Doing it by hand
 

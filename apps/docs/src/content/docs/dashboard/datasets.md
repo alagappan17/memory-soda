@@ -6,10 +6,6 @@ description: 'The memory browser. Everything the system knows about each user, a
 The memory browser. Everything the system knows about each user, and where it
 came from.
 
-This is the page you will spend the most time on.
-
----
-
 ## The dataset list
 
 Every dataset in the selected project, newest activity first:
@@ -26,8 +22,6 @@ Search filters by dataset name (a substring match).
 > The list is derived from **threads**. A dataset with facts but no threads,
 > possible if threads were deleted in SQL, will not appear here even though its
 > memory still exists.
-
----
 
 ## Inside a dataset
 
@@ -85,8 +79,6 @@ similarity threshold did not merge them, and the user's memory is split.
 
 > Entities are shown as a flat list. There is no graph visualisation.
 
----
-
 ## Typical investigations
 
 ### "The assistant doesn't know something the user told it"
@@ -124,8 +116,6 @@ ORDER BY created_at DESC
 LIMIT 20;
 ```
 
----
-
 ## What this page cannot do
 
 |                                   | Alternative                                                                        |
@@ -136,8 +126,6 @@ LIMIT 20;
 | See which facts a past reply used | [Playground](/dashboard/playground/), current session only                         |
 | Export                            | No export button, use the API or `pg_dump`                                         |
 | Visualise the graph               | Not implemented                                                                    |
-
----
 
 ## Relationship to the API
 
@@ -155,8 +143,6 @@ Everything here is available programmatically:
 
 The `/v1` equivalents do the same with an API key,
 [Semantic memory API](/api/semantic-memory/).
-
----
 
 ## Next
 

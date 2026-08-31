@@ -1,7 +1,8 @@
 ---
-title: "Episodic memory API"
-description: "Base path: /v1/memory/episodic · Auth: API key"
+title: 'Episodic memory API'
+description: 'Base path: /v1/memory/episodic · Auth: API key'
 ---
+
 Base path: `/v1/memory/episodic` · Auth: [API key](/api/authentication/)
 
 An admin surface for inspecting and repairing episodes. **Not exposed on the
@@ -10,17 +11,15 @@ SDK**, normal reads go through
 
 Concepts: [Episodic memory](/concepts/episodic-memory/)
 
----
-
 ## `GET /v1/memory/episodic/datasets/:dataset/episodes`
 
 ### Query
 
-| Param | Type | Default | Notes |
-|---|---|---|---|
-| `limit` | integer | `10` | 1–50 |
-| `before` | ISO datetime |, | Cursor on `endedAt` |
-| `status` | enum | `completed` | `pending`, `processing`, `completed`, `failed` |
+| Param    | Type         | Default     | Notes                                          |
+| -------- | ------------ | ----------- | ---------------------------------------------- |
+| `limit`  | integer      | `10`        | 1–50                                           |
+| `before` | ISO datetime | ,           | Cursor on `endedAt`                            |
+| `status` | enum         | `completed` | `pending`, `processing`, `completed`, `failed` |
 
 > The enum here does **not** accept `archived` or `all`, unlike the equivalent
 > dashboard route.
@@ -70,18 +69,16 @@ curl "http://localhost:3004/v1/memory/episodic/datasets/user_42/episodes?status=
   -H "Authorization: Bearer $KEY"
 ```
 
----
-
 ## `GET /v1/memory/episodic/datasets/:dataset/episodes/search`
 
 Semantic search over episode summaries.
 
 ### Query
 
-| Param | Type | Required | Notes |
-|---|---|---|---|
-| `q` | string | **yes** | 1–1000 chars |
-| `limit` | integer | no | Default 5, max 20 |
+| Param   | Type    | Required | Notes             |
+| ------- | ------- | -------- | ----------------- |
+| `q`     | string  | **yes**  | 1–1000 chars      |
+| `limit` | integer | no       | Default 5, max 20 |
 
 ### Response `200`
 
@@ -107,8 +104,6 @@ curl "http://localhost:3004/v1/memory/episodic/datasets/user_42/episodes/search?
   -H "Authorization: Bearer $KEY"
 ```
 
----
-
 ## `GET /v1/memory/episodic/episodes/:episodeId`
 
 Note the path: **not** under `/datasets/:dataset`.
@@ -121,11 +116,9 @@ Note the path: **not** under `/datasets/:dataset`.
 
 Wrapped in an `episode` key, unlike the list endpoints.
 
-| Code | Body |
-|---|---|
+| Code  | Body                               |
+| ----- | ---------------------------------- |
 | `404` | `{ "error": "Episode not found" }` |
-
----
 
 ## `DELETE /v1/memory/episodic/episodes/:episodeId`
 
@@ -137,10 +130,10 @@ Soft delete, sets `status: archived`.
 { "episodeId": "8b21…", "deleted": true }
 ```
 
-| Code | Body | Cause |
-|---|---|---|
+| Code  | Body                                         | Cause            |
+| ----- | -------------------------------------------- | ---------------- |
 | `400` | `{ "error": "Episode is already archived" }` | Already archived |
-| `404` | `{ "error": "Episode not found" }` | |
+| `404` | `{ "error": "Episode not found" }`           |                  |
 
 > **Facts extracted from the episode are not deleted.** They keep their
 > `episodeId` reference. To remove the knowledge, delete the facts,
@@ -148,8 +141,6 @@ Soft delete, sets `status: archived`.
 >
 > The summary, key learnings and embedding are also retained; only the status
 > changes, which removes it from retrieval.
-
----
 
 ## `POST /v1/memory/episodic/episodes/:episodeId/retry`
 
@@ -161,10 +152,10 @@ Re-queue a failed episode.
 { "episodeId": "8b21…", "status": "pending" }
 ```
 
-| Code | Body | Cause |
-|---|---|---|
+| Code  | Body                                                 | Cause                  |
+| ----- | ---------------------------------------------------- | ---------------------- |
 | `400` | `{ "error": "Only failed episodes can be retried" }` | Status is not `failed` |
-| `404` | `{ "error": "Episode not found" }` | |
+| `404` | `{ "error": "Episode not found" }`                   |                        |
 
 Resets to `pending`, increments `retryCount`, and starts processing
 asynchronously. The background retry job does this automatically every 120
@@ -176,18 +167,16 @@ curl -X POST "http://localhost:3004/v1/memory/episodic/episodes/8b21…/retry" \
   -H "Authorization: Bearer $KEY"
 ```
 
----
-
 ## Status reference
 
-| `status` | Meaning |
-|---|---|
-| `pending` | Created, summarisation not started |
-| `processing` | Claimed by a worker |
-| `completed` | Summary and embedding written |
-| `failed` | Summarisation or embedding failed; see `error` |
-| `archived` | Superseded by a newer episode, or soft-deleted |
-| `deleted` | Reserved; not currently produced |
+| `status`     | Meaning                                        |
+| ------------ | ---------------------------------------------- |
+| `pending`    | Created, summarisation not started             |
+| `processing` | Claimed by a worker                            |
+| `completed`  | Summary and embedding written                  |
+| `failed`     | Summarisation or embedding failed; see `error` |
+| `archived`   | Superseded by a newer episode, or soft-deleted |
+| `deleted`    | Reserved; not currently produced               |
 
 A second column, `semanticStatus`, drives the
 [extraction pipeline](/concepts/extraction-pipeline/), `pending`,
@@ -204,8 +193,6 @@ A second column, `semanticStatus`, drives the
 > ORDER BY created_at DESC;
 > ```
 
----
-
 ## Debugging a missing fact
 
 1. Did an episode get created?
@@ -218,8 +205,6 @@ A second column, `semanticStatus`, drives the
    `GET /v1/memory/semantic/datasets/:dataset/facts?episodeId=…`
 
 The [Playground](/dashboard/playground/) does most of this live.
-
----
 
 ## Next
 

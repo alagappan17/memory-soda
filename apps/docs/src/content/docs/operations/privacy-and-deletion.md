@@ -1,49 +1,37 @@
 ---
-title: "Privacy and data deletion"
-description: "Memory Soda stores personal data by design. If you run it against real users, you are the data controller and these obligations are yours."
+title: 'Privacy and data deletion'
+description: 'Memory Soda stores personal data by design. If you run it against real users, you are the data controller and these obligations are yours.'
 ---
+
 Memory Soda stores personal data by design. If you run it against real users, you
 are the data controller and these obligations are yours.
 
----
-
 ## What is stored
 
-| Table | Contains |
-|---|---|
-| `messages` | **Verbatim conversation content.** Everything your users type. |
-| `episodes` | LLM-written summaries and key learnings of those conversations |
-| `facts` | Extracted claims about users, plus a **verbatim `sourceQuote`** |
-| `entities` | Names of people, places, organisations a user mentioned |
-| `threads` | Your `metadata`, `tags`, and the `dataset` identifier |
-| `users`, `sessions` | Dashboard operator accounts. Not end-user data. |
+| Table               | Contains                                                        |
+| ------------------- | --------------------------------------------------------------- |
+| `messages`          | **Verbatim conversation content.** Everything your users type.  |
+| `episodes`          | LLM-written summaries and key learnings of those conversations  |
+| `facts`             | Extracted claims about users, plus a **verbatim `sourceQuote`** |
+| `entities`          | Names of people, places, organisations a user mentioned         |
+| `threads`           | Your `metadata`, `tags`, and the `dataset` identifier           |
+| `users`, `sessions` | Dashboard operator accounts. Not end-user data.                 |
 
 Embeddings of all of the above are also stored. **An embedding is derived
 personal data**, treat it with the same care as the text.
 
----
-
 ## Where it leaves the system
 
-| Destination | What |
-|---|---|
+| Destination       | What                                                                                                              |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
 | **Google Gemini** | Full conversation transcripts, for summarisation, extraction and contradiction judging. Fact text, for embedding. |
-| **Your logs** | See below, this one surprises people. |
+| **Your logs**     | See below.                                                                                                        |
 
 ### Logging
 
-`prepare()` and `recall()` currently log their **full payloads** to stdout:
-
-```ts
-console.log(`[prepare] ── response ── thread=${threadId}\n` + JSON.stringify(result, null, 2));
-```
-
-That means **every message body and every recalled fact goes to stdout** on every
-call. If you ship logs to a collector, they contain personal data and inherit
-your retention rules.
-
-Before running against real users, either patch out those two `console.log`
-calls, or filter at the collector.
+`prepare()` and `recall()` log counts and IDs only, not message content. If you
+add logging of your own, remember that payloads are personal data and inherit
+your collector's retention rules.
 
 ### Gemini
 
@@ -53,8 +41,6 @@ used to train models, verify the current terms for your account and region.
 If your users must not have their data leave your infrastructure, Memory Soda is
 not currently usable: the provider is hard-wired and there is no local-model
 option.
-
----
 
 ## Deleting one fact
 
@@ -67,8 +53,6 @@ its `sourceQuote` and its embedding remain in the database.
 
 > **Soft delete is not erasure.** For a GDPR Article 17 request it is not
 > sufficient.
-
----
 
 ## Deleting a whole user
 
@@ -117,8 +101,6 @@ SELECT
 
 All zero.
 
----
-
 ## Deleting a project
 
 ```
@@ -128,8 +110,6 @@ DELETE /dashboard/projects/:id
 Cascades at the database level to API keys, threads, messages, episodes, facts
 and entities. Irreversible, and the correct tool for decommissioning an entire
 tenant.
-
----
 
 ## Exporting a user's data
 
@@ -143,7 +123,7 @@ const dump = await memory.exportDataset('user_42');
 
 Returns everything held for that dataset in one document: threads with their
 full message history, episodes with summaries and key learnings, facts (live
-*and* superseded, so the record shows what was believed and when it stopped
+_and_ superseded, so the record shows what was believed and when it stopped
 being believed), and resolved entities.
 
 ```json
@@ -183,8 +163,6 @@ answered with provenance rather than a list of assertions.
 It is a single full read with no pagination. For a dataset with a long history
 that is a large response; it is an export endpoint, not a listing endpoint.
 
----
-
 ## Retention
 
 **Nothing expires.** There is no TTL, no forgetting pass, no consolidation.
@@ -207,8 +185,6 @@ WHERE invalid_at IS NOT NULL
 Run on a schedule. Deleting threads does **not** delete the facts derived from
 them, facts are scoped to the dataset, not the thread, and outlive it.
 
----
-
 ## Data minimisation
 
 Two useful levers:
@@ -229,8 +205,6 @@ Messages are still stored; nothing becomes a fact.
 redaction, no PII detection and no content filtering. If certain categories must
 never be stored, filter before calling `addMessage`.
 
----
-
 ## The extraction prompt as a control
 
 Extraction is deliberately narrow, it discards task chatter, assistant
@@ -240,8 +214,6 @@ following instructions; do not rely on it to suppress a category of data.
 
 If a user states a special-category fact about themselves, health, religion,
 sexuality, it will be extracted and stored like any other.
-
----
 
 ## Memory poisoning
 
@@ -262,8 +234,6 @@ curl "$API/v1/memory/semantic/datasets/user_42/facts?episodeId=$EPISODE_ID" \
 
 See [Curating memory](/guides/curating-memory/).
 
----
-
 ## Compliance checklist
 
 - [ ] Privacy notice covers memory extraction and the Gemini sub-processor
@@ -280,24 +250,15 @@ See [Curating memory](/guides/curating-memory/).
 > **Backups.** Deleting a row does not remove it from yesterday's `pg_dump`. An
 > erasure request needs a documented position on backup retention.
 
----
-
 ## Known gaps
 
-| Gap | Impact |
-|---|---|
-| No scheduled retention | Nothing expires on its own; erasure is a call you have to make |
-| Provider hard-wired | Cannot run without sending data to Google |
-| No field-level encryption | Content is plaintext in Postgres |
-| No audit log | No record of who read or deleted what |
-| Dashboard has no per-project permissions | Every operator sees everything |
-
-Three gaps that used to be on this list are now closed: erasure and export are
-first-class endpoints rather than SQL you write under time pressure, and the
-API no longer logs message content, `prepare` and `recall` emit counts and
-IDs only.
-
----
+| Gap                                      | Impact                                                         |
+| ---------------------------------------- | -------------------------------------------------------------- |
+| No scheduled retention                   | Nothing expires on its own; erasure is a call you have to make |
+| Provider hard-wired                      | Cannot run without sending data to Google                      |
+| No field-level encryption                | Content is plaintext in Postgres                               |
+| No audit log                             | No record of who read or deleted what                          |
+| Dashboard has no per-project permissions | Every operator sees everything                                 |
 
 ## Next
 

@@ -1,7 +1,8 @@
 ---
-title: "Messages"
-description: "Writing the conversation, reading it back, and folding it down."
+title: 'Messages'
+description: 'Writing the conversation, reading it back, and folding it down.'
 ---
+
 Writing the conversation, reading it back, and folding it down.
 
 ```ts
@@ -9,22 +10,20 @@ await memory.addMessage(threadId, { role: 'user', content: 'Hello' });
 const { messages } = await memory.prepare(threadId);
 ```
 
----
-
 ## `addMessage()`
 
 ```ts
 addMessage(threadId: string, opts: WMAddMessageRequest): Promise<WMAddMessageResponse>
 ```
 
-| Option | Type | Required | Notes |
-|---|---|---|---|
-| `role` | `'user' \| 'assistant' \| 'system' \| 'tool'` | yes | |
-| `content` | `string` | yes | Non-empty. |
-| `tokens` | `{ input?, output?, total? }` | no | Your telemetry. Not counted for you. |
-| `model` | `string` | no | Model that produced an assistant turn. |
-| `latencyMs` | `number` | no | |
-| `metadata` | `{ stopReason?, agentName? }` | no | Only these two keys are accepted. |
+| Option      | Type                                          | Required | Notes                                  |
+| ----------- | --------------------------------------------- | -------- | -------------------------------------- |
+| `role`      | `'user' \| 'assistant' \| 'system' \| 'tool'` | yes      |                                        |
+| `content`   | `string`                                      | yes      | Non-empty.                             |
+| `tokens`    | `{ input?, output?, total? }`                 | no       | Your telemetry. Not counted for you.   |
+| `model`     | `string`                                      | no       | Model that produced an assistant turn. |
+| `latencyMs` | `number`                                      | no       |                                        |
+| `metadata`  | `{ stopReason?, agentName? }`                 | no       | Only these two keys are accepted.      |
 
 ```ts
 const res = await memory.addMessage(threadId, {
@@ -67,8 +66,6 @@ Validation strips unknown keys rather than erroring. Sending the old
 `tokenCount` field returns `201` with the token data silently discarded, the
 field is now `tokens`.
 
----
-
 ## `prepare()`
 
 The LLM-ready conversation window. Pure SQL, no embeddings, no model calls.
@@ -77,9 +74,9 @@ The LLM-ready conversation window. Pure SQL, no embeddings, no model calls.
 prepare(threadId: string, opts?: { messageLimit?: number }): Promise<WMPrepareResponse>
 ```
 
-| Option | Default | Range |
-|---|---|---|
-| `messageLimit` | `20` | 1–100 |
+| Option         | Default | Range |
+| -------------- | ------- | ----- |
+| `messageLimit` | `20`    | 1–100 |
 
 ```ts
 const { messages, messageCount, truncated, compacted, warning } =
@@ -101,14 +98,14 @@ const { messages, messageCount, truncated, compacted, warning } =
 }
 ```
 
-| Field | Meaning |
-|---|---|
-| `messages` | Oldest first. Spread straight into a chat-completion request. |
-| `dataset` | Handy for a follow-up `recall()`. |
-| `messageCount` | Total un-compacted, non-summary messages. |
-| `truncated` | Older messages were left out. |
-| `compacted` | A compact summary is present, as the first element. |
-| `warning` | Present when `messageLimit < autoCompactThreshold`. **Act on it.** |
+| Field          | Meaning                                                            |
+| -------------- | ------------------------------------------------------------------ |
+| `messages`     | Oldest first. Spread straight into a chat-completion request.      |
+| `dataset`      | Handy for a follow-up `recall()`.                                  |
+| `messageCount` | Total un-compacted, non-summary messages.                          |
+| `truncated`    | Older messages were left out.                                      |
+| `compacted`    | A compact summary is present, as the first element.                |
+| `warning`      | Present when `messageLimit < autoCompactThreshold`. **Act on it.** |
 
 The active compact summary is always first and **never counts against
 `messageLimit`**, so lowering the limit cannot drop compacted context.
@@ -116,8 +113,6 @@ The active compact summary is always first and **never counts against
 ```ts
 if (warning) logger.warn({ threadId, warning }, 'context may be incomplete');
 ```
-
----
 
 ## `listMessages()`
 
@@ -127,11 +122,11 @@ Raw rows, including compacted ones. For your UI, not for the model.
 listMessages(threadId: string, opts?: WMListMessagesQuery): Promise<WMListMessagesResponse>
 ```
 
-| Option | Default | Notes |
-|---|---|---|
-| `limit` | `20` | 1–100 |
-| `before` |, | Cursor: `sequenceNumber` strictly less than this |
-| `order` | `'asc'` | or `'desc'` |
+| Option   | Default | Notes                                            |
+| -------- | ------- | ------------------------------------------------ |
+| `limit`  | `20`    | 1–100                                            |
+| `before` | ,       | Cursor: `sequenceNumber` strictly less than this |
+| `order`  | `'asc'` | or `'desc'`                                      |
 
 ```ts
 const { messages, total, hasMore } = await memory.listMessages(threadId, {
@@ -151,7 +146,9 @@ async function* allMessages(threadId: string) {
   let before: number | undefined;
   for (;;) {
     const page = await memory.listMessages(threadId, {
-      limit: 100, order: 'desc', before,
+      limit: 100,
+      order: 'desc',
+      before,
     });
     yield* page.messages;
     if (!page.hasMore || page.messages.length === 0) return;
@@ -159,8 +156,6 @@ async function* allMessages(threadId: string) {
   }
 }
 ```
-
----
 
 ## `compact()`
 
@@ -189,8 +184,6 @@ this when you want compaction off the request path.
 
 See [Handling long conversations](/guides/long-conversations/).
 
----
-
 ## Thread stats
 
 Counts, token totals and session duration are on the HTTP API but not the SDK:
@@ -200,8 +193,6 @@ be handing your own numbers back.
 ```http
 GET /v1/memory/working/threads/:threadId/stats
 ```
-
----
 
 ## Turn recipe
 
@@ -213,14 +204,15 @@ const [{ messages }, { context }] = await Promise.all([
 ]);
 
 // generate
-const reply = await yourLLM({ system: context, messages: [...messages, { role: 'user', content: userMessage }] });
+const reply = await yourLLM({
+  system: context,
+  messages: [...messages, { role: 'user', content: userMessage }],
+});
 
 // write
 await memory.addMessage(threadId, { role: 'user', content: userMessage });
 await memory.addMessage(threadId, { role: 'assistant', content: reply });
 ```
-
----
 
 ## Next
 

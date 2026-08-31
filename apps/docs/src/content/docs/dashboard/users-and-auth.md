@@ -10,8 +10,6 @@ Dashboard login accounts.
 > memory store for one end user. They are unrelated, and the Users page has
 > nothing to do with the Datasets page.
 
----
-
 ## First sign-in
 
 On an empty database the API seeds one admin account, **`admin` /
@@ -45,8 +43,6 @@ npm run admin:reset-password -- admin a-new-password
 Or, if another account exists, sign in with that one and create a replacement
 from the Users page.
 
----
-
 ## The sign-in page
 
 Reached at `/login`, or automatically when you hit any page without a session.
@@ -60,8 +56,6 @@ Reached at `/login`, or automatically when you hit any page without a session.
 
 Sessions last **7 days**.
 
----
-
 ## Signing out
 
 Click the avatar in the sidebar footer → **Sign out**.
@@ -69,8 +63,6 @@ Click the avatar in the sidebar footer → **Sign out**.
 This revokes the session **server-side**, so the token stops working everywhere,
 not just in this browser. An expired or revoked session clears itself and returns
 you to `/login` on the next request.
-
----
 
 ## The Users page
 
@@ -103,8 +95,6 @@ simultaneous deletes cannot both pass it.
 Deleting a user **cascades to their sessions**, they are signed out immediately.
 Nothing else is affected; memory data is untouched.
 
----
-
 ## What an account can do
 
 **Everything.**
@@ -121,8 +111,6 @@ Any signed-in dashboard user can:
 There are **no roles and no permissions**. Only create accounts for people you
 would trust with all of that.
 
----
-
 ## Password storage
 
 ```
@@ -138,8 +126,6 @@ scrypt$32768$8$3$<salt hex>$<derived key hex>
 - Comparison is constant-time, and the unknown-username path performs the same
   work as the known-username path so response latency cannot enumerate accounts.
 
----
-
 ## Known gaps
 
 | Gap                               | Consequence                                 |
@@ -150,8 +136,6 @@ scrypt$32768$8$3$<salt hex>$<derived key hex>
 | No rate limiting on `/auth/login` | Put a proxy in front if exposed             |
 | Token in `localStorage`           | Readable by any XSS on the dashboard origin |
 | No audit log                      | No record of who deleted what               |
-
----
 
 ## Next
 

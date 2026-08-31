@@ -1,24 +1,21 @@
 ---
-title: "Background jobs"
-description: "Three timers in the API process drive everything asynchronous. There is no queue and no separate worker."
+title: 'Background jobs'
+description: 'Three timers in the API process drive everything asynchronous. There is no queue and no separate worker.'
 ---
+
 Three timers in the API process drive everything asynchronous. There is no queue
 and no separate worker.
 
----
-
 ## The three jobs
 
-| Interval | Job | Does |
-|---|---|---|
-| **5 s** | `processScheduledEpisodes` | Drains due rows from `scheduled_episodes`; creates and processes episodes |
-| **120 s** | `retryFailedEpisodes` | Retries up to 20 failed episodes, bounded by `maxRetries` |
-| **120 s** | `sweepSemanticMemory` | Picks up episodes whose fact extraction is pending, failed or orphaned |
-| **1 h** | `sweepAbandonedThreads` | Opens episodes for threads quiet 24 h with uncaptured messages and no timer |
+| Interval  | Job                        | Does                                                                        |
+| --------- | -------------------------- | --------------------------------------------------------------------------- |
+| **5 s**   | `processScheduledEpisodes` | Drains due rows from `scheduled_episodes`; creates and processes episodes   |
+| **120 s** | `retryFailedEpisodes`      | Retries up to 20 failed episodes, bounded by `maxRetries`                   |
+| **120 s** | `sweepSemanticMemory`      | Picks up episodes whose fact extraction is pending, failed or orphaned      |
+| **1 h**   | `sweepAbandonedThreads`    | Opens episodes for threads quiet 24 h with uncaptured messages and no timer |
 
 All are `setInterval(...).unref()`, they never keep the process alive.
-
----
 
 ## `processScheduledEpisodes` (5 s)
 
@@ -46,8 +43,6 @@ workers. Up to 20 threads per tick.
 For each, it creates a `pending` episode and starts processing. Episodes are
 skipped when episodic memory is disabled or `autoEpisodeIntervalMs` is `null`.
 
----
-
 ## `sweepAbandonedThreads` (1 h)
 
 The backstop for the timer. A thread whose `last_activity_at` is over 24 hours
@@ -56,8 +51,6 @@ old, that has messages past its last episode's `end_sequence`, and that has no
 state is a crash between claiming the timer row and writing the pending
 episode, so the sweep is normally a no-op. Same `enabled` / `null` interval
 contract as the timer. Up to 20 threads per run.
-
----
 
 ## `retryFailedEpisodes` (120 s)
 
@@ -73,8 +66,6 @@ RETURNING id;
 
 Episodes past the cap are left alone permanently. Retry them by hand with
 [`POST …/episodes/:id/retry`](/api/episodic-memory/).
-
----
 
 ## `sweepSemanticMemory` (120 s)
 
@@ -95,8 +86,6 @@ Picks up to 20 episodes that are `completed` or `archived` **and** whose
 
 Processed **sequentially**, because each fans out LLM and embedding calls. One
 large dataset therefore stalls the queue behind it.
-
----
 
 ## Claiming and crash safety
 
@@ -123,8 +112,6 @@ SELECT pg_advisory_xact_lock(hashtext('<dataset>:<projectId>'));
 so two concurrent extraction jobs for the same dataset cannot interleave their
 invalidate-and-insert.
 
----
-
 ## Single instance
 
 > **Run one API process.**
@@ -141,14 +128,17 @@ const [{ locked }] = await db.execute(
   sql`SELECT pg_try_advisory_lock(hashtext('memory-soda:scheduled-episodes')) AS locked`,
 );
 if (locked) {
-  try { await processScheduledEpisodes(); }
-  finally { await db.execute(sql`SELECT pg_advisory_unlock(hashtext('memory-soda:scheduled-episodes'))`); }
+  try {
+    await processScheduledEpisodes();
+  } finally {
+    await db.execute(
+      sql`SELECT pg_advisory_unlock(hashtext('memory-soda:scheduled-episodes'))`,
+    );
+  }
 }
 ```
 
 Roughly four lines per job.
-
----
 
 ## Monitoring
 
@@ -222,36 +212,30 @@ SELECT
 
 Alert on any of them being non-trivially above zero.
 
----
-
 ## Failure modes
 
-| Symptom | Likely cause |
-|---|---|
-| Backlog grows, no failures | Gemini is slow or rate-limiting; sequential sweep cannot keep up |
-| Everything `failed` with a Gemini error | Bad or exhausted API key |
-| `semantic_status = 'failed'`, `status = 'completed'` | Extraction or contradiction judging failing; check `error` |
-| Nothing scheduled at all | `episodic.enabled` is false, or `autoEpisodeIntervalMs` is `null` |
-| Facts extracted but not retrievable | Confidence below `retrievalMinConfidence`, or `validAt` in the future |
-
----
+| Symptom                                              | Likely cause                                                          |
+| ---------------------------------------------------- | --------------------------------------------------------------------- |
+| Backlog grows, no failures                           | Gemini is slow or rate-limiting; sequential sweep cannot keep up      |
+| Everything `failed` with a Gemini error              | Bad or exhausted API key                                              |
+| `semantic_status = 'failed'`, `status = 'completed'` | Extraction or contradiction judging failing; check `error`            |
+| Nothing scheduled at all                             | `episodic.enabled` is false, or `autoEpisodeIntervalMs` is `null`     |
+| Facts extracted but not retrievable                  | Confidence below `retrievalMinConfidence`, or `validAt` in the future |
 
 ## Timeouts and caps
 
-| | Value |
-|---|---|
-| Gemini text call | 30 s |
-| Structured call (extraction, judging) | 90 s |
-| Embedding call | 30 s |
-| Embedding batch size | 100 texts per request |
-| Stale `processing` claim | 10 minutes |
-| Episode retries | `maxRetries`, default 3 |
-| Semantic retries | 3, fixed |
-| Rows per tick | 20 |
+|                                       | Value                   |
+| ------------------------------------- | ----------------------- |
+| Gemini text call                      | 30 s                    |
+| Structured call (extraction, judging) | 90 s                    |
+| Embedding call                        | 30 s                    |
+| Embedding batch size                  | 100 texts per request   |
+| Stale `processing` claim              | 10 minutes              |
+| Episode retries                       | `maxRetries`, default 3 |
+| Semantic retries                      | 3, fixed                |
+| Rows per tick                         | 20                      |
 
 None are configurable without editing the source.
-
----
 
 ## Manual intervention
 
@@ -271,8 +255,6 @@ UPDATE episodes SET semantic_status = 'pending' WHERE id = '8b21…';
 
 Re-running extraction costs LLM calls and re-judges contradictions. Existing
 facts are protected by deduplication, so it is safe, just not free.
-
----
 
 ## Next
 

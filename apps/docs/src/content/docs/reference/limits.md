@@ -6,8 +6,6 @@ description: 'Every constraint in one place. Values marked hard-coded require a 
 Every constraint in one place. Values marked **hard-coded** require a source
 change.
 
----
-
 ## Request limits
 
 | Limit                | Value               |                           |
@@ -23,8 +21,6 @@ change.
 | API key name         | 1–100 characters    |                           |
 | Username             | 1–100 characters    |                           |
 | Password             | 6–200 characters    |                           |
-
----
 
 ## Pagination
 
@@ -44,14 +40,10 @@ change.
 
 `listEntities` returns every entity for a dataset. Keep it off hot paths.
 
----
-
 ## Rate limits
 
 **None.** Nothing is throttled anywhere, including `/auth/login`. Put a rate
 limiter in front if this is reachable beyond a trusted network.
-
----
 
 ## Settings bounds
 
@@ -74,8 +66,6 @@ limiter in front if this is reachable beyond a trusted network.
 
 Full explanations: [Project settings](/reference/project-settings/).
 
----
-
 ## Extraction limits
 
 **Hard-coded** in `apps/api/src/lib/semantic-extraction.ts`.
@@ -89,8 +79,6 @@ Full explanations: [Project settings](/reference/project-settings/).
 | Transcript size           | `maxMessages`, head 20 + tail, with a marker between |
 
 The fact count is prompt guidance, not enforcement, a model can exceed it.
-
----
 
 ## Model and timeouts
 
@@ -115,8 +103,6 @@ hard-coded in `apps/api/src/lib/gemini.ts`.
 > on insert. Changing it needs a migration _and_ a re-embed of every stored
 > vector. The API warns at startup when the two disagree.
 
----
-
 ## Background jobs
 
 |                          | Value            |
@@ -131,8 +117,6 @@ hard-coded in `apps/api/src/lib/gemini.ts`.
 
 All hard-coded in `main.ts` and the services.
 
----
-
 ## Database
 
 |                     | Value                                     |
@@ -145,8 +129,6 @@ All hard-coded in `main.ts` and the services.
 
 Provision at least 25 Postgres connections for the API, plus headroom for
 migrations and tooling.
-
----
 
 ## Scaling characteristics
 
@@ -188,8 +170,6 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
 | Entities per dataset     | Unlimited, but `listEntities` is unpaginated                                     |
 | Concurrent API instances | **One**, see [Background jobs](/operations/background-jobs/#single-instance)     |
 
----
-
 ## Latency
 
 | Operation                          | Typical                       |
@@ -201,10 +181,8 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
 | `recall` without a query           | 20–50 ms                      |
 | `recall` with `synthesis`          | 1.5–3.5 s                     |
 | `compact`                          | seconds, one LLM call         |
-| Message → fact retrievable         | **20–60 s**                   |
+| Message → fact retrievable         | **after extraction runs**     |
 | Login                              | ~200 ms, scrypt, deliberately |
-
----
 
 ## Cost per unit of work
 
@@ -220,8 +198,6 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 20;
 one session gap pays the per-episode cost once; `end()` and a new thread for
 the same dataset fire it regardless of the interval.
 
----
-
 ## Storage
 
 |             | Approximate                         |
@@ -234,8 +210,6 @@ the same dataset fire it regardless of the interval.
 Embeddings dominate and compress poorly, so `pg_dump` output scales with fact and
 entity counts rather than message volume.
 
----
-
 ## Not implemented
 
 Limits that do not exist, and might surprise you:
@@ -247,8 +221,6 @@ Limits that do not exist, and might surprise you:
 | Message size        | Only the 1 MB body limit                                            |
 | Concurrent requests | No queueing or shedding                                             |
 | API key expiry      | Keys are valid until revoked                                        |
-
----
 
 ## Next
 

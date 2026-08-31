@@ -3,8 +3,6 @@ title: 'Development setup'
 description: 'Node 20+ (22 recommended), PostgreSQL 14+ with pgvector, and a Gemini API key.'
 ---
 
----
-
 ## Prerequisites
 
 Node 20+ (22 recommended), PostgreSQL 14+ with `pgvector`, and a Gemini API key.
@@ -27,8 +25,6 @@ npm run dev
 
 `npm run dev` runs the API (`:3004`) and dashboard (`:3000`) concurrently with
 hot reload.
-
----
 
 ## Layout
 
@@ -63,8 +59,6 @@ value from it. That is why `ENTITY_TYPES` is duplicated as a `const` in
 `semantic-extraction.ts`, the type union lives in `packages/types`, the runtime
 allow-list has to be local.
 
----
-
 ## Commands
 
 ```bash
@@ -84,8 +78,6 @@ npm run --workspace=apps/api db:studio     # schema/data browser
 
 Nx caches aggressively. `--skip-nx-cache` forces a rerun when you suspect a stale
 result.
-
----
 
 ## Working on the API
 
@@ -137,8 +129,6 @@ DELETE FROM episodes WHERE dataset = 'dev_scratch';
 Delete facts **before** episodes, `facts.episode_id` is `ON DELETE SET NULL`, so
 the reverse order orphans them.
 
----
-
 ## Working on the SDK
 
 The SDK is a thin typed wrapper over `fetch`. Adding a method means:
@@ -150,8 +140,6 @@ The SDK is a thin typed wrapper over `fetch`. Adding a method means:
 
 **Keep it dependency-free.** The SDK has zero runtime dependencies and that is
 worth preserving.
-
----
 
 ## Working on the dashboard
 
@@ -170,8 +158,6 @@ select, tooltip, table and sheet all already exist.
 > unless it is inside a `DropdownMenuGroup`, for instance. Read the component
 > before using it.
 
----
-
 ## Conventions
 
 **Comments explain why, not what.** The codebase is dense with rationale
@@ -182,8 +168,6 @@ subquery qualifies `threads.id`. Match that.
 **Prefer deleting.** The surface is already larger than it should be.
 
 **Match surrounding style.** No linter enforces most of it; read the neighbours.
-
----
 
 ## Gotchas
 
@@ -214,8 +198,6 @@ throws at import.
 interactively and cannot be automated. See
 [Migrations](/operations/migrations/#when-generation-needs-a-decision).
 
----
-
 ## Before opening a PR
 
 ```bash
@@ -227,8 +209,6 @@ npm run test
 All three must pass. If you touched the extraction pipeline, retrieval or
 compaction, exercise it end to end, typecheck will not catch a query that
 returns the wrong rows. See [Testing](/contributing/testing/).
-
----
 
 ## Next
 

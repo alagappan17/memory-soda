@@ -1,12 +1,9 @@
 ---
-title: "The bi-temporal model"
-description: "Every fact carries four timestamps, in two independent pairs. This is the design decision that makes Memory Soda more than a fact list, and the one most…"
+title: 'The bi-temporal model'
+description: 'Every fact carries four timestamps, in two independent pairs.'
 ---
-Every fact carries four timestamps, in two independent pairs. This is the design
-decision that makes Memory Soda more than a fact list, and the one most worth
-understanding before you use `asOf`.
 
----
+Every fact carries four timestamps, in two independent pairs.
 
 ## The two timelines
 
@@ -21,18 +18,16 @@ BELIEF TIME  , when we believed it
 They move independently. A fact can stop being true without us noticing, and we
 can stop believing something that was always false.
 
-| Column | Answers |
-|---|---|
-| `validAt` | From when is this true? |
-| `validUntil` | Until when is it true? `null` = open-ended. |
-| `createdAt` | When did we record it? |
-| `invalidAt` | When was it superseded or deleted? `null` = still believed. |
-
----
+| Column       | Answers                                                     |
+| ------------ | ----------------------------------------------------------- |
+| `validAt`    | From when is this true?                                     |
+| `validUntil` | Until when is it true? `null` = open-ended.                 |
+| `createdAt`  | When did we record it?                                      |
+| `invalidAt`  | When was it superseded or deleted? `null` = still believed. |
 
 ## The rule that keeps it coherent
 
-> **`invalidAt` means *superseded or deleted*, only. It never means "stopped
+> **`invalidAt` means _superseded or deleted_, only. It never means "stopped
 > being true".**
 
 An end of validity goes in `validUntil`. A change of belief goes in `invalidAt`.
@@ -52,8 +47,6 @@ historical questions.
 // The Honda Civic fact was true and we believed it. Now we don't. `validUntil` stays null.
 ```
 
----
-
 ## Liveness
 
 "Currently true" is one predicate, used by every read path:
@@ -66,11 +59,11 @@ AND (valid_until IS NULL OR valid_until > now())
 
 Three ways a fact leaves the live set:
 
-| | Cause |
-|---|---|
-| `invalidAt` set | A contradicting fact won, or you deleted it |
-| `validUntil` passed | Its stated window ended, no write required |
-| `validAt` in the future | Not true *yet* |
+|                         | Cause                                       |
+| ----------------------- | ------------------------------------------- |
+| `invalidAt` set         | A contradicting fact won, or you deleted it |
+| `validUntil` passed     | Its stated window ended, no write required  |
+| `validAt` in the future | Not true _yet_                              |
 
 ### Future-dated facts are invisible
 
@@ -84,18 +77,9 @@ To see them:
 await memory.listFacts('user_42', { includeInvalidated: true });
 ```
 
----
-
 ## Point-in-time recall
 
 `asOf` answers "what did we believe, about that moment, at that moment?"
-
-```sql
-created_at  <= $asOf              -- the row existed by then
-AND valid_at    <= $asOf          -- and was in its validity window
-AND (valid_until IS NULL OR valid_until > $asOf)
-AND (invalid_at  IS NULL OR invalid_at  > $asOf)   -- and we still believed it
-```
 
 ```ts
 // What did we know in June?
@@ -106,66 +90,41 @@ const { context } = await memory.recall({
 // → "- user drives honda civic"   (the Tesla Model 3 fact didn't exist yet)
 ```
 
-Uses:
-
-- **Auditing**, "why did the agent say that on 14 August?"
-- **Debugging**, separate a retrieval bug from a memory that legitimately changed
-- **Compliance**, reconstruct the state that drove a decision
-
 > `asOf` **bypasses hybrid retrieval**. It falls back to keyword and recency
 > ranking, because the vector/entity path assumes the current live set. Results
 > are correct but ranked less well. See
 > [Point-in-time recall](/guides/point-in-time-recall/).
 
----
-
 ## How valid time gets populated
 
 Extraction sets `validFrom` / `validUntil` **only when the user states them
-explicitly**. Defaulting both to `null` is deliberate, most facts are
-open-ended, and invented bounds are worse than none.
+explicitly**. Most facts are open-ended, and invented bounds are worse than none.
 
-| The user says | `validAt` | `validUntil` |
-|---|---|---|
-| "I like Breaking Bad" | now | `null` |
-| "I've used Arch since 2019" | `2019-01-01` | `null` |
-| "I'm on a cut until December" | now | that December |
-| "I'll run daily for the next six months" | now | now + 6 months |
-| "I used to work at Google" | now | *past*, inserted as history, never supersedes anything |
+| The user says                 | `validAt`    | `validUntil`                                           |
+| ----------------------------- | ------------ | ------------------------------------------------------ |
+| "I like Breaking Bad"         | now          | `null`                                                 |
+| "I've used Arch since 2019"   | `2019-01-01` | `null`                                                 |
+| "I'm on a cut until December" | now          | that December                                          |
+| "I used to work at Google"    | now          | _past_, inserted as history, never supersedes anything |
 
 ### Same-day coercion
 
-`validFrom` is date-only, so "today" would resolve to midnight, *hours before*
-facts recorded earlier the same day. A brand-new statement would look older than
-the fact it supersedes, and the contradiction judge would keep the wrong one.
-
-So: **a `validFrom` equal to today is coerced to `now`.**
-
----
+`validFrom` is date-only, so "today" would resolve to midnight, _hours before_
+facts recorded earlier the same day, and the contradiction judge would keep the
+wrong one. So: **a `validFrom` equal to today is coerced to `now`.**
 
 ## Contradiction versus coexistence
 
-Not every difference is a contradiction. The judge is asked to decide, and
-defaults to keeping both.
+Not every difference is a contradiction. Exclusive states, one employer, one
+home city, supersede (`old` verdict). Non-exclusive ones, skills, hobbies,
+devices, accumulate (`neither`). On genuine uncertainty the verdict is
+`neither`, because destroying knowledge is worse than keeping a redundant row.
+See [the extraction pipeline](/concepts/extraction-pipeline/#step-4-contradiction-judging).
 
-| Verdict | Meaning | Example |
-|---|---|---|
-| `old` | The new fact replaces the old | employer, home city, current phone |
-| `new` | The new fact is wrong or adds nothing | a less precise restatement |
-| `neither` | Both are true at once | multiple skills, hobbies, devices |
-
-Exclusive states, one employer, one home city, supersede. Non-exclusive ones
-accumulate. On genuine uncertainty the verdict is `neither`, because destroying
-knowledge is worse than keeping a redundant row.
-
-### Renewal
-
-An expired-but-not-superseded fact (`validUntil` past, `invalidAt` still `null`)
-still occupies the live-unique index. Re-stating the same claim stamps
-`invalidAt` on the expired row so the new one can be inserted. "I'm cutting again
-until March" works even though last year's cut is still on file.
-
----
+An expired-but-not-superseded fact still occupies the live-unique index;
+re-stating the same claim stamps `invalidAt` on the expired row so the new one
+can land. "I'm cutting again until March" works even though last year's cut is
+still on file.
 
 ## Worked example
 
@@ -183,8 +142,6 @@ until March" works even though last year's cut is still on file.
 2026-08-16  recall({ asOf: '2026-06-01' })
             → honda civic, on 1 June that was both true and believed
 ```
-
----
 
 ## Next
 

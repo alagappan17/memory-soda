@@ -7,8 +7,6 @@ Base path: `/v1/threads` · Auth: [API key](/api/authentication/)
 
 SDK equivalent: [`memory.threads`](/sdk/threads/)
 
----
-
 ## `POST /v1/threads`
 
 Create a conversation thread.
@@ -74,8 +72,6 @@ curl -X POST http://localhost:3004/v1/threads \
   -d '{"dataset":"user_42"}'
 ```
 
----
-
 ## `GET /v1/threads/:threadId`
 
 ### Response `200`
@@ -101,8 +97,6 @@ curl -X POST http://localhost:3004/v1/threads \
 | Code  | Body                                                                      |
 | ----- | ------------------------------------------------------------------------- |
 | `404` | `{ "error": "Thread not found" }`, missing, or belongs to another project |
-
----
 
 ## `PATCH /v1/threads/:threadId`
 
@@ -133,8 +127,6 @@ curl -X PATCH http://localhost:3004/v1/threads/$THREAD \
 Implemented as a JSONB merge (`||`), so it is **one level deep**, a nested
 object is replaced wholesale. Removing a key requires reading, deleting locally
 and writing the whole object back.
-
----
 
 ## `POST /v1/threads/:threadId/end`
 
@@ -167,8 +159,6 @@ curl -X POST http://localhost:3004/v1/threads/$THREAD/end \
   -H "Authorization: Bearer $KEY"
 ```
 
----
-
 ## Not available
 
 | Operation                            | Status                                                                                  |
@@ -176,8 +166,6 @@ curl -X POST http://localhost:3004/v1/threads/$THREAD/end \
 | Delete a thread                      | No endpoint. Deleting the row in SQL cascades to messages.                              |
 | List threads                         | Dashboard only, [`GET /dashboard/projects/:projectId/browse/threads`](/api/dashboard/). |
 | Reassign a thread to another dataset | Not supported.                                                                          |
-
----
 
 ## Next
 

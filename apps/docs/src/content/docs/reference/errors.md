@@ -1,8 +1,6 @@
 ---
 title: 'Errors'
-description: 'Validation failures add the raw zod issues:'
----
-
+description: 'Every failure mode: status codes, error messages by endpoint, and the silent failures.'
 ---
 
 ## Shape
@@ -32,8 +30,6 @@ Validation failures add the raw zod issues:
 > There is **no machine-readable error code** and **no request ID**. Branch on
 > HTTP status, the `error` strings are not a stable contract.
 
----
-
 ## Status codes
 
 | Code  | Meaning                                | Retry?              |
@@ -46,8 +42,6 @@ Validation failures add the raw zod issues:
 | `503` | `/health` only, a dependency is down   | Yes                 |
 
 `403` is never returned. Authorisation failures surface as `401` or `404`.
-
----
 
 ## Authentication
 
@@ -75,8 +69,6 @@ Validation failures add the raw zod issues:
 `POST /auth/login` returns `401 Invalid username or password` for both an unknown
 user and a wrong password, deliberately indistinguishable, and both paths do the
 same scrypt work so latency cannot enumerate accounts.
-
----
 
 ## By endpoint
 
@@ -151,8 +143,6 @@ failed.
 | `PATCH /dashboard/projects/:id/settings` | `400` | Validation error                                 |
 | Most `/dashboard/*` list routes          | `400` | Validation error, usually a missing `projectId`  |
 
----
-
 ## SDK mapping
 
 | HTTP                                  | SDK error                           |
@@ -179,8 +169,6 @@ try {
 
 See [Error handling](/sdk/errors/).
 
----
-
 ## Silent failures
 
 Not errors, but worth knowing, these succeed while doing less than you expect.
@@ -197,8 +185,6 @@ Not errors, but worth knowing, these succeed while doing less than you expect.
 That last one matters most: **fact extraction can be failing for every episode
 while every API call returns 200 and `/health` stays green.** Monitor it in SQL,
 see [Background jobs](/operations/background-jobs/#monitoring).
-
----
 
 ## Debugging
 
@@ -223,8 +209,6 @@ field.
 SELECT status, semantic_status, count(*), left(max(error), 120) AS sample_error
 FROM episodes GROUP BY 1, 2;
 ```
-
----
 
 ## Next
 

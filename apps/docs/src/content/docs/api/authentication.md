@@ -11,8 +11,6 @@ API key cannot reach `/dashboard/*`, and a session token cannot reach `/v1/*`.
 | `/v1/*`        | API key `ms_…`            | Full read/write on **one project's** memory |
 | `/dashboard/*` | Session token `ms_sess_…` | The dashboard UI, across all projects       |
 
----
-
 ## API keys
 
 ### Format and storage
@@ -110,8 +108,6 @@ not be able to reach each other's data even by accident, give each tenant its ow
 - `lastUsedAt` is updated on every request, useful for spotting a key nobody
   uses any more.
 
----
-
 ## Dashboard sessions
 
 For the bundled UI. Not an integration surface.
@@ -180,8 +176,6 @@ curl -X POST http://localhost:3004/auth/password \
 `204` on success. `401` if the current password is wrong, `400` if the new one
 is under 6 characters. Existing sessions, including this one, stay valid.
 
-`204`, and the token 401s from then on.
-
 ### Failure modes
 
 | Response                            | Cause                |
@@ -190,8 +184,6 @@ is under 6 characters. Existing sessions, including this one, stay valid.
 | `401 Session has been revoked`      | Signed out           |
 | `401 Session has expired`           | Past `expiresAt`     |
 | `401 Session user no longer exists` | The user was deleted |
-
----
 
 ## Password storage
 
@@ -202,17 +194,9 @@ scrypt$32768$8$3$<salt hex>$<derived key hex>
 ```
 
 The parameters are recorded in the hash, so they can be raised later without
-invalidating existing passwords. `N=2^15, r=8, p=3` is 32 MiB per derivation,
-one of the configurations on OWASP's list, chosen over the 128 MiB option so a
-small self-hosted box is not exposed to memory exhaustion under concurrent
-sign-ins.
-
-Older hashes in the legacy `salt:hex` format still verify and are **transparently
-re-hashed** with current parameters on the next successful sign-in.
-
-Comparison is constant-time.
-
----
+invalidating existing passwords. Legacy `salt:hex` hashes still verify and are
+transparently re-hashed on the next successful sign-in. Comparison is
+constant-time.
 
 ## First boot
 
@@ -229,8 +213,6 @@ create the first one from the dashboard:
 - Lost it? `npm run admin:reset-password -- admin <new-password>` with database
   access, or create another user from the dashboard.
 
----
-
 ## Security posture
 
 Known gaps, so you can compensate:
@@ -246,8 +228,6 @@ Known gaps, so you can compensate:
 Memory Soda is designed to run **behind your own network boundary**. Do not
 expose it directly to the internet without a proxy handling TLS, rate limiting
 and access control.
-
----
 
 ## Next
 

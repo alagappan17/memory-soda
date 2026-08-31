@@ -197,10 +197,9 @@ const features = [
       <div class="honest">
         <p class="eyebrow">Before you adopt it</p>
         <p>
-          Memory Soda is pre-1.0. Facts can only be derived from conversation,
-          there is no write API yet, every fact must be about the user, and a
-          statement takes tens of seconds to become retrievable. Those limits are
-          written down rather than glossed over.
+          Memory Soda is pre-1.0 and very early stage. Some things you might
+          expect are not there yet, and they are written down rather than
+          glossed over.
         </p>
         <a class="btn" href="/introduction/overview/#known-limitations">
           Known limitations
@@ -231,6 +230,18 @@ const features = [
     display: none;
   }
 
+  /*
+   * With that h1 hidden, its content panel is empty but still draws Starlight's
+   * inter-panel divider, a stray hairline under the header. Hide the whole
+   * panel and the border it forces on the next one.
+   */
+  body:has(.landing) .content-panel:has(> .sl-container > h1#_top) {
+    display: none;
+  }
+
+  body:has(.landing) .content-panel + .content-panel {
+    border-top: none;
+  }
   /* The landing page runs wider than the 48rem doc measure. */
   body:has(.landing) .sl-container > .sl-markdown-content {
     max-width: none;

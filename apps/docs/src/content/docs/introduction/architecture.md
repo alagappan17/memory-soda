@@ -3,8 +3,6 @@ title: 'Architecture'
 description: 'An Nx monorepo with npm workspaces.'
 ---
 
----
-
 ## Repository layout
 
 An Nx monorepo with npm workspaces.
@@ -31,8 +29,6 @@ memory-soda/
 There is **one process**, the API, plus a static frontend. No queue, no
 worker pool, no cache. Redis, Neo4j and Docker were all removed; Postgres is the
 only dependency.
-
----
 
 ## Runtime topology
 
@@ -69,8 +65,6 @@ only dependency.
 | Dashboard | `3000`  | , (Vite)              |
 | Postgres  | `5432`  | inside `DATABASE_URL` |
 
----
-
 ## Two authentication planes
 
 They are entirely separate and never mix.
@@ -81,8 +75,6 @@ They are entirely separate and never mix.
 | **Dashboard**         | `/dashboard/*` | `requireSession` | opaque session token, SHA-256 hashed, with `expiresAt` and `revokedAt` |
 
 `/health` and `/auth/*` are public. See [Authentication](/api/authentication/).
-
----
 
 ## Data model
 
@@ -113,8 +105,6 @@ users ──── sessions          (dashboard login only, not tenant data)
 `subject`/`object` as text. This is deliberate: it keeps the write path free of
 lookups and makes the anchor query a plain `IN (...)`.
 
----
-
 ## The API request lifecycle
 
 ```
@@ -138,8 +128,6 @@ request
 Each route handler owns its own `try/catch` and error shape. There is no shared
 error middleware yet, see [Errors](/reference/errors/).
 
----
-
 ## Background jobs
 
 All three run in-process via `setInterval` in `main.ts`, and all are `unref`'d so
@@ -157,8 +145,6 @@ is treated as orphaned and reclaimed.
 
 > **Single instance.** Nothing coordinates these jobs across replicas. Run one
 > API process. See [Background jobs](/operations/background-jobs/).
-
----
 
 ## Model usage
 
@@ -180,8 +166,6 @@ minutes on trivial inputs.
 > The API **will not boot** without `GOOGLE_GENERATIVE_AI_API_KEY`, the module
 > throws at import time.
 
----
-
 ## Prompt-injection posture
 
 Stored memory is user-derived data, so anywhere it re-enters a prompt it is
@@ -197,8 +181,6 @@ wrapped in explicit framing:
 This mitigates injection _through_ memory. It does not address memory
 _poisoning_, a user deliberately teaching the system false facts. The only
 remedy there is deletion; see [Curating memory](/guides/curating-memory/).
-
----
 
 ## Next
 

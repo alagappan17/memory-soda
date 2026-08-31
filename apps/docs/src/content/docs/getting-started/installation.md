@@ -5,8 +5,6 @@ description: 'Memory Soda is self-hosted. You run Postgres, you bring a Gemini A
 
 Memory Soda is self-hosted. You run Postgres, you bring a Gemini API key.
 
----
-
 ## Install
 
 ```bash
@@ -53,8 +51,6 @@ The project keeps its `.git` with the public repo as `upstream`, so
 Add your own repo as `origin` to deploy from it.
 Pass `--verbose` to stream clone/install output instead of a spinner.
 
----
-
 ## Prerequisites
 
 | Requirement    | Version     | Notes                                                                                                               |
@@ -98,8 +94,6 @@ psql -d postgres -c "SELECT * FROM pg_available_extensions WHERE name = 'vector'
 > Planning to send patches? Clone instead — see
 > [Development setup](/contributing/development/).
 
----
-
 ## Start
 
 ```bash
@@ -129,8 +123,6 @@ asks you to, then create an API key under **API Keys**.
 | API          | http://localhost:3004        |
 | Health check | http://localhost:3004/health |
 
----
-
 ## Verify
 
 ```bash
@@ -142,8 +134,6 @@ curl http://localhost:3004/health
 ```
 
 Then sign in to the dashboard at http://localhost:3000 and open **Status**.
-
----
 
 ## Installing the SDK in your app
 
@@ -173,8 +163,6 @@ const memory = new MemorySoda({
 });
 ```
 
----
-
 ## Troubleshooting
 
 **`GOOGLE_GENERATIVE_AI_API_KEY environment variable is required but not set`**
@@ -198,8 +186,6 @@ origins are comma-separated.
 
 **Migrations fail with a permissions error**
 `memory_user` must own the database: `ALTER DATABASE memory_db OWNER TO memory_user;`
-
----
 
 ## Next
 

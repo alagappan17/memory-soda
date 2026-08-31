@@ -1,7 +1,8 @@
 ---
-title: "Facts and entities"
-description: "Reading and curating the durable fact store."
+title: 'Facts and entities'
+description: 'Reading and curating the durable fact store.'
 ---
+
 Reading and curating the durable fact store.
 
 For prompts, use [`recall()`](/sdk/client/#recall), it ranks and renders. These
@@ -11,8 +12,6 @@ structured.
 ```ts
 const { facts } = await memory.listFacts('user_42');
 ```
-
----
 
 ## `listFacts()`
 
@@ -25,12 +24,12 @@ listFacts(dataset: string, opts?: {
 }): Promise<SemanticFactsResponse>
 ```
 
-| Option | Default | Notes |
-|---|---|---|
-| `q` |, | Keyword (full-text) filter over subject + predicate + object |
-| `limit` | `50` | 1–100 |
-| `includeInvalidated` | `false` | Include superseded and soft-deleted facts |
-| `asOf` |, | Point-in-time. **Overrides `includeInvalidated`.** |
+| Option               | Default | Notes                                                        |
+| -------------------- | ------- | ------------------------------------------------------------ |
+| `q`                  | ,       | Keyword (full-text) filter over subject + predicate + object |
+| `limit`              | `50`    | 1–100                                                        |
+| `includeInvalidated` | `false` | Include superseded and soft-deleted facts                    |
+| `asOf`               | ,       | Point-in-time. **Overrides `includeInvalidated`.**           |
 
 ```ts
 const { facts, total } = await memory.listFacts('user_42', {
@@ -71,17 +70,17 @@ const { facts } = await memory.listFacts('user_42', {
 });
 
 for (const f of facts) {
-  const state = f.invalidAt ? 'superseded'
-    : f.validUntil && new Date(f.validUntil) < new Date() ? 'expired'
-    : 'current';
+  const state = f.invalidAt
+    ? 'superseded'
+    : f.validUntil && new Date(f.validUntil) < new Date()
+      ? 'expired'
+      : 'current';
   console.log(`[${state}] ${f.subject} ${f.predicate} ${f.object}`);
 }
 ```
 
 See [The bi-temporal model](/concepts/bi-temporal-model/) for what those
 states mean.
-
----
 
 ## `deleteFact()`
 
@@ -104,8 +103,6 @@ another dataset, or is already invalidated.
 > or edited directly, see [Curating memory](/guides/curating-memory/) for
 > how to correct something.
 
----
-
 ## `listEntities()`
 
 ```ts
@@ -124,8 +121,6 @@ Ordered by `updatedAt` descending, most recently mentioned first.
 
 Types: `PERSON` `ORG` `PLACE` `PRODUCT` `SKILL` `TOPIC` `EVENT` `FOOD` `ROLE`
 `CONCEPT` `THING` `DATE`.
-
----
 
 ## Facts for one entity
 
@@ -158,8 +153,6 @@ const profile = await Promise.all(
 
 One request per entity, fine for a dashboard, not for a request path.
 
----
-
 ## Building an admin view
 
 ```ts
@@ -173,27 +166,30 @@ async function memoryProfile(dataset: string) {
   return {
     total,
     entities,
-    current: facts.filter((f) => !f.invalidAt && (!f.validUntil || new Date(f.validUntil).getTime() > now)),
+    current: facts.filter(
+      (f) =>
+        !f.invalidAt &&
+        (!f.validUntil || new Date(f.validUntil).getTime() > now),
+    ),
     superseded: facts.filter((f) => f.invalidAt),
-    expired: facts.filter((f) => !f.invalidAt && f.validUntil && new Date(f.validUntil).getTime() <= now),
+    expired: facts.filter(
+      (f) =>
+        !f.invalidAt && f.validUntil && new Date(f.validUntil).getTime() <= now,
+    ),
   };
 }
 ```
 
----
-
 ## Not available
 
-| | Status |
-|---|---|
-| Create a fact | No write API. Facts are derived from messages only. |
-| Edit a fact | Delete and let extraction re-derive. |
-| Pin a fact | No immutability flag, anything can be superseded. |
-| Bulk delete a dataset | No endpoint. See [Privacy and data deletion](/operations/privacy-and-deletion/). |
-| Paginate entities | `listEntities` returns everything. |
-| Keyword + entity together | `entity` wins; the other filters are ignored. |
-
----
+|                           | Status                                                                           |
+| ------------------------- | -------------------------------------------------------------------------------- |
+| Create a fact             | No write API. Facts are derived from messages only.                              |
+| Edit a fact               | Delete and let extraction re-derive.                                             |
+| Pin a fact                | No immutability flag, anything can be superseded.                                |
+| Bulk delete a dataset     | No endpoint. See [Privacy and data deletion](/operations/privacy-and-deletion/). |
+| Paginate entities         | `listEntities` returns everything.                                               |
+| Keyword + entity together | `entity` wins; the other filters are ignored.                                    |
 
 ## Next
 

@@ -5,8 +5,6 @@ description: 'Memory Soda is self-hosted only. There is no managed offering.'
 
 Memory Soda is self-hosted only. There is no managed offering.
 
----
-
 ## What you are running
 
 | Component      | Notes                                                              |
@@ -17,8 +15,6 @@ Memory Soda is self-hosted only. There is no managed offering.
 | **Gemini API** | External dependency. Required to boot.                             |
 
 No queue, no cache, no worker pool, no object storage.
-
----
 
 ## Sizing
 
@@ -39,8 +35,6 @@ Two memory notes:
   memory, embeddings included. A dataset with 10,000 facts is roughly 30 MB per
   extraction run. See [Limits](/reference/limits/).
 
----
-
 ## Run one API instance
 
 > **The background jobs assume a single process.**
@@ -53,8 +47,6 @@ times the wake-ups, with no leader election.
 Scale vertically, or run one instance and accept it. If you need more, add
 `pg_try_advisory_lock` around each tick, a few lines. See
 [Background jobs](/operations/background-jobs/).
-
----
 
 ## Deployment
 
@@ -138,8 +130,6 @@ CMD ["node", "apps/api/dist/apps/api/src/main.js"]
 Copy `drizzle/`, the migrator reads the SQL files at runtime when
 `MIGRATE_ON_START=true`.
 
----
-
 ## Postgres
 
 ### Required extension
@@ -171,8 +161,6 @@ An unexpected idle-client error calls `process.exit(1)`. A Postgres failover wil
 take the API down rather than reconnecting. **Run it under a supervisor that
 restarts**, systemd, Docker `--restart`, a Kubernetes Deployment.
 
----
-
 ## Health checks
 
 ```bash
@@ -199,8 +187,6 @@ readinessProbe:
 ```
 
 Boot takes a few seconds, migrations run before the listener opens.
-
----
 
 ## Security
 
@@ -229,19 +215,13 @@ front of it.
 - [ ] Dashboard on a trusted origin, the session token lives in `localStorage`
 - [ ] One API key per environment and service
 
----
-
 ## Logging
 
 Plain `console` output plus `morgan` in `dev` format. No structured logging, no
 log levels, no request IDs.
 
-> **`prepare()` and `recall()` log their full payloads at info level**, which
-> means **user message content and recalled facts go to stdout**. If you ship
-> logs anywhere, they contain personal data. Filter at the collector, or patch
-> those two `console.log` calls out before deploying.
-
----
+> `prepare()` and `recall()` log counts and IDs only. Message content stays out
+> of stdout, but anything your own middleware logs is on you.
 
 ## Backups
 
@@ -257,8 +237,6 @@ compress poorly. Facts and entities regenerate only by re-running extraction ove
 messages, which costs LLM calls, back up properly.
 
 Nothing outside Postgres needs backing up. There is no local state on the API.
-
----
 
 ## Upgrading
 
@@ -280,8 +258,6 @@ npm run build
 Take a backup before upgrading, migrations are not reversible. See
 [Migrations](/operations/migrations/).
 
----
-
 ## Cost
 
 Gemini is the running cost. Per episode:
@@ -297,8 +273,6 @@ Plus one embedding per `recall()` with a query, and one LLM call per
 **The biggest lever is `autoEpisodeIntervalMs`.** At the default of 30 minutes
 one session gap costs one episode. Lowering it trades money for freshness. See
 [Tuning retrieval](/guides/tuning-retrieval/#autoepisodeintervalms-1800000-the-cost-lever).
-
----
 
 ## Next
 

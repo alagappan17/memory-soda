@@ -1,13 +1,12 @@
 ---
-title: "Episodes"
-description: "Inspect what the system made of a conversation."
+title: 'Episodes'
+description: 'Inspect what the system made of a conversation.'
 ---
+
 An episode is one summarised stretch of conversation, and the unit the
 extraction pipeline works in. You rarely need this client to build something,
 [`recall()`](/sdk/client/) already folds episodes into context on request. You
 need them to see what happened.
-
----
 
 ## `listEpisodes()`
 
@@ -21,7 +20,7 @@ list(dataset: string, opts?: {
 
 ```ts
 const { episodes } = await memory.listEpisodes('u_42', { limit: 5 });
-episodes[0].summary;      // "The user compared family cars…"
+episodes[0].summary; // "The user compared family cars…"
 episodes[0].keyLearnings; // ["user wants a compact car under $30k", …]
 ```
 
@@ -29,8 +28,6 @@ Only the newest episode per thread has status `completed`; earlier ones are
 `archived` when a new episode opens over later messages. Pass
 `status: 'all'` to see the whole history, or `status: 'failed'` to find
 extractions that need attention.
-
----
 
 ## `searchEpisodes()`
 
@@ -46,8 +43,6 @@ const hits = await memory.searchEpisodes('u_42', 'car shopping');
 hits[0].relevanceScore; // 0.83
 ```
 
----
-
 ## `getEpisode()`
 
 ```ts
@@ -57,8 +52,6 @@ get(episodeId: string): Promise<Episode>
 One episode, including `status`, `error`, `retryCount`, and the message range it
 covers. This is what to poll after `threads.end()` if you want to know when
 extraction has finished.
-
----
 
 ## Operator actions
 

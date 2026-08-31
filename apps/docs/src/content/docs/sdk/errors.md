@@ -14,8 +14,6 @@ import {
 } from '@memory-soda/sdk';
 ```
 
----
-
 ## Hierarchy
 
 ```
@@ -79,8 +77,6 @@ if (err instanceof NetworkError) {
 }
 ```
 
----
-
 ## Status codes
 
 | Status | Error       | Means                                               |
@@ -94,8 +90,6 @@ if (err instanceof NetworkError) {
 | 503    | `ApiError`  | `/health` when a dependency is down                 |
 
 Full list: [Errors](/reference/errors/).
-
----
 
 ## Handling by kind
 
@@ -125,8 +119,6 @@ async function safeRecall(dataset: string, query: string): Promise<string> {
 
 **The principle: memory should never take your product down.** An answer without
 memory beats no answer.
-
----
 
 ## Retrying
 
@@ -171,8 +163,6 @@ There are no idempotency keys. For writes, retry only on `NetworkError` where yo
 have reason to believe the request never landed, and accept that a timeout after
 the server committed will duplicate.
 
----
-
 ## Timeouts
 
 Set once on the client, applied per request:
@@ -196,8 +186,6 @@ const fast = new MemorySoda({ baseUrl, apiKey, timeout: 5_000 });
 const slow = new MemorySoda({ baseUrl, apiKey, timeout: 60_000 });
 ```
 
----
-
 ## Validation errors
 
 ```ts
@@ -218,8 +206,6 @@ end users.
 > Unknown fields are **stripped, not rejected**. A typo in an optional field name
 > is silently ignored rather than returning 400.
 
----
-
 ## Logging
 
 ```ts
@@ -234,8 +220,6 @@ function describe(err: unknown) {
 ```
 
 Do not log `err.body` for reads, it can contain user content.
-
----
 
 ## Next
 

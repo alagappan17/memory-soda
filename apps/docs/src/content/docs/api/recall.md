@@ -1,15 +1,14 @@
 ---
-title: "Recall API"
-description: "POST /v1/memory/recall · Auth: API key"
+title: 'Recall API'
+description: 'POST /v1/memory/recall · Auth: API key'
 ---
+
 `POST /v1/memory/recall` · Auth: [API key](/api/authentication/)
 
 The main read. Thread-free, it needs only a `dataset`, so you can personalise a
 chat turn, a search page, or an agent tool call.
 
 SDK equivalent: [`memory.recall()`](/sdk/client/#recall)
-
----
 
 ## Request
 
@@ -24,16 +23,14 @@ SDK equivalent: [`memory.recall()`](/sdk/client/#recall)
 }
 ```
 
-| Field | Type | Required | Default | Notes |
-|---|---|---|---|---|
-| `dataset` | string | **yes** |, | 1–256 characters |
-| `query` | string | no |, | Max 2000 chars. Drives ranking; omit for most-recent facts. |
-| `include` | string[] | no | `[]` | `episodes`, `synthesis`, `raw` |
-| `limit` | integer | no | `factsInContext` (8) | 1–100 |
-| `minConfidence` | number | no | `retrievalMinConfidence` (0.5) | 0–1 |
-| `asOf` | string | no |, | ISO datetime or `YYYY-MM-DD` |
-
----
+| Field           | Type     | Required | Default                        | Notes                                                       |
+| --------------- | -------- | -------- | ------------------------------ | ----------------------------------------------------------- |
+| `dataset`       | string   | **yes**  | ,                              | 1–256 characters                                            |
+| `query`         | string   | no       | ,                              | Max 2000 chars. Drives ranking; omit for most-recent facts. |
+| `include`       | string[] | no       | `[]`                           | `episodes`, `synthesis`, `raw`                              |
+| `limit`         | integer  | no       | `factsInContext` (8)           | 1–100                                                       |
+| `minConfidence` | number   | no       | `retrievalMinConfidence` (0.5) | 0–1                                                         |
+| `asOf`          | string   | no       | ,                              | ISO datetime or `YYYY-MM-DD`                                |
 
 ## Response `200`
 
@@ -48,18 +45,16 @@ SDK equivalent: [`memory.recall()`](/sdk/client/#recall)
 }
 ```
 
-| Field | Always present | Notes |
-|---|---|---|
-| `context` | yes | The prompt-ready block. **`""` when nothing matched.** |
-| `factCount` | yes | Facts in `context` |
-| `synthesis` | `null` unless requested | LLM prose summary |
-| `facts` | `null` unless requested | Structured `SemanticFact[]` with scores |
-| `groups` | `null` unless requested | Facts grouped by anchor entity |
-| `episodes` | `null` unless requested | Cross-thread summaries |
+| Field       | Always present          | Notes                                                  |
+| ----------- | ----------------------- | ------------------------------------------------------ |
+| `context`   | yes                     | The prompt-ready block. **`""` when nothing matched.** |
+| `factCount` | yes                     | Facts in `context`                                     |
+| `synthesis` | `null` unless requested | LLM prose summary                                      |
+| `facts`     | `null` unless requested | Structured `SemanticFact[]` with scores                |
+| `groups`    | `null` unless requested | Facts grouped by anchor entity                         |
+| `episodes`  | `null` unless requested | Cross-thread summaries                                 |
 
 Always guard for empty `context`, a new user has no memory.
-
----
 
 ## The context block
 
@@ -85,8 +80,6 @@ out of the block.
 
 > `sourceQuote` and `confidence` are stored but **not rendered**. Use
 > `include: ['raw']` if you need them.
-
----
 
 ## `include` options
 
@@ -118,7 +111,9 @@ Cost: one extra vector search.
 ### `synthesis`
 
 ```json
-{ "synthesis": "The user is shopping for a compact family car under $30k and has ruled out SUVs as too big. They mostly do city commutes and are interested in the Toyota Corolla Hybrid." }
+{
+  "synthesis": "The user is shopping for a compact family car under $30k and has ruled out SUVs as too big. They mostly do city commutes and are interested in the Toyota Corolla Hybrid."
+}
 ```
 
 An LLM-written paragraph over the rendered block.
@@ -131,18 +126,37 @@ An LLM-written paragraph over the rendered block.
 ```json
 {
   "facts": [
-    { "factId": "3a91…", "subject": "user", "predicate": "is interested in",
-      "object": "toyota corolla hybrid", "objectIsEntity": true, "confidence": 0.9,
+    {
+      "factId": "3a91…",
+      "subject": "user",
+      "predicate": "is interested in",
+      "object": "toyota corolla hybrid",
+      "objectIsEntity": true,
+      "confidence": 0.9,
       "sourceQuote": "yeah the corola hybrid looks great",
-      "validAt": "…", "validUntil": null, "invalidAt": null,
-      "episodeId": "8b21…", "relevanceScore": 0.0328 }
+      "validAt": "…",
+      "validUntil": null,
+      "invalidAt": null,
+      "episodeId": "8b21…",
+      "relevanceScore": 0.0328
+    }
   ],
   "groups": [
-    { "entityName": "toyota corolla hybrid",
-      "facts": [ { "subject": "user", "predicate": "is interested in",
-                   "object": "toyota corolla hybrid", "sourceQuote": "…",
-                   "validAt": "…", "validUntil": null, "relevanceScore": 0.0328 } ],
-      "groupRelevance": 0.0328 }
+    {
+      "entityName": "toyota corolla hybrid",
+      "facts": [
+        {
+          "subject": "user",
+          "predicate": "is interested in",
+          "object": "toyota corolla hybrid",
+          "sourceQuote": "…",
+          "validAt": "…",
+          "validUntil": null,
+          "relevanceScore": 0.0328
+        }
+      ],
+      "groupRelevance": 0.0328
+    }
   ]
 }
 ```
@@ -153,8 +167,6 @@ your own formatting.
 `relevanceScore` is a **Reciprocal Rank Fusion** score, not a similarity. Values
 are small (around `1/61` for a rank-1 hit) and only meaningful relative to each
 other within one response.
-
----
 
 ## Ranking
 
@@ -186,23 +198,19 @@ correct; ranking is weaker.
 
 See [Point-in-time recall](/guides/point-in-time-recall/).
 
----
-
 ## Failure behaviour
 
 Recall is **best-effort internally**. Individual failures degrade rather than
 error:
 
-| Failure | Result |
-|---|---|
+| Failure               | Result                          |
+| --------------------- | ------------------------------- |
 | Query embedding fails | Falls back to keyword + recency |
-| Semantic fetch fails | `facts: []`, `context: ""` |
-| Episode fetch fails | `episodes: null` |
-| Synthesis fails | `synthesis: null` |
+| Semantic fetch fails  | `facts: []`, `context: ""`      |
+| Episode fetch fails   | `episodes: null`                |
+| Synthesis fails       | `synthesis: null`               |
 
 A `500` means the whole request failed, which is rare.
-
----
 
 ## Examples
 
@@ -234,20 +242,16 @@ const systemPrompt = context
   : 'You are a helpful assistant.';
 ```
 
----
-
 ## Performance
 
-| | |
-|---|---|
-| Typical | 200–500 ms, dominated by one embedding round trip |
-| With `synthesis` | 1.5–3.5 s |
-| Without a query | 20–50 ms, no embedding needed |
+|                  |                                                   |
+| ---------------- | ------------------------------------------------- |
+| Typical          | 200–500 ms, dominated by one embedding round trip |
+| With `synthesis` | 1.5–3.5 s                                         |
+| Without a query  | 20–50 ms, no embedding needed                     |
 
 There is no way to supply a pre-computed query embedding; every call with a
 `query` embeds again.
-
----
 
 ## `GET /v1/memory/recall/datasets/:dataset/export`
 
@@ -272,8 +276,6 @@ curl "$API/v1/memory/recall/datasets/user_42/export" -H "Authorization: Bearer m
 Scoped to the API key's project. This is a full read, not a paginated one,
 treat it as an export endpoint, not a listing endpoint.
 
----
-
 ## `DELETE /v1/memory/recall/datasets/:dataset`
 
 Erase a dataset: every thread, message, episode, fact and entity.
@@ -296,8 +298,6 @@ facts as having ever been true. A deletion request is not satisfied by a flag.
 
 It runs in one transaction, so a partial erase is not a state the system can
 reach. Messages cascade with their threads. There is no undo.
-
----
 
 ## Next
 

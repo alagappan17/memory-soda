@@ -8,8 +8,6 @@ Issue and revoke the credentials your application uses against `/v1/*`.
 Keys belong to the **currently selected project**, check the switcher in the
 sidebar footer before creating one.
 
----
-
 ## The page
 
 Lists every key for the project:
@@ -24,8 +22,6 @@ Lists every key for the project:
 
 **Last used** is the useful one: it tells you which keys are dead and safe to
 revoke.
-
----
 
 ## Creating
 
@@ -48,8 +44,6 @@ production-api      staging-api      ci          local-dev-alice
 
 Not `key1`, `test`, `new`.
 
----
-
 ## Revoking
 
 **Revoke** takes effect immediately, in-flight requests using that key start
@@ -64,8 +58,6 @@ but the key can never be reactivated.
 2. Deploy it to the consuming service.
 3. Confirm the old key's **Last used** stops advancing.
 4. Revoke the old key.
-
----
 
 ## What a key grants
 
@@ -100,14 +92,10 @@ const memory = new MemorySoda();
 If you need one tenant to be unable to reach another's data even by mistake, the
 boundary is a [project](/dashboard/projects/), not a key.
 
----
-
 ## The first key
 
 Nothing is seeded on first boot. Sign in with the admin login printed to the
 API log and create your first key here.
-
----
 
 ## Scripting
 
@@ -130,8 +118,6 @@ curl -s -X DELETE $API/dashboard/api-keys/93fe… -H "Authorization: Bearer $TOK
 
 Full reference: [Dashboard routes](/api/dashboard/#api-keys).
 
----
-
 ## Troubleshooting
 
 | Symptom                                       | Cause                                                              |
@@ -144,8 +130,6 @@ Full reference: [Dashboard routes](/api/dashboard/#api-keys).
 
 That last one is the common trap. A key silently scopes every call; if your data
 seems to have vanished, confirm the key belongs to the project you wrote to.
-
----
 
 ## Next
 

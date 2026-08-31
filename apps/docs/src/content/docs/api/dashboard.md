@@ -12,8 +12,6 @@ administration.
 > An API key does **not** work here, and a session token does not work on
 > `/v1/*`.
 
----
-
 ## Auth
 
 ### `POST /auth/login`
@@ -62,8 +60,6 @@ Session required.
 `204` on success, `401` if the current password is wrong, `400` if the new one
 is shorter than 6 characters. Sessions are not revoked.
 
----
-
 ## Users
 
 ### `GET /dashboard/users`
@@ -106,8 +102,6 @@ transaction with the rows locked, so concurrent deletes cannot both slip past it
 
 > There is **no password-change endpoint**. Create a new user and delete the old
 > one, or update the hash directly in SQL.
-
----
 
 ## Projects
 
@@ -194,8 +188,6 @@ Bounds are in [Project settings](/reference/project-settings/).
 > `episodic.autoEpisodeIntervalMs` accepts `>= 1000` or `null`, same as
 > thread-level overrides.
 
----
-
 ## API keys
 
 ### `GET /dashboard/api-keys`
@@ -239,8 +231,6 @@ Full key values are never returned, only a preview.
 `204`. Immediate and permanent, `revokedAt` is stamped and the row is kept.
 
 Takes the **key id**, not the key value.
-
----
 
 ## Threads
 
@@ -286,8 +276,6 @@ Every message in sequence order, including compacted ones.
 Every episode for the thread, newest first, regardless of
 status.
 
----
-
 ## Datasets
 
 ### `GET /dashboard/projects/:projectId/browse/datasets`
@@ -315,8 +303,6 @@ status.
 > The list is derived from `threads`, so a dataset with facts but no threads
 > will not appear.
 
----
-
 ## The memory routes, under session auth
 
 Everything under `/v1` is mounted a second time at
@@ -338,18 +324,11 @@ curl "$API/dashboard/projects/$PROJECT/v1/memory/semantic/datasets/user_42/facts
   -H "Authorization: Bearer ms_sess_…"
 ```
 
-This replaces the parallel set of `/dashboard/datasets/*` endpoints that used to
-exist. They called the same service functions as their `/v1` counterparts and
-had already drifted from them, the dashboard copy never grew `asOf` or
-`episodeId`. Mounting one router twice makes that class of drift impossible.
-
 See [Semantic memory](/api/semantic-memory/), [Episodic
 memory](/api/episodic-memory/), [Recall](/api/recall/), [Threads](/api/threads/)
 and [Working memory](/api/working-memory/) for the routes themselves; the same
 paths are served under `/dashboard/projects/:projectId` with a session instead
 of an API key.
-
----
 
 ## Scripting administration
 
@@ -371,8 +350,6 @@ curl -s -X POST $API/dashboard/api-keys \
 curl -s -X POST $API/auth/logout -H "Authorization: Bearer $TOKEN"
 ```
 
----
-
 ## Authorization caveat
 
 `/dashboard/*` checks that **a valid session exists**, not that the user owns
@@ -381,8 +358,6 @@ any project.
 
 Fine for the intended single-tenant self-hosted deployment. If you need
 per-user project isolation, it does not exist yet.
-
----
 
 ## Next
 

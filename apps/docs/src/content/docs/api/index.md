@@ -7,8 +7,6 @@ Everything on this page applies to every endpoint.
 
 **Base URL:** `http://localhost:3004` by default (`HOST` + `PORT`).
 
----
-
 ## Surfaces
 
 Three, with different auth.
@@ -23,8 +21,6 @@ Three, with different auth.
 Only `/v1/*` is a stable integration surface. `/dashboard/*` exists for the
 bundled UI and may change without notice.
 
----
-
 ## Authentication
 
 ```
@@ -34,8 +30,6 @@ Authorization: Bearer ms_sess_a1b2…       # /dashboard/* session token
 
 Details: [Authentication](/api/authentication/).
 
----
-
 ## Requests
 
 - `Content-Type: application/json` on every request with a body
@@ -44,8 +38,6 @@ Details: [Authentication](/api/authentication/).
   name is silently ignored
 - Path parameters containing `/` or other reserved characters must be
   percent-encoded (`dataset` in particular)
-
----
 
 ## Responses
 
@@ -78,8 +70,6 @@ Collections use a named key plus counts:
 | `500` | Server error                                   |
 | `503` | `/health` only, when a dependency is down      |
 
----
-
 ## Errors
 
 ```json
@@ -107,8 +97,6 @@ Validation failures add the raw zod issues:
 > status, not on the `error` string, the strings are not stable.
 > [Errors reference](/reference/errors/).
 
----
-
 ## Tenancy
 
 You never pass a project ID to `/v1/*`. It is resolved from your API key on
@@ -121,8 +109,6 @@ first write, there is no provisioning call.
 /v1/memory/semantic/datasets/user_42/facts
                              ^^^^^^^ percent-encode if it contains / ? # etc.
 ```
-
----
 
 ## Pagination
 
@@ -152,8 +138,6 @@ GET /dashboard/projects/:projectId/browse/threads?limit=20&offset=40
 Facts and entities are **not paginated**, `listFacts` caps at `limit` (max 100)
 with a `total`, and `listEntities` returns everything.
 
----
-
 ## Query parameter coercion
 
 Query strings are coerced before validation:
@@ -163,8 +147,6 @@ Query strings are coerced before validation:
 - dates: `?asOf=2026-06-01` and full ISO datetimes both parse
 
 Out-of-range values return `400` rather than clamping.
-
----
 
 ## Idempotency
 
@@ -179,14 +161,10 @@ There are no idempotency keys.
 | `DELETE …/facts/:id` | `404` on the second call                      |
 | All `GET`s           | Safe                                          |
 
----
-
 ## Rate limits
 
 **None.** Nothing is throttled, including `/auth/login`. If you expose this
 beyond a trusted network, put a rate limiter in front of it.
-
----
 
 ## CORS
 
@@ -197,16 +175,12 @@ Only the dashboard should call this API from a browser. Your application's calls
 belong on a server, an API key in client-side code grants full access to every
 dataset in its project.
 
----
-
 ## Versioning
 
 The integration surface is under `/v1`. It is pre-1.0 and the shape may still
 change; changes will be noted in the changelog.
 
 `/dashboard/*` and `/auth/*` are unversioned and internal.
-
----
 
 ## Endpoint index
 
@@ -219,8 +193,6 @@ change; changes will be noted in the changelog.
 | `GET/DELETE/POST …/episodic/…`                                              | [Episodic memory](/api/episodic-memory/) |
 | `/auth/*`, `/dashboard/*`                                                   | [Dashboard routes](/api/dashboard/)      |
 | `GET /health`                                                               | below                                    |
-
----
 
 ## `GET /health`
 
@@ -237,8 +209,6 @@ curl http://localhost:3004/health
 Returns `200` when everything is `ok`, `503` otherwise. It checks that Postgres
 answers `SELECT 1`, it does **not** check Gemini reachability, migration state,
 or whether background jobs are keeping up.
-
----
 
 ## Next
 

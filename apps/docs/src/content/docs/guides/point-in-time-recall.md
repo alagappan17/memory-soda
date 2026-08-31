@@ -1,43 +1,26 @@
 ---
-title: "Point-in-time recall"
-description: "asOf answers: what did we believe, about that moment, at that moment?"
+title: 'Point-in-time recall'
+description: 'asOf answers: what did we believe, about that moment, at that moment?'
 ---
+
 `asOf` answers: **what did we believe, about that moment, at that moment?**
-
-Because nothing is ever physically deleted, the full history of what the system
-knew is reconstructable.
-
----
+Nothing is ever physically deleted, so the full history is reconstructable.
 
 ## Basic use
 
 ```ts
-const { context, factCount } = await memory.recall({
+const { context } = await memory.recall({
   dataset: 'user_42',
   asOf: '2026-06-01T00:00:00Z',
 });
-```
 
-```bash
-curl -X POST $API/v1/memory/recall \
-  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
-  -d '{"dataset":"user_42","asOf":"2026-06-01T00:00:00Z"}'
+await memory.listFacts('user_42', { asOf: '2026-06-01' });
 ```
 
 Accepts a full ISO datetime or a bare date (`2026-06-01`, interpreted as
 midnight UTC).
 
-Also available on the fact list:
-
-```ts
-await memory.listFacts('user_42', { asOf: '2026-06-01' });
-```
-
----
-
 ## What it filters on
-
-Four conditions, all of which must hold:
 
 ```sql
 created_at   <= $asOf                                    -- the row existed by then
@@ -46,173 +29,89 @@ AND (valid_until IS NULL OR valid_until > $asOf)         -- and had not expired
 AND (invalid_at  IS NULL OR invalid_at  > $asOf)         -- and was still believed
 ```
 
-That last line is the interesting one. A fact superseded *after* `asOf` is
+That last line is the interesting one. A fact superseded _after_ `asOf` is
 included, because at `asOf` we still believed it.
-
----
-
-## Worked example
 
 ```
 2026-03-01  "I drive a Honda Civic."
-            → honda civic   created 03-01  validAt 03-01  invalidAt null
-
 2026-08-16  "Actually I switched to a Tesla Model 3."
-            → honda civic   invalidAt 08-16
-            → tesla model 3   created 08-16  validAt 08-16  invalidAt null
+            → honda civic invalidAt 08-16; tesla model 3 inserted
 ```
 
-| Query | Result | Why |
-|---|---|---|
-| `recall()` | tesla model 3 | Live now |
-| `asOf: 2026-06-01` | honda civic | Existed, valid, not yet superseded |
-| `asOf: 2026-02-01` | *nothing* | The fact didn't exist yet |
-| `asOf: 2026-09-01` | tesla model 3 | Honda Civic was superseded on 08-16 |
-
----
+| Query              | Result        | Why                                |
+| ------------------ | ------------- | ---------------------------------- |
+| `recall()`         | tesla model 3 | Live now                           |
+| `asOf: 2026-06-01` | honda civic   | Existed, valid, not yet superseded |
+| `asOf: 2026-02-01` | _nothing_     | The fact didn't exist yet          |
 
 ## Uses
 
-### Auditing an agent decision
+**Auditing an agent decision.** "Why did it recommend a horror movie on 14
+August?" → `recall({ dataset, asOf: '2026-08-14T18:30:00Z', include: ['raw'] })`
+returns exactly what the agent knew.
 
-```ts
-async function explainDecision(dataset: string, at: string, question: string) {
-  const { context, facts } = await memory.recall({
-    dataset,
-    asOf: at,
-    include: ['raw'],
-    limit: 50,
-  });
-  return { question, at, knewAtTheTime: context, facts };
-}
-
-// "Why did it recommend a horror movie on 14 August?"
-await explainDecision('user_42', '2026-08-14T18:30:00Z', 'movie recommendation');
-```
-
-### Distinguishing a bug from a change
-
-A user reports the assistant "forgot" something.
+**Distinguishing a bug from a change.** A user reports the assistant "forgot"
+something:
 
 ```ts
 const now = await memory.recall({ dataset, query: 'dietary requirements' });
-const then = await memory.recall({ dataset, query: 'dietary requirements', asOf: reportedAt });
+const then = await memory.recall({
+  dataset,
+  query: 'dietary requirements',
+  asOf: reportedAt,
+});
 
-// then.context has it, now.context does not → the memory legitimately changed
-// neither has it                             → it was never extracted
-// both have it                               → a retrieval or prompt problem
+// then has it, now does not → the memory legitimately changed
+// neither has it            → it was never extracted
+// both have it              → a retrieval or prompt problem
 ```
 
-That triage takes seconds and rules out two of three causes.
-
-### Compliance
-
-Reconstruct the state that drove an automated decision, without keeping a
-separate audit log.
-
-### Regression testing
+**Regression testing.** `asOf` pins the fact set, so a snapshot stays stable as
+new memory accumulates:
 
 ```ts
-const cutoff = '2026-08-01T00:00:00Z';
-const { context } = await memory.recall({ dataset: 'fixture_user', asOf: cutoff });
+const { context } = await memory.recall({
+  dataset: 'fixture_user',
+  asOf: cutoff,
+});
 expect(context).toMatchSnapshot();
 ```
-
-Because `asOf` pins the fact set, the snapshot stays stable as new memory
-accumulates.
-
----
 
 ## Important caveat: ranking
 
 > **`asOf` bypasses hybrid retrieval.**
 
-Normal recall fuses vector, entity-anchor and keyword signals. Point-in-time
-recall falls back to **keyword and recency** only, because the vector and anchor
-paths assume the current live set.
-
-Consequences:
-
-| | Normal | With `asOf` |
-|---|---|---|
-| Vector similarity | ✅ | ❌ |
-| Entity anchor | ✅ | ❌ |
-| Keyword | ✅ | ✅ |
-| Recency | ✅ | ✅ |
-
-- Results are **correct**, the right facts for that instant.
-- Ranking is **weaker**. A `query` still filters by keyword but will not find
-  semantic matches.
-- Raise `limit` to compensate; with fewer signals the top few are less reliable.
-
-```ts
-await memory.recall({
-  dataset: 'user_42',
-  query: 'movies',
-  asOf: '2026-06-01',
-  limit: 30,     // wider net, since ranking is weaker
-});
-```
-
-For auditing this rarely matters, you usually want *everything* known at a
-moment, not the top 8.
-
----
+Point-in-time recall falls back to **keyword and recency** only, because the
+vector and anchor paths assume the current live set. Results are **correct**,
+the right facts for that instant, but a `query` will not find semantic matches.
+Raise `limit` to compensate. For auditing this rarely matters, you usually want
+_everything_ known at a moment, not the top 8.
 
 ## Related reads
 
-### Full history, unfiltered by time
-
 ```ts
+// every fact ever, whatever its state
 const { facts } = await memory.listFacts('user_42', {
   includeInvalidated: true,
 });
 ```
 
-Every fact ever, whatever its state. `asOf` **overrides** `includeInvalidated`
-when both are passed.
-
-### A timeline for one fact
-
-```ts
-const { facts } = await memory.listFacts('user_42', {
-  q: 'honda civic',
-  includeInvalidated: true,
-});
-
-facts
-  .sort((a, b) => a.validAt.localeCompare(b.validAt))
-  .forEach((f) => {
-    console.log(
-      `${f.validAt.slice(0, 10)}  ${f.predicate} ${f.object}` +
-      (f.invalidAt ? `  (superseded ${f.invalidAt.slice(0, 10)})` : ''),
-    );
-  });
-```
-
----
+`asOf` **overrides** `includeInvalidated` when both are passed. For a timeline
+of one fact, filter with `q` and sort by `validAt`.
 
 ## Gotchas
-
-**Future-dated facts.** `asOf` in the future returns facts whose `validAt` has
-arrived by then but which we already know about, including a stated future
-change. Correct, occasionally surprising.
 
 **Timezones.** A bare date is midnight **UTC**. If your users are elsewhere,
 build the instant explicitly rather than trusting a date string.
 
-**`createdAt` vs `validAt`.** A fact stated today about the past has
-`validAt` in the past but `createdAt` today. `asOf` before `createdAt` excludes
-it, we did not know it yet, even though it was true. That is the point of
+**`createdAt` vs `validAt`.** A fact stated today about the past has `validAt`
+in the past but `createdAt` today. `asOf` before `createdAt` excludes it, we
+did not know it yet, even though it was true. That is the point of
 bi-temporality.
 
-**Not free.** It is a database read with the same shape as normal recall. Cheaper
-than normal recall, actually, since it skips the embedding call.
-
----
+**Not free, but cheap.** Same shape as normal recall, minus the embedding call.
 
 ## Next
 
 - [The bi-temporal model](/concepts/bi-temporal-model/), the underlying design
 - [Curating and correcting memory](/guides/curating-memory/)
-- [Recall API](/api/recall/)

@@ -11,8 +11,6 @@ This is the platform's own spend. The tokens your application reports on
 messages (`tokens` on `addMessage`) are shown separately as _stored message
 tokens_ and never counted as cost.
 
----
-
 ## Where the numbers come from
 
 Every unit of work that costs money or time writes one row to the
@@ -39,8 +37,6 @@ estimated from characters (÷ 4).
 Logging is best-effort and off the request path: rows are buffered in memory
 and written in one batch every five seconds. A crash can lose a few seconds of
 rows; a request is never slowed.
-
----
 
 ## The page
 
@@ -72,8 +68,6 @@ New threads, messages, episodes, facts and entities per bucket.
 The raw rows, newest first, with the same filters. Expand a row for its
 request id, dataset, thread, episode, error and `meta`.
 
----
-
 ## API
 
 Dashboard-only, session-authenticated; there is no SDK counterpart.
@@ -85,8 +79,6 @@ GET /dashboard/projects/:projectId/usage/logs?limit=50[&cursor=<createdAt>]  (+ 
 ```
 
 `from` / `to` default to the last 30 days.
-
----
 
 ## Adding a model or provider
 

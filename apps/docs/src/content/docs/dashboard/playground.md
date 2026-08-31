@@ -9,8 +9,6 @@ response as it happens.
 It is a network inspector purpose-built for the memory pipeline. If you want to
 understand why something was or was not extracted, start here.
 
----
-
 ## Setup
 
 The playground runs against the project selected in the sidebar, under your
@@ -21,8 +19,6 @@ application uses, pointed at a session-authenticated mount of the same routes.
 2. Accept the generated `dataset` (`ds_a1b2c3d4`) or type your own.
 
 Using a throwaway dataset keeps experiments out of real users' memory.
-
----
 
 ## Layout
 
@@ -38,8 +34,6 @@ Using a throwaway dataset keeps experiments out of real users' memory.
 └────────────────────────────┴──────────────────────────────┘
   working / episodic / semantic settings panels
 ```
-
----
 
 ## The ops log
 
@@ -69,8 +63,6 @@ tells you exactly which facts came out of that episode.
 > The log is **in-memory and ephemeral**. Reloading the page clears it, and there
 > is no export.
 
----
-
 ## Watching extraction
 
 `useExtractionPoller` polls for new episodes every 2.5 seconds (giving up after 90) and, when one completes, fetches the facts it produced and emits a
@@ -82,7 +74,7 @@ So the normal loop is:
 2. Stop typing.
 3. End the thread, or wait out `autoEpisodeIntervalMs` (default 30 min) plus
    the scheduler tick.
-4. Watch `facts_extracted` land, ~20–60 seconds later.
+4. Watch `facts_extracted` land once the pipeline finishes.
 
 The polling GETs are deliberately **not** logged as ops, they would drown the
 signal.
@@ -90,8 +82,6 @@ signal.
 To skip the wait, use the **End thread** action, which calls
 [`POST /v1/threads/:id/end`](/api/threads/#post-v1threadsthreadidend) and
 queues extraction immediately.
-
----
 
 ## Tabs
 
@@ -125,8 +115,6 @@ be deleted, which emits a `fact_deleted` op.
 Episodes for the dataset, with summaries, key learnings and status. Failed ones
 can be retried.
 
----
-
 ## Settings panels
 
 Working, episodic and semantic settings for the session.
@@ -145,8 +133,6 @@ Lowering `autoEpisodeIntervalMs` to a second or two makes experimenting much
 faster, thread-level overrides accept values down to `1000`. Or end the
 thread; that fires immediately.
 
----
-
 ## The chat panel
 
 Messages are sent through
@@ -164,8 +150,6 @@ turns.
 
 Replies are **not streamed**; they appear when the call completes.
 
----
-
 ## What it is good for
 
 | Question                              | How                                                                       |
@@ -177,8 +161,6 @@ Replies are **not streamed**; they appear when the call completes.
 | Does raising `factsInContext` help?   | Change it in the semantic panel, re-run recall, compare                   |
 | What does a contradiction do?         | State something, then contradict it, watch the old fact become superseded |
 
----
-
 ## Limitations
 
 |                                                                |                                       |
@@ -188,8 +170,6 @@ Replies are **not streamed**; they appear when the call completes.
 | No streaming                                                   | Replies arrive all at once            |
 | Facts/Episodes tabs duplicate [Datasets](/dashboard/datasets/) | Same data, narrower view              |
 | Gemini only                                                    | The `chat` endpoint hard-codes it     |
-
----
 
 ## Next
 

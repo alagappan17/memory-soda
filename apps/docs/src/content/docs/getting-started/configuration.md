@@ -1,6 +1,6 @@
 ---
 title: 'Configuration'
-description: 'Two independent layers:'
+description: 'Environment variables for the server, project settings for memory behaviour.'
 ---
 
 Two independent layers:
@@ -8,8 +8,6 @@ Two independent layers:
 1. **Environment variables**, how the server runs. Set once, at boot.
 2. **Project settings**, how memory behaves. Editable at runtime, per project,
    with optional per-thread overrides.
-
----
 
 ## Environment variables
 
@@ -44,8 +42,6 @@ Read by `new MemorySoda()` in _your_ application, not by the server.
 
 Full details: [Environment variables](/reference/environment-variables/).
 
----
-
 ## Project settings
 
 Every project has settings for the episodic and semantic layers. They are merged
@@ -69,26 +65,9 @@ curl -X PATCH http://localhost:3004/dashboard/projects/$PROJECT_ID/settings \
 | `episodic.autoEpisodeIntervalMs`        | `1800000` | Idle time before extraction fires. Lower = fresher and costlier.                  |
 | `episodic.enabled` / `semantic.enabled` | `true`    | Turn a whole layer off.                                                           |
 
-### The rest
-
-These are retrieval-tuning constants. Changing them without measuring will
-usually make results worse. Documented in full at
-[Project settings](/reference/project-settings/).
-
-| Setting                              | Default |
-| ------------------------------------ | ------- |
-| `semantic.entityResolutionThreshold` | `0.88`  |
-| `semantic.factDedupThreshold`        | `0.95`  |
-| `semantic.contradictionBandMin`      | `0.80`  |
-| `semantic.anchorVectorMin`           | `0.75`  |
-| `semantic.anchorVectorTopK`          | `3`     |
-| `episodic.maxMessages`               | `100`   |
-| `episodic.maxRetries`                | `3`     |
-| `episodic.contextEpisodes`           | `3`     |
-| `episodic.similarityWeight`          | `0.7`   |
-| `episodic.recencyWeight`             | `0.3`   |
-
----
+Everything else (thresholds, weights, retry caps) is a retrieval-tuning
+constant; changing it without measuring will usually make results worse. Full
+list, bounds and validation: [Project settings](/reference/project-settings/).
 
 ## Per-thread overrides
 
@@ -124,8 +103,6 @@ built-in defaults  ─►  project.settings  ─►  thread.episodicSettings
 > currently **no API to set them per thread**, only episodic overrides are
 > accepted by `POST /v1/threads`.
 
----
-
 ## Compaction
 
 Off by default. Enable it per thread by setting a threshold:
@@ -141,25 +118,6 @@ await memory.createThread({
 > Otherwise messages between the summary and the retrieved tail are silently
 > dropped from context. `prepare()` returns a `warning` field when it detects
 > this. See [Handling long conversations](/guides/long-conversations/).
-
----
-
-## Validation bounds
-
-Settings are validated on write. Requests outside these ranges return `400`.
-
-| Setting                                   | Range                           |
-| ----------------------------------------- | ------------------------------- |
-| `autoEpisodeIntervalMs` (project)         | `>= 1000`, or `null` to disable |
-| `autoEpisodeIntervalMs` (thread override) | `>= 1000`, or `null`            |
-| `maxMessages`                             | 10–1000                         |
-| `contextEpisodes`                         | 1–20                            |
-| `factsInContext`                          | 1–100                           |
-| all `0..1` thresholds                     | 0–1 inclusive                   |
-| `anchorVectorTopK`                        | 1–10                            |
-| `autoCompactThreshold`                    | `>= 2`                          |
-
----
 
 ## Next
 

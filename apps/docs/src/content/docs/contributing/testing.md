@@ -1,7 +1,6 @@
 ---
-title: "Testing"
-description: "Coverage is thin. One suite exists, apps/api/src/lib/password.test.ts, and it covers password hashing only."
----
+title: 'Testing'
+description: 'Coverage is thin. One suite exists, apps/api/src/lib/password.test.ts, and it covers password hashing only.'
 ---
 
 ## Current state
@@ -20,8 +19,6 @@ The pieces that most need tests and do not have them:
 
 Contributions there are the highest-value thing in the repo.
 
----
-
 ## Running
 
 ```bash
@@ -30,8 +27,6 @@ npx nx run @memory-soda/api:test            # just the api
 node --test "apps/api/src/**/*.test.ts"     # directly
 node --test --watch "apps/api/src/**/*.test.ts"
 ```
-
----
 
 ## The setup
 
@@ -54,14 +49,12 @@ siblings by their real `.ts` path (which `tsc` rejects without
 ```ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hashPassword, verifyPassword } from './password.ts';   // ← .ts, not .js
+import { hashPassword, verifyPassword } from './password.ts'; // ← .ts, not .js
 ```
 
 > Note the extension. Application code imports `./password.js`, the ESM
 > convention. Test files import `./password.ts`, because Node resolves the real
 > file. Getting this backwards produces a confusing module-not-found.
-
----
 
 ## Writing a unit test
 
@@ -107,8 +100,6 @@ test('returns false rather than throwing on malformed input', async () => {
 
 Cheap to write, and the kind of test that earns its place.
 
----
-
 ## Integration tests
 
 Anything touching the database needs a real Postgres with `pgvector`. There is no
@@ -138,7 +129,7 @@ Delete facts **before** episodes, `facts.episode_id` is `ON DELETE SET NULL`.
 
 ### Testing around async extraction
 
-Extraction takes 20–60 seconds by default. Two ways to make it tractable:
+Extraction is asynchronous and deferred. Two ways to make it tractable in tests:
 
 ```ts
 // 1. shrink the timer
@@ -163,7 +154,8 @@ async function waitFor<T>(
   for (;;) {
     const value = await fn();
     if (done(value)) return value;
-    if (Date.now() > deadline) throw new Error('timed out waiting for condition');
+    if (Date.now() > deadline)
+      throw new Error('timed out waiting for condition');
     await new Promise((r) => setTimeout(r, interval));
   }
 }
@@ -179,10 +171,10 @@ gate on an env var:
 
 ```ts
 const LIVE = process.env.RUN_LIVE_TESTS === '1';
-test('extracts facts from a conversation', { skip: !LIVE }, async () => { /* … */ });
+test('extracts facts from a conversation', { skip: !LIVE }, async () => {
+  /* … */
+});
 ```
-
----
 
 ## Manual verification
 
@@ -215,23 +207,19 @@ curl -s -X POST localhost:3004/v1/memory/recall -H "Authorization: Bearer $KEY" 
 For the dashboard, the [Playground](/dashboard/playground/) exercises the
 whole pipeline and shows every call.
 
----
-
 ## What typecheck will not catch
 
 Real bugs found in this codebase that compiled cleanly and passed every existing
 check:
 
-| Bug | Only visible by |
-|---|---|
-| A correlated subquery binding to the wrong table, every count returned `0` | Running the query |
+| Bug                                                                                          | Only visible by     |
+| -------------------------------------------------------------------------------------------- | ------------------- |
+| A correlated subquery binding to the wrong table, every count returned `0`                   | Running the query   |
 | Drizzle wrapping pg errors, so a `23505` check never matched and returned 500 instead of 409 | Concurrent requests |
-| A Base UI component throwing because it was used outside its required parent | Clicking it |
-| The entity-anchor signal contributing arbitrary ranks to fusion | Reading results |
+| A Base UI component throwing because it was used outside its required parent                 | Clicking it         |
+| The entity-anchor signal contributing arbitrary ranks to fusion                              | Reading results     |
 
 **If you change a query, run it. If you change a component, click it.**
-
----
 
 ## Before opening a PR
 
@@ -242,8 +230,6 @@ npm run test
 ```
 
 Plus a manual pass over whatever you touched.
-
----
 
 ## Next
 

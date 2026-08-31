@@ -6,8 +6,6 @@ description: 'A complete chat turn, with your own model. This is the shape every
 A complete chat turn, with your own model. This is the shape every integration
 takes.
 
----
-
 ## The four moves
 
 1. **Get or create a thread** for this conversation.
@@ -17,8 +15,6 @@ takes.
 
 Memory Soda never calls your model for you. It gives you strings; you own the
 inference.
-
----
 
 ## Minimal version
 
@@ -81,8 +77,6 @@ function buildSystemPrompt(context: string): string {
 `context` is an **empty string** when nothing is known, a brand-new user, or a
 query that matched nothing. Always guard for it.
 
----
-
 ## Managing the thread
 
 A thread is one conversation. You decide what that means.
@@ -109,8 +103,6 @@ every conversation they ever have.
 await memory.createThread({ dataset: 'user_42' }); // Monday's chat
 await memory.createThread({ dataset: 'user_42' }); // Friday's chat, remembers Monday
 ```
-
----
 
 ## Full example: an Express endpoint
 
@@ -168,47 +160,8 @@ app.post('/chat', async (req, res) => {
 });
 ```
 
----
-
-## Making memory non-blocking
-
-Memory should never take your product down. Degrade instead:
-
-```ts
-const recalled = await memory
-  .recall({ dataset: userId, query: message })
-  .catch(() => ({ context: '', factCount: 0 })); // answer without memory
-```
-
-Same for writes, append in the background if you would rather not pay the
-latency:
-
-```ts
-void memory
-  .addMessage(threadId, { role: 'assistant', content: reply })
-  .catch((err) => logger.warn({ err }, 'memory write failed'));
-```
-
-The tradeoff: a dropped write is a fact never learned. Log it.
-
----
-
-## The opening turn
-
-The first turn is the only one that needs a thread created, and it is three
-plain calls:
-
-```ts
-const { threadId } = await memory.createThread({ dataset: userId });
-await memory.addMessage(threadId, { role: 'user', content: message });
-const { context } = await memory.recall({ dataset: userId, query: message });
-```
-
-After that the loop is just `addMessage` and `recall`, there is no separate
-opening-turn helper to learn, because the shape it would teach is wrong for
-every turn that follows.
-
----
+Production concerns, graceful degradation, streaming, latency, are covered in
+[Build a chatbot with memory](/guides/build-a-chatbot/).
 
 ## Checklist
 
@@ -218,8 +171,6 @@ every turn that follows.
 - [ ] Recall failures degrade instead of throwing
 - [ ] `messageLimit` ≥ `autoCompactThreshold` if you enable compaction ([why](/guides/long-conversations/))
 - [ ] API key in an environment variable, never in client-side code
-
----
 
 ## Next
 
