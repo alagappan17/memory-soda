@@ -4,6 +4,10 @@ import { call, describeError } from './api';
 import type { AddOp, RecallControls } from './types';
 import { day } from '../../lib/fact-status';
 import { FactRow } from './fact-row';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
 
 const DEFAULT_CONTROLS: RecallControls = {
   query: '',
@@ -108,55 +112,53 @@ export function RecallTab({
       {/* Controls */}
       <div className="p-3 border-b border-border space-y-2.5 bg-card">
         <div className="flex items-center gap-2">
-          <input
+          <Input
             value={controls.query}
             onChange={(e) =>
               setControls((c) => ({ ...c, query: e.target.value }))
             }
             onKeyDown={(e) => e.key === 'Enter' && void run()}
             placeholder="Retrieval query (blank = most recent facts)"
-            className="flex-1 min-w-0 rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
+            className="h-7 flex-1 min-w-0 text-xs md:text-xs"
           />
-          <button
+          <Button
+            size="xs"
+            className="shrink-0"
             onClick={() => void run()}
             disabled={!ready || loading}
-            className="shrink-0 text-xs px-3 py-1 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity"
           >
             {loading ? 'Recalling…' : 'Recall'}
-          </button>
+          </Button>
         </div>
 
         {/* minConfidence + limit */}
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer shrink-0">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={controls.minConfidence !== null}
-              onChange={(e) =>
+              onCheckedChange={(checked) =>
                 setControls((c) => ({
                   ...c,
-                  minConfidence: e.target.checked
-                    ? (defaultMinConfidence ?? 0.5)
-                    : null,
+                  minConfidence:
+                    checked === true ? (defaultMinConfidence ?? 0.5) : null,
                 }))
               }
             />
             minConfidence
           </label>
-          <input
-            type="range"
+          <Slider
             min={0}
             max={1}
             step={0.05}
             disabled={controls.minConfidence === null}
-            value={controls.minConfidence ?? defaultMinConfidence ?? 0.5}
-            onChange={(e) =>
+            value={[controls.minConfidence ?? defaultMinConfidence ?? 0.5]}
+            onValueChange={(v) =>
               setControls((c) => ({
                 ...c,
-                minConfidence: parseFloat(e.target.value),
+                minConfidence: Array.isArray(v) ? (v[0] ?? 0.5) : v,
               }))
             }
-            className="flex-1 min-w-0 disabled:opacity-40"
+            className="flex-1 min-w-0"
           />
           <span className="text-[10px] font-mono text-muted-foreground w-14 shrink-0">
             {controls.minConfidence !== null
@@ -166,7 +168,7 @@ export function RecallTab({
           <label className="text-[10px] text-muted-foreground shrink-0">
             limit
           </label>
-          <input
+          <Input
             type="number"
             min={1}
             max={100}
@@ -180,7 +182,7 @@ export function RecallTab({
                   : null,
               }))
             }
-            className="w-14 shrink-0 text-right rounded border border-input bg-background px-1.5 py-0.5 text-[10px] outline-none focus:ring-1 focus:ring-ring font-mono"
+            className="h-6 w-14 shrink-0 px-1.5 text-right text-[10px] md:text-[10px] font-mono"
           />
         </div>
 
@@ -197,11 +199,10 @@ export function RecallTab({
               key={key}
               className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer"
             >
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={controls[key]}
-                onChange={(e) =>
-                  setControls((c) => ({ ...c, [key]: e.target.checked }))
+                onCheckedChange={(checked) =>
+                  setControls((c) => ({ ...c, [key]: checked === true }))
                 }
               />
               {label}
@@ -209,22 +210,23 @@ export function RecallTab({
           ))}
           <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground ml-auto">
             asOf
-            <input
+            <Input
               type="datetime-local"
               value={controls.asOf}
               onChange={(e) =>
                 setControls((c) => ({ ...c, asOf: e.target.value }))
               }
-              className="rounded border border-input bg-background px-1.5 py-0.5 text-[10px] outline-none focus:ring-1 focus:ring-ring"
+              className="h-6 w-auto px-1.5 text-[10px] md:text-[10px]"
             />
             {controls.asOf && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setControls((c) => ({ ...c, asOf: '' }))}
-                className="hover:text-foreground"
                 title="Clear point-in-time"
               >
                 ✕
-              </button>
+              </Button>
             )}
           </label>
         </div>

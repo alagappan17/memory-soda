@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Lock } from 'lucide-react';
 import type {
   ProjectEpisodicSettings,
   ProjectSemanticSettings,
 } from '@memory-soda/types';
 import { getProjectSettings } from '../../lib/api';
 import type { WMSettings } from './types';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 
 function Toggle({
   on,
@@ -19,20 +23,12 @@ function Toggle({
   title?: string;
 }) {
   return (
-    <button
-      onClick={onClick}
+    <Switch
+      checked={on}
+      onCheckedChange={onClick}
       disabled={disabled}
       title={title}
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
-        on ? 'bg-primary' : 'bg-input'
-      }`}
-    >
-      <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${
-          on ? 'translate-x-4' : 'translate-x-0'
-        }`}
-      />
-    </button>
+    />
   );
 }
 
@@ -48,19 +44,76 @@ function PanelShell({
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border-b border-border shrink-0">
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 w-full justify-start gap-1.5 rounded-none px-4 text-xs md:text-xs font-medium text-muted-foreground bg-card"
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-4 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors bg-card"
       >
         <span className="font-mono">{open ? '▾' : '▸'}</span>
         {title}
-      </button>
+      </Button>
       {open && (
         <div className="px-4 pb-4 pt-1 bg-card space-y-3">{children}</div>
       )}
     </div>
   );
 }
+
+// ── Shared rows ───────────────────────────────────────────────────────────────
+
+/**
+ * Settings that travel with the thread are sent once, on threads.create(),
+ * and the server never reads them again. The panel says so up front and locks
+ * each such row, instead of a tooltip nobody hovers.
+ */
+function FrozenNotice({ what }: { what: string }) {
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-border bg-muted/50 px-2.5 py-2 text-[10px] text-muted-foreground">
+      <Lock className="mt-px size-3 shrink-0" />
+      <span>
+        Thread active. {what} were fixed when this thread was created and cannot
+        be changed now. Start a new thread to use different values.
+      </span>
+    </div>
+  );
+}
+
+function Row({
+  label,
+  hint,
+  frozen,
+  off,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  /** Sent on thread creation; locked while a thread is active. */
+  frozen?: boolean;
+  /** The feature that owns this row is switched off. */
+  off?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-3 ${frozen || off ? 'opacity-60' : ''}`}
+      title={
+        frozen ? 'Fixed for this thread' : off ? 'Enable to edit' : undefined
+      }
+    >
+      <label className="text-xs text-muted-foreground">
+        <span className="flex items-center gap-1">
+          {label}
+          {frozen && <Lock className="size-2.5" />}
+        </span>
+        {hint && <span className="block text-[10px] opacity-60">{hint}</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+const NUM = 'h-7 w-20 text-right text-xs md:text-xs';
 
 // ── Working memory ────────────────────────────────────────────────────────────
 
@@ -75,8 +128,9 @@ export function WorkingMemoryPanel({
 }) {
   return (
     <PanelShell title="Working Memory" defaultOpen={true}>
-      <div className="flex items-center justify-between">
-        <label className="text-xs text-muted-foreground">Auto-compact</label>
+      {hasThread && <FrozenNotice what="Auto-compact settings" />}
+
+      <Row label="Auto-compact" frozen={hasThread}>
         <Toggle
           on={settings.autoCompactEnabled}
           onClick={() =>
@@ -86,48 +140,36 @@ export function WorkingMemoryPanel({
             })
           }
           disabled={hasThread}
-          title={
-            hasThread ? 'Cannot change after thread is started' : undefined
-          }
         />
-      </div>
+      </Row>
 
-      {settings.autoCompactEnabled && (
-        <div className="flex items-center justify-between">
-          <label className="text-xs text-muted-foreground">
-            Compact threshold
-            <span className="block text-[10px] opacity-60">
-              messages before compact
-            </span>
-          </label>
-          <input
-            type="number"
-            min={2}
-            max={500}
-            value={settings.autoCompactThreshold}
-            onChange={(e) =>
-              onChange({
-                ...settings,
-                autoCompactThreshold: Math.max(
-                  2,
-                  parseInt(e.target.value, 10) || 2,
-                ),
-              })
-            }
-            disabled={hasThread}
-            className="w-20 text-right rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
-          />
-        </div>
-      )}
+      <Row
+        label="Compact threshold"
+        hint="messages before compact"
+        frozen={hasThread}
+        off={!settings.autoCompactEnabled}
+      >
+        <Input
+          type="number"
+          min={2}
+          max={500}
+          value={settings.autoCompactThreshold}
+          onChange={(e) =>
+            onChange({
+              ...settings,
+              autoCompactThreshold: Math.max(
+                2,
+                parseInt(e.target.value, 10) || 2,
+              ),
+            })
+          }
+          disabled={hasThread || !settings.autoCompactEnabled}
+          className={NUM}
+        />
+      </Row>
 
-      <div className="flex items-center justify-between">
-        <label className="text-xs text-muted-foreground">
-          Message limit
-          <span className="block text-[10px] opacity-60">
-            messages fetched for prepare
-          </span>
-        </label>
-        <input
+      <Row label="Message limit" hint="per prepare call, editable anytime">
+        <Input
           type="number"
           min={1}
           max={100}
@@ -141,9 +183,9 @@ export function WorkingMemoryPanel({
               ),
             })
           }
-          className="w-20 text-right rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
+          className={NUM}
         />
-      </div>
+      </Row>
 
       {settings.autoCompactEnabled &&
         settings.messageLimit < settings.autoCompactThreshold && (
@@ -152,11 +194,6 @@ export function WorkingMemoryPanel({
             summary and the tail will be skipped by prepare.
           </p>
         )}
-      {hasThread && (
-        <p className="text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1">
-          Thread active, start a new thread to change auto-compact.
-        </p>
-      )}
     </PanelShell>
   );
 }
@@ -172,29 +209,45 @@ export function EpisodicPanel({
   onChange: (s: ProjectEpisodicSettings) => void;
   hasThread: boolean;
 }) {
+  // Fixed once a thread exists, and pointless to edit while the feature is off.
+  const off = !settings.enabled;
+  const locked = hasThread || off;
+  const number = (
+    key: keyof ProjectEpisodicSettings,
+    parse: (raw: string) => number,
+  ) => (
+    <Input
+      type="number"
+      disabled={locked}
+      value={String(settings[key] ?? '')}
+      onChange={(e) => onChange({ ...settings, [key]: parse(e.target.value) })}
+      className={NUM}
+    />
+  );
+
   return (
     <PanelShell title="Episodic Memory" defaultOpen={true}>
-      <div className="flex items-center justify-between">
-        <label className="text-xs text-muted-foreground">Enabled</label>
+      {hasThread && <FrozenNotice what="Episodic settings" />}
+
+      <Row label="Enabled" frozen={hasThread}>
         <Toggle
           on={settings.enabled}
           onClick={() => onChange({ ...settings, enabled: !settings.enabled })}
           disabled={hasThread}
         />
-      </div>
+      </Row>
 
-      <div className="flex items-center justify-between">
-        <label className="text-xs text-muted-foreground">
-          Inactivity interval
-          <span className="block text-[10px] opacity-60">
-            seconds · blank = disabled
-          </span>
-        </label>
-        <input
+      <Row
+        label="Inactivity interval"
+        hint="seconds · blank = disabled"
+        frozen={hasThread}
+        off={off}
+      >
+        <Input
           type="number"
           min={1}
           placeholder="off"
-          disabled={hasThread}
+          disabled={locked}
           value={
             settings.autoEpisodeIntervalMs !== null
               ? settings.autoEpisodeIntervalMs / 1000
@@ -208,92 +261,51 @@ export function EpisodicPanel({
                 val === '' ? null : Math.max(1, parseInt(val) || 1) * 1000,
             });
           }}
-          className="w-20 text-right rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+          className={NUM}
         />
-      </div>
+      </Row>
 
-      <div className="flex items-center justify-between">
-        <label className="text-xs text-muted-foreground">
-          Max messages
-          <span className="block text-[10px] opacity-60">
-            analyzed per episode
-          </span>
-        </label>
-        <input
-          type="number"
-          min={1}
-          max={1000}
-          disabled={hasThread}
-          value={settings.maxMessages}
-          onChange={(e) =>
-            onChange({
-              ...settings,
-              maxMessages: Math.max(1, parseInt(e.target.value, 10) || 100),
-            })
-          }
-          className="w-20 text-right rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
-        />
-      </div>
+      <Row
+        label="Max messages"
+        hint="analyzed per episode"
+        frozen={hasThread}
+        off={off}
+      >
+        {number('maxMessages', (raw) => Math.max(1, parseInt(raw, 10) || 100))}
+      </Row>
 
-      <div className="flex items-center justify-between">
-        <label className="text-xs text-muted-foreground">
-          Max retries
-          <span className="block text-[10px] opacity-60">
-            on extraction failure
-          </span>
-        </label>
-        <input
-          type="number"
-          min={0}
-          max={10}
-          disabled={hasThread}
-          value={settings.maxRetries}
-          onChange={(e) =>
-            onChange({
-              ...settings,
-              maxRetries: Math.max(0, parseInt(e.target.value, 10) || 0),
-            })
-          }
-          className="w-20 text-right rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
-        />
-      </div>
+      <Row
+        label="Max retries"
+        hint="on extraction failure"
+        frozen={hasThread}
+        off={off}
+      >
+        {number('maxRetries', (raw) => Math.max(0, parseInt(raw, 10) || 0))}
+      </Row>
 
-      <div className="flex items-center justify-between">
-        <label className="text-xs text-muted-foreground">
-          Context episodes
-          <span className="block text-[10px] opacity-60">
-            injected into recall
-          </span>
-        </label>
-        <input
-          type="number"
-          min={1}
-          max={20}
-          disabled={hasThread}
-          value={settings.contextEpisodes}
-          onChange={(e) =>
-            onChange({
-              ...settings,
-              contextEpisodes: Math.max(1, parseInt(e.target.value, 10) || 3),
-            })
-          }
-          className="w-20 text-right rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
-        />
-      </div>
+      <Row
+        label="Context episodes"
+        hint="injected into recall"
+        frozen={hasThread}
+        off={off}
+      >
+        {number('contextEpisodes', (raw) =>
+          Math.max(1, parseInt(raw, 10) || 3),
+        )}
+      </Row>
 
-      <div className="flex items-center justify-between">
-        <label className="text-xs text-muted-foreground">
-          Similarity weight
-          <span className="block text-[10px] opacity-60">
-            semantic vs recency (0–1)
-          </span>
-        </label>
-        <input
+      <Row
+        label="Similarity weight"
+        hint="semantic vs recency (0–1)"
+        frozen={hasThread}
+        off={off}
+      >
+        <Input
           type="number"
           min={0}
           max={1}
           step={0.1}
-          disabled={hasThread}
+          disabled={locked}
           value={settings.similarityWeight}
           onChange={(e) => {
             const val = Math.min(
@@ -306,25 +318,20 @@ export function EpisodicPanel({
               recencyWeight: Number((1 - val).toFixed(1)),
             });
           }}
-          className="w-20 text-right rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+          className={NUM}
         />
-      </div>
+      </Row>
 
-      <div className="flex items-center justify-between opacity-60">
-        <label className="text-xs text-muted-foreground">
-          Recency weight
-          <span className="block text-[10px]">auto (1 − similarity)</span>
-        </label>
+      <Row
+        label="Recency weight"
+        hint="auto (1 − similarity)"
+        frozen={hasThread}
+        off={off}
+      >
         <span className="text-xs font-mono text-muted-foreground w-20 text-right pr-1">
           {settings.recencyWeight.toFixed(1)}
         </span>
-      </div>
-
-      {hasThread && (
-        <p className="text-[10px] text-muted-foreground bg-muted/50 rounded px-2 py-1">
-          Thread active, settings frozen at creation.
-        </p>
-      )}
+      </Row>
     </PanelShell>
   );
 }

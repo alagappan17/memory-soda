@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { KeyRound } from 'lucide-react';
-import { PasswordInput } from '@/components/password-input';
-import { ChangePasswordDialog } from '@/components/change-password-dialog';
 import type { User } from '@memory-soda/types';
 import { listUsers, createUser, deleteUser } from '@/lib/api';
 import { useAuth } from '@/providers/auth-provider';
+import { ChangePasswordDialog } from '@/components/change-password-dialog';
+import { PasswordInput } from '@/components/password-input';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -13,48 +15,39 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
-export default function UsersPage() {
-  const { user: currentUser } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+// Mounted with the dialog content, so every open starts blank.
+function CreateUserForm({
+  onCreated,
+  onClose,
+}: {
+  onCreated: (user: User) => void;
+  onClose: () => void;
+}) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const canSubmit = !saving && username.trim() && password.length >= 6;
 
-  const [showCreate, setShowCreate] = useState(false);
-  const [newUsername, setNewUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [creating, setCreating] = useState(false);
-
-  const [pendingDelete, setPendingDelete] = useState<User | null>(null);
-  const [showChangePassword, setShowChangePassword] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  async function fetchUsers() {
-    try {
-      setUsers(await listUsers());
-    } catch {
-      setError('Failed to load users');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  async function handleCreate(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!newUsername.trim() || newPassword.length < 6) return;
-    setCreating(true);
+    if (!canSubmit) return;
+    setSaving(true);
     setError(null);
     try {
-      const user = await createUser(newUsername.trim(), newPassword);
-      setUsers((prev) => [...prev, user]);
-      setNewUsername('');
-      setNewPassword('');
-      setShowCreate(false);
+      onCreated(await createUser(username.trim(), password));
+      onClose();
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response
         ?.status;
@@ -62,9 +55,76 @@ export default function UsersPage() {
         status === 409 ? 'Username already taken' : 'Failed to create user',
       );
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>New user</DialogTitle>
+        <DialogDescription>
+          A dashboard login. Every user can do everything.
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="new-username">Username</Label>
+          <Input
+            id="new-username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="off"
+            autoFocus
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="new-password">Password</Label>
+          <PasswordInput
+            id="new-password"
+            placeholder="At least 6 characters"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <DialogFooter className="mt-6">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={!canSubmit}>
+            {saving ? 'Creating…' : 'Create'}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
+  );
+}
+
+export default function UsersPage() {
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+
+  useEffect(() => {
+    listUsers()
+      .then(setUsers)
+      .catch(() => setError('Failed to load users'))
+      .finally(() => setLoading(false));
+  }, []);
 
   async function confirmDelete() {
     if (!pendingDelete) return;
@@ -73,7 +133,6 @@ export default function UsersPage() {
     try {
       await deleteUser(pendingDelete.id);
       setUsers((prev) => prev.filter((u) => u.id !== pendingDelete.id));
-      setPendingDelete(null);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response
         ?.status;
@@ -82,9 +141,9 @@ export default function UsersPage() {
           ? 'Cannot delete the last remaining user'
           : 'Failed to delete user',
       );
-      setPendingDelete(null);
     } finally {
       setDeleting(false);
+      setPendingDelete(null);
     }
   }
 
@@ -98,12 +157,7 @@ export default function UsersPage() {
               People who can sign in to this dashboard.
             </p>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="text-sm px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-          >
-            Add user
-          </button>
+          <Button onClick={() => setShowCreate(true)}>Add user</Button>
         </div>
 
         {error && (
@@ -117,116 +171,75 @@ export default function UsersPage() {
           </div>
         )}
 
-        {showCreate && (
-          <div className="mb-6 p-4 rounded-md border border-border bg-card">
-            <h2 className="text-sm font-medium mb-3">New user</h2>
-            <form onSubmit={handleCreate} className="flex flex-col gap-3">
-              <input
-                type="text"
-                placeholder="Username"
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
-                autoComplete="off"
-                className="text-sm rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
-                autoFocus
-              />
-              <PasswordInput
-                placeholder="Password (min 6 characters)"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                autoComplete="new-password"
-              />
-              <div className="flex items-center gap-3">
-                <button
-                  type="submit"
-                  disabled={
-                    creating || !newUsername.trim() || newPassword.length < 6
-                  }
-                  className="text-sm px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
-                >
-                  {creating ? 'Creating…' : 'Create'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreate(false);
-                    setNewUsername('');
-                    setNewPassword('');
-                  }}
-                  className="text-sm px-3 py-2 rounded-md border border-border hover:bg-muted transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
         <div className="rounded-md border border-border overflow-hidden">
           {loading ? (
             <div className="px-4 py-6 text-sm text-muted-foreground text-center">
               Loading…
             </div>
-          ) : users.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-muted-foreground text-center">
-              No users yet.
-            </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                    Username
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                    Created
-                  </th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr
-                    key={u.id}
-                    className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                  >
-                    <td className="px-4 py-3 font-medium">
-                      {u.username}
-                      {currentUser?.userId === u.id && (
-                        <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                          You
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {new Date(u.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {currentUser?.userId === u.id ? (
-                        <button
-                          onClick={() => setShowChangePassword(true)}
-                          aria-label="Change your password"
-                          title="Change password"
-                          className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                        >
-                          <KeyRound className="h-4 w-4" />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setPendingDelete(u)}
-                          className="text-xs text-destructive hover:underline"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map((u) => {
+                  const isSelf = currentUser?.userId === u.id;
+                  return (
+                    <TableRow key={u.id}>
+                      <TableCell className="font-medium">
+                        {u.username}
+                        {isSelf && (
+                          <Badge variant="secondary" className="ml-2">
+                            You
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(u.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isSelf ? (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => setShowChangePassword(true)}
+                            aria-label="Change your password"
+                            title="Change password"
+                          >
+                            <KeyRound />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setPendingDelete(u)}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           )}
         </div>
       </div>
+
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="sm:max-w-[425px]">
+          <CreateUserForm
+            onCreated={(user) => setUsers((prev) => [...prev, user])}
+            onClose={() => setShowCreate(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       <ChangePasswordDialog
         open={showChangePassword}
@@ -256,23 +269,21 @@ export default function UsersPage() {
               ? This cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="mt-6 flex justify-end gap-2">
-            <button
-              type="button"
+          <DialogFooter className="mt-6">
+            <Button
+              variant="outline"
               onClick={() => setPendingDelete(null)}
               disabled={deleting}
-              className="px-3.5 py-2 rounded-md border border-border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-40 cursor-pointer"
             >
               Cancel
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="destructive"
               onClick={confirmDelete}
               disabled={deleting}
-              className="px-3.5 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity cursor-pointer"
             >
               {deleting ? 'Deleting…' : 'Delete'}
-            </button>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

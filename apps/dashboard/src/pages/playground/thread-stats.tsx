@@ -1,4 +1,5 @@
 import type { WMThreadStatsResponse } from '@memory-soda/types';
+import { Button } from '@/components/ui/button';
 
 function formatSeconds(s: number): string {
   if (s < 60) return `${s}s`;
@@ -33,14 +34,16 @@ export function ThreadStats({
       {stats.sessionDuration && (
         <span>{formatSeconds(stats.sessionDuration.seconds)}</span>
       )}
-      <button
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={onRefresh}
         disabled={loading}
-        className="ml-auto font-sans text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+        className="ml-auto font-sans text-muted-foreground"
         title="Refresh thread stats"
       >
         ↻
-      </button>
+      </Button>
     </div>
   );
 }

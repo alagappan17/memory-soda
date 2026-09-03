@@ -3,6 +3,8 @@ import type { RecallResponse } from '@memory-soda/types';
 import type { Operation } from './types';
 import { JsonBlock } from './json-block';
 import { FactRow } from './fact-row';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const OP_STYLE = {
   borderColor: 'border-border',
@@ -260,9 +262,11 @@ function TurnGroup({
   const isTurn = turn.ops[0]?.type === 'message_added';
   return (
     <div className="space-y-1.5">
-      <button
+      <Button
+        variant="ghost"
+        size="xs"
+        className="w-full justify-start px-1 text-[10px] text-muted-foreground"
         onClick={() => setOpen((v) => !v)}
-        className="w-full text-left px-1 py-1 text-[10px] text-muted-foreground hover:text-foreground"
       >
         <div className="flex items-center gap-2">
           <span className="font-mono">{open ? '▾' : '▸'}</span>
@@ -287,7 +291,7 @@ function TurnGroup({
             />
           </div>
         )}
-      </button>
+      </Button>
       {open &&
         turn.ops.map((op) => (
           <OperationEntry key={op.id} op={op} relTime={relTime(op.ts)} />
@@ -417,26 +421,23 @@ export function OpsTab({
             )}
           </span>
           <label className="flex items-center gap-1 cursor-pointer ml-auto">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={apiOnly}
-              onChange={(e) => setApiOnly(e.target.checked)}
+              onCheckedChange={(v) => setApiOnly(v === true)}
             />
             API calls only
           </label>
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => exportOps(ops)}
-            className="hover:text-foreground transition-colors"
             title="Download the ops log as JSON"
           >
             export
-          </button>
-          <button
-            onClick={onClear}
-            className="hover:text-foreground transition-colors"
-          >
+          </Button>
+          <Button variant="ghost" size="xs" onClick={onClear}>
             clear
-          </button>
+          </Button>
         </div>
       )}
       <div className="flex-1 overflow-y-auto min-h-0">

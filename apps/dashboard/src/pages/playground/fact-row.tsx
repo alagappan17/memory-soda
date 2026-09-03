@@ -3,6 +3,7 @@ import type { Episode, SemanticFact } from '@memory-soda/types';
 import { Trash2 } from 'lucide-react';
 import { day, factStatus, FACT_STATUS_DOT } from '../../lib/fact-status';
 import { quiet } from './api';
+import { Button } from '@/components/ui/button';
 
 /**
  * A single fact row with bi-temporal status derived by the shared
@@ -69,17 +70,19 @@ export function FactRow({
           {rangeEnd}
         </span>
         {onDelete && !invalidated && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={(e) => {
               e.stopPropagation();
               onDelete(fact.factId);
             }}
             aria-label="Delete fact"
-            className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+            className="text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
             title="Delete fact (stamps invalidAt)"
           >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+            <Trash2 />
+          </Button>
         )}
       </div>
       {!open && fact.sourceQuote && (

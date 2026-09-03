@@ -5,6 +5,9 @@ import type { AddOp } from './types';
 import { applyFactDeletion } from '../../lib/fact-status';
 import { EntityChip } from '../../components/entity-chip';
 import { FactRow } from './fact-row';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 
 /**
  * Live view of the semantic layer for the current dataset: facts with
@@ -59,7 +62,6 @@ export function FactsTab({
     } finally {
       setLoading(false);
     }
-     
   }, [projectId, scope, q, includeInvalidated, asOf, ready]);
 
   // Entities don't depend on the fact filters, fetch once per scope
@@ -73,7 +75,6 @@ export function FactsTab({
     } catch (err) {
       setError(describeError(err, 'Failed to load entities').message);
     }
-     
   }, [projectId, scope, ready]);
 
   const load = useCallback(async () => {
@@ -136,47 +137,50 @@ export function FactsTab({
       {/* Controls */}
       <div className="p-2 border-b border-border space-y-2 bg-card">
         <div className="flex items-center gap-2">
-          <input
+          <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Keyword search facts…"
-            className="flex-1 min-w-0 rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
+            className="h-7 flex-1 min-w-0 text-xs md:text-xs"
           />
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted-foreground"
             onClick={() => void load()}
             disabled={loading || !ready}
-            className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors shrink-0"
             title="Refresh facts + entities"
           >
             ↻
-          </button>
+          </Button>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={includeInvalidated}
-              onChange={(e) => setIncludeInvalidated(e.target.checked)}
+              onCheckedChange={(v) => setIncludeInvalidated(v === true)}
               disabled={!!asOf}
             />
             include invalidated
           </label>
           <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground ml-auto">
             asOf
-            <input
+            <Input
               type="datetime-local"
               value={asOf}
               onChange={(e) => setAsOf(e.target.value)}
-              className="rounded border border-input bg-background px-1.5 py-0.5 text-[10px] outline-none focus:ring-1 focus:ring-ring"
+              className="h-6 w-auto px-1.5 text-[10px] md:text-[10px]"
               title="Point-in-time: facts that were true at this instant (overrides include invalidated)"
             />
             {asOf && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setAsOf('')}
-                className="hover:text-foreground"
+                title="Clear point-in-time"
               >
                 ✕
-              </button>
+              </Button>
             )}
           </label>
         </div>
@@ -192,12 +196,14 @@ export function FactsTab({
       {entityView ? (
         <div className="p-2 space-y-2">
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
+              className="text-muted-foreground"
               onClick={() => setEntityView(null)}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               ← back
-            </button>
+            </Button>
             <span className="text-xs font-semibold capitalize">
               {entityView.name}
             </span>

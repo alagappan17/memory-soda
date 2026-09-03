@@ -28,12 +28,23 @@ import { RecallTab } from './recall-tab';
 import { FactsTab } from './facts-tab';
 import { EpisodesTab } from './episodes-tab';
 import { PromptTab } from './prompt-tab';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const DEFAULT_EPISODIC = DEFAULT_EPISODIC_SETTINGS;
 
 let requestIdSeq = 0;
 
 type RightTab = 'ops' | 'prompt' | 'episodes' | 'recall' | 'facts';
+
+const RIGHT_TABS: [RightTab, string][] = [
+  ['ops', 'Ops'],
+  ['prompt', 'Prompt'],
+  ['episodes', 'Episodes'],
+  ['recall', 'Recall'],
+  ['facts', 'Facts'],
+];
 
 export default function PlaygroundPage() {
   // The playground runs against the project picked in the sidebar, under the
@@ -493,38 +504,40 @@ export default function PlaygroundPage() {
           <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
             Dataset
           </span>
-          <input
+          <Input
             value={dataset}
             onChange={(e) => setDataset(e.target.value)}
             disabled={hasThread}
             placeholder="ds_..."
-            className="w-32 rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring font-mono disabled:opacity-50"
+            className="h-7 w-32 text-xs md:text-xs font-mono"
           />
           <CopyButton text={dataset} title="Copy dataset" />
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => void compactNow()}
             disabled={!hasThread || !projectId || compacting || sending}
-            className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors"
           >
             {compacting ? 'Compacting…' : 'Compact now'}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => void endThreadNow()}
             disabled={!hasThread || !projectId || sending || compacting}
-            className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted disabled:opacity-40 transition-colors"
           >
             End thread
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
             onClick={newThread}
             disabled={sending || compacting}
-            className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity"
           >
             New thread
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -570,29 +583,22 @@ export default function PlaygroundPage() {
           />
 
           {/* Tab bar */}
-          <div className="flex border-b border-border shrink-0 bg-card">
-            {(
-              [
-                ['ops', 'Ops'],
-                ['prompt', 'Prompt'],
-                ['episodes', 'Episodes'],
-                ['recall', 'Recall'],
-                ['facts', 'Facts'],
-              ] as [RightTab, string][]
-            ).map(([tab, label]) => (
-              <button
-                key={tab}
-                onClick={() => setRightTab(tab)}
-                className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-                  rightTab === tab
-                    ? 'text-foreground border-b-2 border-primary'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            value={rightTab}
+            onValueChange={(v) => {
+              const hit = RIGHT_TABS.find(([tab]) => tab === v);
+              if (hit) setRightTab(hit[0]);
+            }}
+            className="shrink-0 border-b border-border bg-card"
+          >
+            <TabsList variant="line" className="w-full">
+              {RIGHT_TABS.map(([tab, label]) => (
+                <TabsTrigger key={tab} value={tab} className="flex-1 text-xs">
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
           {/* Tabs stay mounted so their state (filters, results) survives
               switching; each hides itself when inactive. */}

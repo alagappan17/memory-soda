@@ -14,6 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 // ── Message meta + detail card ────────────────────────────────────────────────
 //
@@ -165,8 +168,13 @@ const ROLES: { value: MessageRole; hint: string }[] = [
   { value: 'tool', hint: 'a tool result the model saw' },
 ];
 
-const FIELD =
-  'rounded-md border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring font-mono placeholder:font-sans placeholder:text-muted-foreground';
+const FIELD = 'h-7 text-xs md:text-xs font-mono placeholder:font-sans';
+// Compact, bordered textarea matching the inputs around it; the shadcn default
+// is a tall filled block meant for forms, not a dev tool.
+const AREA =
+  'min-h-0 rounded-md border border-input bg-background px-3 py-2 text-xs md:text-xs font-mono placeholder:font-sans';
+const SECTION_HEADER =
+  'h-8 w-full justify-start gap-1.5 rounded-none px-4 text-xs md:text-xs font-normal text-muted-foreground';
 
 function ManualMessageForm({
   onSubmit,
@@ -214,7 +222,7 @@ function ManualMessageForm({
       set(e.target.value.replace(/\D/g, ''));
 
   return (
-    <div className="px-4 pb-3 space-y-2">
+    <div className="px-4 pb-3 pt-1 space-y-2">
       <div className="flex items-center gap-2">
         <Select value={role} onValueChange={(v) => setRole(v as MessageRole)}>
           <SelectTrigger className="h-7 w-32 rounded-md px-2 text-xs font-mono">
@@ -229,13 +237,15 @@ function ManualMessageForm({
             ))}
           </SelectContent>
         </Select>
-        <button
+        <Button
+          variant="ghost"
+          size="xs"
+          className="text-muted-foreground"
           onClick={() => setShowMeta((v) => !v)}
-          className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
         >
           {showMeta ? 'hide' : 'add'} metadata
           {metaCount ? ` (${metaCount})` : ''}
-        </button>
+        </Button>
         <span className="ml-auto text-[10px] text-muted-foreground">
           inserts without an AI reply
         </span>
@@ -243,27 +253,27 @@ function ManualMessageForm({
 
       {showMeta && (
         <div className="grid grid-cols-4 gap-2">
-          <input
+          <Input
             value={model}
             onChange={(e) => setModel(e.target.value)}
             placeholder="model"
             className={FIELD}
           />
-          <input
+          <Input
             value={latencyMs}
             onChange={digits(setLatencyMs)}
             inputMode="numeric"
             placeholder="latency ms"
             className={FIELD}
           />
-          <input
+          <Input
             value={tokensIn}
             onChange={digits(setTokensIn)}
             inputMode="numeric"
             placeholder="tokens in"
             className={FIELD}
           />
-          <input
+          <Input
             value={tokensOut}
             onChange={digits(setTokensOut)}
             inputMode="numeric"
@@ -273,7 +283,7 @@ function ManualMessageForm({
         </div>
       )}
 
-      <textarea
+      <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={(e) => {
@@ -284,17 +294,13 @@ function ManualMessageForm({
         }}
         placeholder={`${role} message…`}
         rows={3}
-        className={`w-full resize-none px-3 py-2 ${FIELD}`}
+        className={`w-full resize-none ${AREA}`}
       />
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-muted-foreground">⌘↵ to add</span>
-        <button
-          onClick={() => void submit()}
-          disabled={!canSubmit}
-          className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity"
-        >
+        <Button size="sm" onClick={() => void submit()} disabled={!canSubmit}>
           {submitting ? 'Adding…' : `Add ${role} message`}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -351,21 +357,23 @@ export function ChatPanel({
     <div className="flex flex-col flex-1 min-w-0 border-r border-border">
       {/* System prompt */}
       <div className="border-b border-border shrink-0">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
+          className={SECTION_HEADER}
           onClick={() => setShowSystemPrompt((v) => !v)}
-          className="w-full px-4 py-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors text-left"
         >
           <span className="font-mono">{showSystemPrompt ? '▾' : '▸'}</span>
           System prompt
-        </button>
+        </Button>
         {showSystemPrompt && (
-          <div className="px-4 pb-3">
-            <textarea
+          <div className="px-4 pb-3 pt-1">
+            <Textarea
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               placeholder="You are a helpful assistant…"
               rows={3}
-              className="w-full text-xs rounded border border-input bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring resize-none font-mono"
+              className={`w-full resize-none ${AREA}`}
             />
             <p className="text-[10px] text-muted-foreground mt-1">
               Sent to the AI with each message (user role only).
@@ -376,13 +384,15 @@ export function ChatPanel({
 
       {/* Manual raw message */}
       <div className="border-b border-border shrink-0">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
+          className={SECTION_HEADER}
           onClick={() => setShowManual((v) => !v)}
-          className="w-full px-4 py-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors text-left"
         >
           <span className="font-mono">{showManual ? '▾' : '▸'}</span>
           Add raw message
-        </button>
+        </Button>
         {showManual && (
           <ManualMessageForm
             onSubmit={onAddManualMessage}
@@ -496,7 +506,7 @@ export function ChatPanel({
       {/* Input */}
       <div className="border-t border-border px-4 py-3 shrink-0">
         <div className="flex items-end gap-2">
-          <textarea
+          <Textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -504,16 +514,16 @@ export function ChatPanel({
             placeholder="Message… (Enter to send)"
             rows={1}
             disabled={sending}
-            className="flex-1 resize-none rounded-lg border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 max-h-40 overflow-y-auto"
-            style={{ minHeight: '42px' }}
+            className="min-h-9 flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm max-h-40 overflow-y-auto"
           />
-          <button
+          <Button
+            size="lg"
+            className="shrink-0"
             onClick={send}
             disabled={!canSend}
-            className="shrink-0 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
           >
             Send
-          </button>
+          </Button>
         </div>
       </div>
     </div>

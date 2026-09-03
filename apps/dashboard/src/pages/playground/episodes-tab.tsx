@@ -4,6 +4,15 @@ import { EPISODE_STATUS_STYLES } from '../../lib/episode-status';
 import { call, adminCall, describeError } from './api';
 import { CopyButton } from '../../components/copy-button';
 import type { AddOp } from './types';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const STATUS_FILTERS: EpisodeStatus[] = [
   'completed',
@@ -161,36 +170,42 @@ function EpisodeCard({
 
           <div className="flex items-center gap-2 pt-1">
             {episode.status === 'failed' && (
-              <button
+              <Button
+                variant="outline"
+                size="xs"
                 onClick={() => onRetry(episode.episodeId)}
-                className="text-[10px] px-2 py-1 rounded border border-border hover:bg-muted transition-colors"
               >
                 ↺ Retry extraction
-              </button>
+              </Button>
             )}
             {episode.status !== 'archived' &&
               (confirmDelete ? (
                 <span className="flex items-center gap-1.5 text-[10px]">
-                  <button
+                  <Button
+                    variant="destructive"
+                    size="xs"
                     onClick={() => onDelete(episode.episodeId)}
-                    className="px-2 py-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
                   >
                     Confirm delete
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="text-muted-foreground"
                     onClick={() => setConfirmDelete(false)}
-                    className="text-muted-foreground hover:text-foreground"
                   >
                     cancel
-                  </button>
+                  </Button>
                 </span>
               ) : (
-                <button
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="text-muted-foreground hover:text-destructive"
                   onClick={() => setConfirmDelete(true)}
-                  className="text-[10px] px-2 py-1 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
                 >
                   − Delete
-                </button>
+                </Button>
               ))}
           </div>
         </div>
@@ -357,7 +372,7 @@ export function EpisodesTab({
       {/* Controls */}
       <div className="p-2 border-b border-border space-y-2 bg-card">
         <div className="flex items-center gap-2">
-          <input
+          <Input
             value={searchQ}
             onChange={(e) => {
               setSearchQ(e.target.value);
@@ -365,58 +380,68 @@ export function EpisodesTab({
             }}
             onKeyDown={(e) => e.key === 'Enter' && void search()}
             placeholder="Semantic search episodes…"
-            className="flex-1 min-w-0 rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
+            className="h-7 flex-1 min-w-0 text-xs md:text-xs"
           />
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted-foreground"
             onClick={() => void search()}
             disabled={!ready || !searchQ.trim() || loading}
-            className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors shrink-0"
             title="Semantic search"
           >
             ⌕
-          </button>
+          </Button>
         </div>
         <div className="flex items-center gap-2">
-          <select
+          <Select<EpisodeStatus>
             value={status}
-            onChange={(e) => {
-              const st = e.target.value as EpisodeStatus;
+            onValueChange={(st) => {
+              if (!st) return;
               setStatus(st);
               void load({ statusOverride: st });
             }}
             disabled={searchMode}
-            className="rounded border border-input bg-background px-2 py-1 text-[10px] outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
           >
-            {STATUS_FILTERS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="h-6 w-auto min-w-24 px-2 text-[10px]">
+              <SelectValue>{status}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_FILTERS.map((s) => (
+                <SelectItem key={s} value={s} className="text-xs">
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {searchMode && (
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
+              className="text-muted-foreground"
               onClick={() => {
                 setSearchQ('');
                 void load({ silent: true });
               }}
-              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
             >
               ✕ clear search
-            </button>
+            </Button>
           )}
           <span className="text-[10px] text-muted-foreground ml-auto">
             {loading
               ? 'Loading…'
               : `${episodes.length} episode${episodes.length !== 1 ? 's' : ''}`}
           </span>
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted-foreground"
             onClick={() => void load()}
             disabled={loading || !ready}
-            className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
             title="Refresh episodes"
           >
             ↻
-          </button>
+          </Button>
         </div>
       </div>
 
