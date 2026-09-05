@@ -16,8 +16,8 @@ import { startWorker } from './worker.js';
 import { usageLogs } from './db/schema.js';
 import { flush, startUsageFlusher } from './lib/usage.js';
 
-// In compiled output (dist/apps/api/src/), drizzle/ sits at dist/drizzle/.
-const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle');
+// esbuild emits main.js and drizzle/ as siblings under dist/.
+const MIGRATIONS_FOLDER = path.join(__dirname, 'drizzle');
 
 const { host, port } = config.server;
 
