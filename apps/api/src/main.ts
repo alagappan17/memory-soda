@@ -16,8 +16,10 @@ import { startWorker } from './worker.js';
 import { usageLogs } from './db/schema.js';
 import { flush, startUsageFlusher } from './lib/usage.js';
 
-// esbuild emits main.js and drizzle/ as siblings under dist/.
-const MIGRATIONS_FOLDER = path.join(__dirname, 'drizzle');
+// The runtime entry is the nested dist/apps/api/src/main.js esbuild dispatches
+// to (dist/main.js is just its module-resolution shim), so __dirname sits 3
+// levels below dist/, where drizzle/ actually lives.
+const MIGRATIONS_FOLDER = path.join(__dirname, '../../../drizzle');
 
 const { host, port } = config.server;
 
