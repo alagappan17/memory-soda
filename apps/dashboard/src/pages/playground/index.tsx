@@ -32,7 +32,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-const DEFAULT_EPISODIC = DEFAULT_EPISODIC_SETTINGS;
+// Playground default is shorter than the project default (30 min): testing
+// wants a fact within seconds, not a real session-length pause.
+const DEFAULT_EPISODIC: ProjectEpisodicSettings = {
+  ...DEFAULT_EPISODIC_SETTINGS,
+  autoEpisodeIntervalMs: 10_000,
+};
 
 let requestIdSeq = 0;
 

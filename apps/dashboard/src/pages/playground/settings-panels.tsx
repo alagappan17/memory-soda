@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Lock } from 'lucide-react';
+import { Info, Lock } from 'lucide-react';
 import type {
   ProjectEpisodicSettings,
   ProjectSemanticSettings,
@@ -10,6 +10,34 @@ import type { WMSettings } from './types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+// Definition, range, default, and what raising/lowering it does — kept to a
+// couple of sentences so it fits a tooltip.
+function InfoTip({ children }: { children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-label="About this setting"
+            className="text-muted-foreground hover:text-foreground cursor-help"
+          />
+        }
+      >
+        <Info className="size-2.5" />
+      </TooltipTrigger>
+      <TooltipContent side="right" className="max-w-64">
+        {children}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 function Toggle({
   on,
@@ -82,12 +110,15 @@ function FrozenNotice({ what }: { what: string }) {
 function Row({
   label,
   hint,
+  info,
   frozen,
   off,
   children,
 }: {
   label: string;
   hint?: string;
+  /** Definition, range, default, and effect of raising/lowering — shown on hover. */
+  info?: React.ReactNode;
   /** Sent on thread creation; locked while a thread is active. */
   frozen?: boolean;
   /** The feature that owns this row is switched off. */
@@ -104,6 +135,7 @@ function Row({
       <label className="text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           {label}
+          {info && <InfoTip>{info}</InfoTip>}
           {frozen && <Lock className="size-2.5" />}
         </span>
         {hint && <span className="block text-[10px] opacity-60">{hint}</span>}
@@ -130,7 +162,11 @@ export function WorkingMemoryPanel({
     <PanelShell title="Working Memory" defaultOpen={true}>
       {hasThread && <FrozenNotice what="Auto-compact settings" />}
 
-      <Row label="Auto-compact" frozen={hasThread}>
+      <Row
+        label="Auto-compact"
+        frozen={hasThread}
+        info="Summarizes older messages into one compact summary once the thread crosses the threshold below. Default: off. On: keeps prepare() fast on long threads; off: full history is sent every time until you compact manually."
+      >
         <Toggle
           on={settings.autoCompactEnabled}
           onClick={() =>
@@ -148,6 +184,7 @@ export function WorkingMemoryPanel({
         hint="messages before compact"
         frozen={hasThread}
         off={!settings.autoCompactEnabled}
+        info="Number of messages in a thread before auto-compact fires. Range: 2-500. Default: 10. Lower = summarizes sooner, losing detail earlier but keeping calls fast; higher = keeps more raw history but prepare() slows down."
       >
         <Input
           type="number"
@@ -168,7 +205,11 @@ export function WorkingMemoryPanel({
         />
       </Row>
 
-      <Row label="Message limit" hint="per prepare call, editable anytime">
+      <Row
+        label="Message limit"
+        hint="per prepare call, editable anytime"
+        info="Max messages returned per prepare() call. Range: 1-100. Default: 20. Lower = smaller, cheaper prompts; higher = more context but slower and costlier calls."
+      >
         <Input
           type="number"
           min={1}
@@ -229,7 +270,11 @@ export function EpisodicPanel({
     <PanelShell title="Episodic Memory" defaultOpen={true}>
       {hasThread && <FrozenNotice what="Episodic settings" />}
 
-      <Row label="Enabled" frozen={hasThread}>
+      <Row
+        label="Enabled"
+        frozen={hasThread}
+        info="Turns episode generation on/off for this thread. Default: on. Off: no episodes are generated, and semantic fact extraction (which reads episodes) never runs."
+      >
         <Toggle
           on={settings.enabled}
           onClick={() => onChange({ ...settings, enabled: !settings.enabled })}
@@ -242,6 +287,7 @@ export function EpisodicPanel({
         hint="seconds · blank = disabled"
         frozen={hasThread}
         off={off}
+        info="Seconds of silence after the last message before an episode is generated. Range: 1s+, blank disables the timer. Project default: 1800s (30 min). Lower = facts land sooner but more LLM extraction calls; higher = fewer calls but facts lag behind the conversation."
       >
         <Input
           type="number"
@@ -265,11 +311,18 @@ export function EpisodicPanel({
         />
       </Row>
 
+      <p className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded px-2 py-1">
+        Playground only: this interval is set to 10s (real projects default to
+        30 min) so episodes, and the facts extracted from them, show up almost
+        instantly while you test.
+      </p>
+
       <Row
         label="Max messages"
         hint="analyzed per episode"
         frozen={hasThread}
         off={off}
+        info="Max messages analyzed per episode. Range: 1+. Default: 100. Lower = cheaper, faster extraction but may cut off long exchanges; higher = full coverage but slower per-episode calls."
       >
         {number('maxMessages', (raw) => Math.max(1, parseInt(raw, 10) || 100))}
       </Row>
@@ -279,6 +332,7 @@ export function EpisodicPanel({
         hint="on extraction failure"
         frozen={hasThread}
         off={off}
+        info="Retries on extraction failure before giving up. Range: 0+. Default: 3. Higher = more resilient to transient LLM errors but slower to surface a real failure; 0 = fail fast, no retry."
       >
         {number('maxRetries', (raw) => Math.max(0, parseInt(raw, 10) || 0))}
       </Row>
@@ -288,6 +342,7 @@ export function EpisodicPanel({
         hint="injected into recall"
         frozen={hasThread}
         off={off}
+        info="Number of past episodes injected into recall() context. Range: 1+. Default: 3. Higher = more historical context but bigger prompts; lower = leaner but less continuity."
       >
         {number('contextEpisodes', (raw) =>
           Math.max(1, parseInt(raw, 10) || 3),
@@ -299,6 +354,7 @@ export function EpisodicPanel({
         hint="semantic vs recency (0–1)"
         frozen={hasThread}
         off={off}
+        info="Weight given to semantic similarity vs. recency when ranking episodes for recall. Range: 0-1. Default: 0.7. Higher = favors topically similar episodes; lower = favors recent ones. Recency weight is always 1 minus this."
       >
         <Input
           type="number"
@@ -327,6 +383,7 @@ export function EpisodicPanel({
         hint="auto (1 − similarity)"
         frozen={hasThread}
         off={off}
+        info="Weight given to recency when ranking episodes for recall. Not directly editable, always 1 minus similarity weight. Default: 0.3."
       >
         <span className="text-xs font-mono text-muted-foreground w-20 text-right pr-1">
           {settings.recencyWeight.toFixed(1)}
@@ -342,34 +399,55 @@ const SEMANTIC_ROWS: {
   key: keyof ProjectSemanticSettings;
   label: string;
   hint: string;
+  info: string;
 }[] = [
-  { key: 'enabled', label: 'Enabled', hint: 'fact extraction on/off' },
+  {
+    key: 'enabled',
+    label: 'Enabled',
+    hint: 'fact extraction on/off',
+    info: 'Turns semantic fact extraction on/off for the project. Default: on. Off: episodes are still generated but no facts or entities are extracted from them.',
+  },
   {
     key: 'retrievalMinConfidence',
     label: 'Min confidence',
     hint: 'retrieval floor, all facts stored',
+    info: 'Confidence floor for facts returned by recall(); every extracted fact is stored regardless of confidence. Range: 0-1. Default: 0.5. Higher = fewer, more certain facts surfaced; lower = more facts but noisier.',
   },
-  { key: 'factsInContext', label: 'Facts in context', hint: 'recall limit' },
+  {
+    key: 'factsInContext',
+    label: 'Facts in context',
+    hint: 'recall limit',
+    info: 'Max facts injected into recall() context. Default: 8. Higher = richer context but bigger prompts; lower = leaner but may miss relevant facts.',
+  },
   {
     key: 'entityResolutionThreshold',
     label: 'Entity resolution',
     hint: 'merge similarity',
+    info: 'Cosine similarity above which two entity mentions are merged into one. Range: 0-1. Default: 0.88. Higher = stricter, more duplicate entities slip through; lower = looser, risks merging distinct entities.',
   },
-  { key: 'factDedupThreshold', label: 'Fact dedup', hint: 'duplicate cutoff' },
+  {
+    key: 'factDedupThreshold',
+    label: 'Fact dedup',
+    hint: 'duplicate cutoff',
+    info: 'Similarity above which a new fact is treated as a duplicate of an existing one. Range: 0-1. Default: 0.95. Higher = more near-duplicate facts kept separately; lower = more aggressive deduping, risking lost nuance.',
+  },
   {
     key: 'contradictionBandMin',
     label: 'Contradiction band',
     hint: 'invalidation floor',
+    info: 'Lower bound of similarity where a new fact is checked against existing ones for contradiction. Range: 0-1. Default: 0.8. Lower = checks a wider range of facts for conflicts, more invalidations; higher = narrower, fewer checks.',
   },
   {
     key: 'anchorVectorMin',
     label: 'Anchor vector min',
     hint: 'entity retrieval floor',
+    info: 'Minimum similarity for an entity to anchor retrieval. Range: 0-1. Default: 0.75. Lower = more entities considered, more recall but more noise; higher = fewer, more precise anchors.',
   },
   {
     key: 'anchorVectorTopK',
     label: 'Anchor top-K',
     hint: 'entities per query',
+    info: 'Max entities anchored per recall query. Default: 3. Higher = broader entity coverage but bigger prompts; lower = narrower and cheaper.',
   },
 ];
 
@@ -408,10 +486,13 @@ export function SemanticPanel({
         <p className="text-[10px] text-muted-foreground">Loading…</p>
       ) : (
         <>
-          {SEMANTIC_ROWS.map(({ key, label, hint }) => (
+          {SEMANTIC_ROWS.map(({ key, label, hint, info }) => (
             <div key={key} className="flex items-center justify-between">
               <label className="text-xs text-muted-foreground">
-                {label}
+                <span className="flex items-center gap-1">
+                  {label}
+                  <InfoTip>{info}</InfoTip>
+                </span>
                 <span className="block text-[10px] opacity-60">{hint}</span>
               </label>
               <span className="text-xs font-mono text-muted-foreground">
