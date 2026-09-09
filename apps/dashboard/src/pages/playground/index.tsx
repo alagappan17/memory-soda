@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ProjectSemanticSettings,
   WMAddMessageRequest,
@@ -27,6 +27,7 @@ import { OpsTab } from './ops-tab';
 import { RecallTab } from './recall-tab';
 import { FactsTab } from './facts-tab';
 import { EpisodesTab } from './episodes-tab';
+import { LazyGraphTab as GraphTab } from './graph-tab-lazy';
 import { PromptTab } from './prompt-tab';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,7 @@ const DEFAULT_EPISODIC: ProjectEpisodicSettings = {
 
 let requestIdSeq = 0;
 
-type RightTab = 'ops' | 'prompt' | 'episodes' | 'recall' | 'facts';
+type RightTab = 'ops' | 'prompt' | 'episodes' | 'recall' | 'facts' | 'graph';
 
 const RIGHT_TABS: [RightTab, string][] = [
   ['ops', 'Ops'],
@@ -49,6 +50,7 @@ const RIGHT_TABS: [RightTab, string][] = [
   ['episodes', 'Episodes'],
   ['recall', 'Recall'],
   ['facts', 'Facts'],
+  ['graph', 'Graph'],
 ];
 
 export default function PlaygroundPage() {
@@ -64,6 +66,11 @@ export default function PlaygroundPage() {
   const [threadStartedAt, setThreadStartedAt] = useState<number | null>(null);
   const [messages, setMessages] = useState<WMMessage[]>([]);
   const [rightTab, setRightTab] = useState<RightTab>('ops');
+  // Graph is lazy-loaded; once opened it stays mounted like the other tabs
+  // (so its loaded data survives switching away), it just starts later.
+  const graphOpenedRef = useRef(false);
+  if (rightTab === 'graph') graphOpenedRef.current = true;
+  const graphOpened = graphOpenedRef.current;
   const currentRequestId = useRef<number>(0);
 
   const [episodicSettings, setEpisodicSettings] =
@@ -649,6 +656,24 @@ export default function PlaygroundPage() {
             addOp={addOp}
             threshold={semanticSettings?.retrievalMinConfidence ?? null}
           />
+          {graphOpened && (
+            <Suspense
+              fallback={
+                <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+                  Loading graph…
+                </div>
+              }
+            >
+              <GraphTab
+                key={`${projectId}:${dataset}`}
+                projectId={projectId}
+                dataset={dataset}
+                active={rightTab === 'graph'}
+                addOp={addOp}
+                threadId={threadId}
+              />
+            </Suspense>
+          )}
         </div>
       </div>
     </div>

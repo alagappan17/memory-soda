@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SemanticEntity, SemanticFact } from '@memory-soda/types';
 import { call, quiet, describeError } from './api';
-import type { AddOp } from './types';
+import { noopAddOp, type AddOp } from './types';
 import { applyFactDeletion } from '../../lib/fact-status';
 import { EntityChip } from '../../components/entity-chip';
 import { FactRow } from './fact-row';
@@ -13,17 +13,19 @@ import { Checkbox } from '@/components/ui/checkbox';
  * Live view of the semantic layer for the current dataset: facts with
  * bi-temporal status + provenance, entity chips with drill-down, soft-delete.
  */
+
 export function FactsTab({
   projectId,
   dataset,
   active,
-  addOp,
+  addOp = noopAddOp,
   threshold,
 }: {
   projectId: string;
   dataset: string;
   active: boolean;
-  addOp: AddOp;
+  /** Omit on pages with no ops log (e.g. the dataset browser). */
+  addOp?: AddOp;
   threshold: number | null;
 }) {
   const [facts, setFacts] = useState<SemanticFact[]>([]);

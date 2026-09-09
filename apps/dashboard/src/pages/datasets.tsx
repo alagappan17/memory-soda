@@ -1,33 +1,18 @@
-import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useProject } from '../providers/project-provider';
 import { Markdown } from '../components/markdown';
-import { EPISODE_STATUS_STYLES } from '../lib/episode-status';
-import {
-  day,
-  factStatus,
-  applyFactDeletion,
-  FACT_STATUS_DOT,
-} from '../lib/fact-status';
-import { EntityChip } from '../components/entity-chip';
 import api, { getProjectSettings } from '../lib/api';
-import { quiet } from './playground/api';
-import type {
-  DatasetSummary,
-  SemanticFact,
-  SemanticEntity,
-  Episode,
-  EpisodeStatus,
-} from '@memory-soda/types';
+import { FactsTab } from './playground/facts-tab';
+import { EpisodesTab } from './playground/episodes-tab';
+import { LazyGraphTab as GraphTab } from './playground/graph-tab-lazy';
+import type { DatasetSummary } from '@memory-soda/types';
 import {
   RefreshCw,
   Search,
-  Trash2,
   MessagesSquare,
   BookOpen,
   Layers,
-  AlertCircle,
-  ArrowRight,
-  ChevronRight,
+  Network,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -61,12 +46,9 @@ function relTime(iso: string | null): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-const dateTime = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleString() : '-';
-
 // ── Page ────────────────────────────────────────────────────────────────────────
 
-type Tab = 'dossier' | 'conversations' | 'episodes';
+type Tab = 'dossier' | 'conversations' | 'episodes' | 'graph';
 
 export default function DatasetsPage() {
   const { selectedProject } = useProject();
@@ -84,6 +66,19 @@ export default function DatasetsPage() {
   const [episodeThreadFilter, setEpisodeThreadFilter] = useState<string | null>(
     null,
   );
+  const [graphThreadFilter, setGraphThreadFilter] = useState<string | null>(
+    null,
+  );
+
+  // Semantic settings' confidence floor, same fetch the playground's
+  // SemanticPanel does, hoisted here so the Dossier (Facts) tab has it.
+  const [threshold, setThreshold] = useState<number | null>(null);
+  useEffect(() => {
+    if (!projectId) return;
+    getProjectSettings(projectId)
+      .then((res) => setThreshold(res.settings.semantic.retrievalMinConfidence))
+      .catch(() => setThreshold(null));
+  }, [projectId]);
 
   const fetchDatasets = useCallback(async () => {
     if (!projectId) return;
@@ -114,6 +109,7 @@ export default function DatasetsPage() {
     setTab('dossier');
     setActiveThreadId(null);
     setEpisodeThreadFilter(null);
+    setGraphThreadFilter(null);
   }
 
   // Cross-tab navigation.
@@ -121,6 +117,11 @@ export default function DatasetsPage() {
     setActiveThreadId(threadId);
     setEpisodeThreadFilter(threadId);
     setTab('episodes');
+  };
+  const viewGraphForThread = (threadId: string) => {
+    setActiveThreadId(threadId);
+    setGraphThreadFilter(threadId);
+    setTab('graph');
   };
   const viewConversation = (threadId: string) => {
     setActiveThreadId(threadId);
@@ -225,11 +226,26 @@ export default function DatasetsPage() {
                 >
                   Episodes
                 </TabButton>
+                <TabButton
+                  active={tab === 'graph'}
+                  onClick={() => {
+                    setTab('graph');
+                    setGraphThreadFilter(null);
+                  }}
+                  icon={<Network className="h-3.5 w-3.5" />}
+                >
+                  Graph
+                </TabButton>
               </div>
             </div>
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               {projectId && tab === 'dossier' && (
-                <DossierTab projectId={projectId} dataset={selectedDataset} />
+                <FactsTab
+                  projectId={projectId}
+                  dataset={selectedDataset}
+                  active={true}
+                  threshold={threshold}
+                />
               )}
               {projectId && tab === 'conversations' && (
                 <ConversationsTab
@@ -238,16 +254,36 @@ export default function DatasetsPage() {
                   selectedThreadId={activeThreadId}
                   onSelectThread={setActiveThreadId}
                   onViewEpisodes={viewEpisodesForThread}
+                  onViewGraph={viewGraphForThread}
                 />
               )}
               {projectId && tab === 'episodes' && (
                 <EpisodesTab
                   projectId={projectId}
                   dataset={selectedDataset}
+                  active={true}
+                  limit={100}
                   threadFilter={episodeThreadFilter}
-                  onClearFilter={() => setEpisodeThreadFilter(null)}
+                  onClearThreadFilter={() => setEpisodeThreadFilter(null)}
                   onViewConversation={viewConversation}
                 />
+              )}
+              {projectId && tab === 'graph' && (
+                <Suspense
+                  fallback={
+                    <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+                      Loading graph…
+                    </div>
+                  }
+                >
+                  <GraphTab
+                    key={`${projectId}:${selectedDataset}`}
+                    projectId={projectId}
+                    dataset={selectedDataset}
+                    active={true}
+                    threadId={graphThreadFilter}
+                  />
+                </Suspense>
               )}
             </div>
           </>
@@ -276,152 +312,6 @@ function TabButton({
       {icon}
       {children}
     </button>
-  );
-}
-
-// ── Dossier tab ───────────────────────────────────────────────────────────────
-
-function DossierTab({
-  projectId,
-  dataset,
-}: {
-  projectId: string;
-  dataset: string;
-}) {
-  const [facts, setFacts] = useState<SemanticFact[]>([]);
-  const [entities, setEntities] = useState<SemanticEntity[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showInvalidated, setShowInvalidated] = useState(false);
-  const [threshold, setThreshold] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getProjectSettings(projectId)
-      .then((res) => setThreshold(res.settings.semantic.retrievalMinConfidence))
-      .catch(() => setThreshold(null));
-  }, [projectId]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [f, entities] = await Promise.all([
-        quiet(projectId, (m) =>
-          m.listFacts(dataset, {
-            includeInvalidated: showInvalidated,
-            limit: 200,
-          }),
-        ),
-        quiet(projectId, (m) => m.listEntities(dataset)),
-      ]);
-      setFacts(f.facts);
-      setEntities(entities);
-    } catch {
-      setError('Failed to load dossier');
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, dataset, showInvalidated]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function remove(factId: string) {
-    try {
-      await quiet(projectId, (m) => m.deleteFact(dataset, factId));
-      setFacts((prev) => applyFactDeletion(prev, factId, showInvalidated));
-    } catch {
-      setError('Failed to delete fact');
-    }
-  }
-
-  const groups = useMemo(() => {
-    const m = new Map<string, SemanticFact[]>();
-    for (const f of facts) {
-      const key = f.objectIsEntity ? f.object : f.subject;
-      const arr = m.get(key) ?? [];
-      arr.push(f);
-      m.set(key, arr);
-    }
-    return m;
-  }, [facts]);
-
-  return (
-    <div className="h-full overflow-y-auto p-4 max-w-3xl">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-muted-foreground">
-          {loading
-            ? 'Loading…'
-            : `${facts.length} fact${facts.length !== 1 ? 's' : ''}`}
-        </span>
-        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-          <input
-            type="checkbox"
-            checked={showInvalidated}
-            onChange={(e) => setShowInvalidated(e.target.checked)}
-          />
-          Show invalidated
-        </label>
-      </div>
-      {error && <div className="mb-3 text-sm text-destructive">{error}</div>}
-      {entities.length > 0 && (
-        <div className="mb-5">
-          <h3 className="text-xs font-semibold mb-2">Entities</h3>
-          <div className="flex flex-wrap gap-2">
-            {entities.map((e) => (
-              <EntityChip key={e.entityId} entity={e} />
-            ))}
-          </div>
-        </div>
-      )}
-      {facts.length === 0 && !loading && (
-        <p className="text-sm text-muted-foreground">
-          No facts yet, they extract automatically after conversations.
-        </p>
-      )}
-      {[...groups.entries()].map(([anchor, items]) => (
-        <div key={anchor} className="mb-5">
-          <h3 className="text-xs font-semibold mb-2 capitalize">{anchor}</h3>
-          <ul className="space-y-1.5">
-            {items.map((f) => {
-              const { status, inactive } = factStatus(f, threshold);
-              const invalidated = status === 'invalidated';
-              const rangeEnd = f.validUntil ? ` – ${day(f.validUntil)}` : '';
-              return (
-                <li
-                  key={f.factId}
-                  className={`group flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm ${inactive ? 'opacity-50' : ''}`}
-                >
-                  <span
-                    className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${FACT_STATUS_DOT[status]}`}
-                  />
-                  <span
-                    className={invalidated ? 'line-through' : ''}
-                    title={f.sourceQuote ? `“${f.sourceQuote}”` : undefined}
-                  >
-                    {f.subject} {f.predicate} {f.object}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground ml-auto whitespace-nowrap">
-                    {f.confidence.toFixed(2)} · {status} · {day(f.validAt)}
-                    {rangeEnd}
-                  </span>
-                  {!invalidated && (
-                    <button
-                      onClick={() => void remove(f.factId)}
-                      className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Delete fact"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -485,12 +375,14 @@ function ConversationsTab({
   selectedThreadId,
   onSelectThread,
   onViewEpisodes,
+  onViewGraph,
 }: {
   projectId: string;
   dataset: string;
   selectedThreadId: string | null;
   onSelectThread: (id: string) => void;
   onViewEpisodes: (threadId: string) => void;
+  onViewGraph: (threadId: string) => void;
 }) {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -559,12 +451,20 @@ function ConversationsTab({
               <span className="font-mono text-xs text-muted-foreground">
                 {selectedThreadId.slice(0, 12)}…
               </span>
-              <button
-                onClick={() => onViewEpisodes(selectedThreadId)}
-                className="flex items-center gap-1.5 text-xs rounded-md border border-border px-2.5 py-1 hover:bg-muted/50 transition-colors"
-              >
-                <Layers className="h-3.5 w-3.5" /> View episodes
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onViewGraph(selectedThreadId)}
+                  className="flex items-center gap-1.5 text-xs rounded-md border border-border px-2.5 py-1 hover:bg-muted/50 transition-colors"
+                >
+                  <Network className="h-3.5 w-3.5" /> View graph
+                </button>
+                <button
+                  onClick={() => onViewEpisodes(selectedThreadId)}
+                  className="flex items-center gap-1.5 text-xs rounded-md border border-border px-2.5 py-1 hover:bg-muted/50 transition-colors"
+                >
+                  <Layers className="h-3.5 w-3.5" /> View episodes
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto py-3">
               {messages.map((m) => (
@@ -575,231 +475,5 @@ function ConversationsTab({
         )}
       </div>
     </div>
-  );
-}
-
-// ── Episodes tab ────────────────────────────────────────────────────────────────
-
-function EpisodesTab({
-  projectId,
-  dataset,
-  threadFilter,
-  onClearFilter,
-  onViewConversation,
-}: {
-  projectId: string;
-  dataset: string;
-  threadFilter: string | null;
-  onClearFilter: () => void;
-  onViewConversation: (threadId: string) => void;
-}) {
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<'all' | EpisodeStatus>('all');
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await quiet(projectId, (m) =>
-        m.listEpisodes(dataset, { status, limit: 100 }),
-      );
-      setEpisodes(res.episodes);
-    } catch {
-      setError('Failed to load episodes');
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, dataset, status]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const shown = threadFilter
-    ? episodes.filter((e) => e.threadId === threadFilter)
-    : episodes;
-
-  return (
-    <div className="h-full overflow-y-auto p-4 max-w-3xl">
-      {error && <div className="mb-3 text-sm text-destructive">{error}</div>}
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-xs text-muted-foreground">
-          {loading
-            ? 'Loading…'
-            : `${shown.length} episode${shown.length !== 1 ? 's' : ''}`}
-        </span>
-        <div className="flex items-center gap-2">
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as 'all' | EpisodeStatus)}
-            className="text-xs rounded-md border border-border bg-background px-2 py-1"
-          >
-            <option value="all">All statuses</option>
-            <option value="completed">Completed</option>
-            <option value="processing">Processing</option>
-            <option value="pending">Pending</option>
-            <option value="failed">Failed</option>
-            <option value="archived">Archived</option>
-          </select>
-          <button
-            onClick={() => void load()}
-            className="text-muted-foreground hover:text-foreground"
-            title="Refresh"
-          >
-            <RefreshCw
-              className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
-            />
-          </button>
-        </div>
-      </div>
-
-      {threadFilter && (
-        <div className="flex items-center justify-between mb-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
-          <span>
-            Filtered to conversation{' '}
-            <span className="font-mono">{threadFilter.slice(0, 8)}…</span>
-          </span>
-          <button
-            onClick={onClearFilter}
-            className="text-primary hover:underline"
-          >
-            Show all
-          </button>
-        </div>
-      )}
-
-      {shown.length === 0 && !loading && (
-        <p className="text-sm text-muted-foreground">
-          No episodes{threadFilter ? ' for this conversation' : ''} yet.
-        </p>
-      )}
-
-      <div className="space-y-2">
-        {shown.map((ep) => {
-          const s = EPISODE_STATUS_STYLES[ep.status];
-          const open = expanded === ep.episodeId;
-          return (
-            <div key={ep.episodeId} className="rounded-md border border-border">
-              <button
-                onClick={() => setExpanded(open ? null : ep.episodeId)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/30"
-              >
-                <ChevronRight
-                  className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`}
-                />
-                <span className={`w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
-                <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${s.badge}`}
-                >
-                  {s.label}
-                </span>
-                <span className="text-sm truncate flex-1">
-                  {ep.summary ?? (
-                    <span className="text-muted-foreground italic">
-                      No summary
-                    </span>
-                  )}
-                </span>
-                <span className="text-[10px] text-muted-foreground shrink-0">
-                  {ep.messageCount} msg{ep.messageCount !== 1 ? 's' : ''} ·{' '}
-                  {relTime(ep.endedAt ?? ep.createdAt)}
-                </span>
-              </button>
-
-              {open && (
-                <div className="border-t border-border px-3 py-3 text-xs space-y-3">
-                  {/* Identifying metadata */}
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono">
-                    <Meta label="episodeId" value={ep.episodeId} />
-                    <Meta label="threadId" value={ep.threadId ?? '-'} />
-                    <Meta label="status" value={ep.status} />
-                    <Meta label="messages" value={String(ep.messageCount)} />
-                    <Meta
-                      label="tokens"
-                      value={
-                        ep.tokenCount != null
-                          ? ep.tokenCount.toLocaleString()
-                          : '-'
-                      }
-                    />
-                    <Meta label="retries" value={String(ep.retryCount)} />
-                    <Meta label="startedAt" value={dateTime(ep.startedAt)} />
-                    <Meta label="endedAt" value={dateTime(ep.endedAt)} />
-                    <Meta
-                      label="processingStartedAt"
-                      value={dateTime(ep.processingStartedAt)}
-                    />
-                    <Meta
-                      label="processingCompletedAt"
-                      value={dateTime(ep.processingCompletedAt)}
-                    />
-                    <Meta label="createdAt" value={dateTime(ep.createdAt)} />
-                  </dl>
-
-                  {ep.summary && (
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                        Summary
-                      </div>
-                      <p className="text-sm leading-relaxed">{ep.summary}</p>
-                    </div>
-                  )}
-
-                  {ep.keyLearnings && ep.keyLearnings.length > 0 && (
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                        Key learnings
-                      </div>
-                      <ul className="space-y-1">
-                        {ep.keyLearnings.map((k, i) => (
-                          <li
-                            key={i}
-                            className="flex gap-2 text-muted-foreground"
-                          >
-                            <span className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/50 shrink-0" />
-                            <span>{k}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {ep.status === 'failed' && ep.error && (
-                    <div className="flex gap-2 items-start text-destructive bg-destructive/10 rounded-md px-3 py-2">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                      <span className="break-all">{ep.error}</span>
-                    </div>
-                  )}
-
-                  {ep.threadId && (
-                    <button
-                      onClick={() => onViewConversation(ep.threadId!)}
-                      className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 hover:bg-muted/50 transition-colors"
-                    >
-                      <MessagesSquare className="h-3.5 w-3.5" /> View
-                      conversation <ArrowRight className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function Meta({ label, value }: { label: string; value: string }) {
-  return (
-    <Fragment>
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="truncate" title={value}>
-        {value}
-      </dd>
-    </Fragment>
   );
 }

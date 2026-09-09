@@ -77,7 +77,26 @@ Use it to check [entity resolution](/concepts/semantic-memory/#entities).
 Two entities that should be one, `toyota corolla hybrid` and `corolla hybrid`, means the
 similarity threshold did not merge them, and the user's memory is split.
 
-> Entities are shown as a flat list. There is no graph visualisation.
+### Graph
+
+The same facts as a picture. The user sits in the centre; every entity hangs
+off it on a spoke labelled with the user's action (`owns`, `is interested in`,
+`has sister`), an entity's own details (`has mileage of → about 120,000 km`) are
+small leaves beside it, and relations between entities
+(`priya → works at → sap`) are edges of their own.
+
+Entities cluster by the conversation they first came up in: each conversation
+has an anchor around the user that pulls its entities together, with the
+conversation's summary shown faintly at the anchor. An entity that came up in
+several conversations is pulled between them, which joins the clusters into
+one graph. A collision force sized to each label keeps circles and text from
+overlapping.
+
+The user's own literals (`likes sci-fi`) have no entity to hang off and live
+behind the **About user** button. Hover or click a node to spotlight its
+neighbourhood; click a legend entry to hide a type; drag a node and it stays
+where you drop it; **View graph** on a conversation scopes the picture to that
+thread.
 
 ## Typical investigations
 
@@ -125,7 +144,6 @@ LIMIT 20;
 | See extraction failures           | SQL, as above                                                                      |
 | See which facts a past reply used | [Playground](/dashboard/playground/), current session only                         |
 | Export                            | No export button, use the API or `pg_dump`                                         |
-| Visualise the graph               | Not implemented                                                                    |
 
 ## Relationship to the API
 

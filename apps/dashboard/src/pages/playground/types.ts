@@ -48,6 +48,9 @@ export type AddOp = (
   responseOverride?: unknown,
 ) => void;
 
+/** Default for tabs mounted on pages with no ops log (e.g. the dataset browser). */
+export const noopAddOp: AddOp = () => {};
+
 export interface WMSettings {
   autoCompactEnabled: boolean;
   autoCompactThreshold: number;

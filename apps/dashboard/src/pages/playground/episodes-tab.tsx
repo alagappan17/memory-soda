@@ -3,7 +3,7 @@ import type { Episode, EpisodeStatus } from '@memory-soda/types';
 import { EPISODE_STATUS_STYLES } from '../../lib/episode-status';
 import { call, adminCall, describeError } from './api';
 import { CopyButton } from '../../components/copy-button';
-import type { AddOp } from './types';
+import { noopAddOp, type AddOp } from './types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,11 +14,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const STATUS_FILTERS: EpisodeStatus[] = [
+type StatusFilter = EpisodeStatus | 'all';
+
+const STATUS_FILTERS: StatusFilter[] = [
+  'all',
   'completed',
   'pending',
   'processing',
   'failed',
+  'archived',
 ];
 
 type EpisodeRow = Episode & { relevanceScore?: number };
@@ -38,10 +42,13 @@ function EpisodeCard({
   episode,
   onRetry,
   onDelete,
+  onViewConversation,
 }: {
   episode: EpisodeRow;
   onRetry: (episodeId: string) => void;
   onDelete: (episodeId: string) => void;
+  /** Cross-nav to a thread browser; omitted where there is none (playground). */
+  onViewConversation?: (threadId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -207,6 +214,16 @@ function EpisodeCard({
                   − Delete
                 </Button>
               ))}
+            {onViewConversation && episode.threadId && (
+              <Button
+                variant="outline"
+                size="xs"
+                className="text-muted-foreground ml-auto"
+                onClick={() => onViewConversation(episode.threadId!)}
+              >
+                View conversation →
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -222,20 +239,30 @@ export function EpisodesTab({
   projectId,
   dataset,
   active,
-  addOp,
-  refreshKey,
-  onWatchEpisode,
+  addOp = noopAddOp,
+  refreshKey = 0,
+  onWatchEpisode = () => {},
+  limit = 20,
+  threadFilter = null,
+  onClearThreadFilter,
+  onViewConversation,
 }: {
   projectId: string;
   dataset: string;
   active: boolean;
-  addOp: AddOp;
+  /** Omit on pages with no ops log (e.g. the dataset browser). */
+  addOp?: AddOp;
   /** Bumped by the extraction poller when new episodes complete. */
-  refreshKey: number;
-  onWatchEpisode: (episodeId: string) => void;
+  refreshKey?: number;
+  onWatchEpisode?: (episodeId: string) => void;
+  limit?: number;
+  /** Cross-nav from a conversation: show only that thread's episodes. */
+  threadFilter?: string | null;
+  onClearThreadFilter?: () => void;
+  onViewConversation?: (threadId: string) => void;
 }) {
   const [episodes, setEpisodes] = useState<EpisodeRow[]>([]);
-  const [status, setStatus] = useState<EpisodeStatus>('completed');
+  const [status, setStatus] = useState<StatusFilter>('completed');
   const [searchQ, setSearchQ] = useState('');
   const [searchMode, setSearchMode] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -246,14 +273,14 @@ export function EpisodesTab({
   const scope = dataset.trim();
 
   const load = useCallback(
-    async (opts: { silent?: boolean; statusOverride?: EpisodeStatus } = {}) => {
+    async (opts: { silent?: boolean; statusOverride?: StatusFilter } = {}) => {
       if (!ready) return;
       setLoading(true);
       setError(null);
       const st = opts.statusOverride ?? status;
       try {
         const { data, trace } = await call(projectId, (memory) =>
-          memory.listEpisodes(scope, { status: st, limit: 20 }),
+          memory.listEpisodes(scope, { status: st, limit }),
         );
         setEpisodes(data.episodes ?? []);
         setSearchMode(false);
@@ -277,7 +304,7 @@ export function EpisodesTab({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [projectId, scope, status, ready],
+    [projectId, scope, status, ready, limit],
   );
 
   // Reset when the memory scope changes.
@@ -367,6 +394,10 @@ export function EpisodesTab({
     }
   }
 
+  const shown = threadFilter
+    ? episodes.filter((e) => e.threadId === threadFilter)
+    : episodes;
+
   return (
     <div className={active ? 'flex-1 overflow-y-auto min-h-0' : 'hidden'}>
       {/* Controls */}
@@ -394,7 +425,7 @@ export function EpisodesTab({
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <Select<EpisodeStatus>
+          <Select<StatusFilter>
             value={status}
             onValueChange={(st) => {
               if (!st) return;
@@ -430,7 +461,7 @@ export function EpisodesTab({
           <span className="text-[10px] text-muted-foreground ml-auto">
             {loading
               ? 'Loading…'
-              : `${episodes.length} episode${episodes.length !== 1 ? 's' : ''}`}
+              : `${shown.length} episode${shown.length !== 1 ? 's' : ''}`}
           </span>
           <Button
             variant="ghost"
@@ -451,22 +482,42 @@ export function EpisodesTab({
         </div>
       )}
 
-      {episodes.length === 0 && !loading ? (
+      {threadFilter && (
+        <div className="flex items-center justify-between m-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
+          <span>
+            Filtered to conversation{' '}
+            <span className="font-mono">{threadFilter.slice(0, 8)}…</span>
+          </span>
+          {onClearThreadFilter && (
+            <Button
+              variant="ghost"
+              size="xs"
+              className="text-primary hover:underline"
+              onClick={onClearThreadFilter}
+            >
+              Show all
+            </Button>
+          )}
+        </div>
+      )}
+
+      {shown.length === 0 && !loading ? (
         <div className="flex items-center justify-center h-32 text-xs text-muted-foreground text-center px-4">
           {ready
             ? searchMode
               ? 'No episodes matched the search.'
-              : `No ${status} episodes yet. Episodes generate after inactivity or when a thread ends.`
+              : `No ${status} episodes${threadFilter ? ' for this conversation' : ''} yet. Episodes generate after inactivity or when a thread ends.`
             : 'Select a project and dataset above to view episodes.'}
         </div>
       ) : (
         <div className="p-2 space-y-2">
-          {episodes.map((ep) => (
+          {shown.map((ep) => (
             <EpisodeCard
               key={ep.episodeId}
               episode={ep}
               onRetry={(id) => void retry(id)}
               onDelete={(id) => void remove(id)}
+              onViewConversation={onViewConversation}
             />
           ))}
         </div>
