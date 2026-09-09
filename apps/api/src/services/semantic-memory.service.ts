@@ -31,9 +31,11 @@ import {
   extractGraph,
   resolveContradictions,
   type ContradictionPair,
-  type ExtractedEntity,
-  type ExtractedGraph,
 } from '../lib/semantic-extraction.js';
+import type {
+  ExtractedEntity,
+  ExtractedGraph,
+} from '../lib/extraction-normalize.js';
 import { extendUsage, log } from '../lib/usage.js';
 
 import {
@@ -56,6 +58,12 @@ const MAX_SEMANTIC_RETRIES = 3;
 // A 'processing' claim older than this is considered orphaned (the worker died
 // mid-extraction, crash, restart, deploy) and may be reclaimed.
 const STALE_PROCESSING_MS = 10 * 60 * 1000;
+
+// How many of the dataset's entities (most recently touched first) the
+// extraction prompt is shown. ponytail: flat recency cap, switch to
+// nearest-by-embedding to the transcript if datasets outgrow it.
+const KNOWN_ENTITY_LIMIT = 200;
+const KNOWN_FACT_LIMIT = 100;
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
@@ -124,9 +132,21 @@ interface LiveNeighbour {
   subject: string;
   predicate: string;
   object: string;
+  objectIsEntity: boolean;
   sourceQuote: string | null;
   validAt: Date;
   similarity?: number;
+}
+
+/** A live row the batch ends: same subject and object as a candidate carrying a validUntil. */
+interface Closure {
+  live: {
+    id: string;
+    subject: string;
+    object: string;
+    objectIsEntity: boolean;
+  };
+  validUntil: Date;
 }
 
 // ── Pipeline entry point ────────────────────────────────────────────────────────
@@ -237,8 +257,34 @@ export async function processSemanticMemory(episodeId: string): Promise<void> {
       projectSettings.episodic.maxMessages,
     );
 
-    // Step 1, extract (pass `now` as the anchor for resolving relative dates)
-    const graph = await extractGraph(transcript, now);
+    // Step 1, extract (pass `now` as the anchor for resolving relative dates).
+    // The model sees what this dataset already holds: entity names, so it
+    // does not mint "novablast 5" beside "asics novablast 5" and can anchor
+    // new facts on known things; and recent facts, so a change comes back
+    // with the same predicate (judgeable) and an ended one with a validUntil.
+    const [knownEntities, knownFacts] = await Promise.all([
+      listEntities(episode.dataset, episode.projectId, KNOWN_ENTITY_LIMIT),
+      db
+        .select({
+          subject: facts.subject,
+          predicate: facts.predicate,
+          object: facts.object,
+        })
+        .from(facts)
+        .where(
+          and(
+            eq(facts.dataset, episode.dataset),
+            eq(facts.projectId, episode.projectId),
+            isLiveFact,
+          ),
+        )
+        .orderBy(desc(facts.validAt))
+        .limit(KNOWN_FACT_LIMIT),
+    ]);
+    const graph = await extractGraph(transcript, now, {
+      entities: knownEntities,
+      facts: knownFacts,
+    });
 
     // Step 2, resolve entities (dedup the entities table)
     const canonical = await resolveEntities(
@@ -483,9 +529,11 @@ async function writeFacts(
 
   const existingExact = await db
     .select({
+      id: facts.id,
       subject: facts.subject,
       predicate: facts.predicate,
       object: facts.object,
+      objectIsEntity: facts.objectIsEntity,
     })
     .from(facts)
     .where(
@@ -503,18 +551,30 @@ async function writeFacts(
         ),
       ),
     );
-  const liveExact = new Set(
-    existingExact.map((f) => factKey(f.subject, f.predicate, f.object)),
+  const liveExact = new Map(
+    existingExact.map((f) => [factKey(f.subject, f.predicate, f.object), f]),
   );
-  const deduped = unique.filter(
-    (c) => !liveExact.has(factKey(c.subject, c.predicate, c.object)),
-  );
-  if (deduped.length === 0) return;
 
   // Valid-time bounds. Extraction already normalized these to ISO date strings
   // or null, so parsing is safe.
   const toDate = (iso: string | null): Date | null =>
     iso ? new Date(iso) : null;
+
+  // A live fact restated WITH an end date is the user saying it stopped being
+  // true ("I sold the civic last week" comes back as "user owns honda civic,
+  // validUntil last week"). That closes the live row's valid time; it is not a
+  // duplicate and not a contradiction. Applied in the write transaction
+  // below, alongside anything the judge decides has ended.
+  const closures: Closure[] = [];
+  const deduped = unique.filter((c) => {
+    const live = liveExact.get(factKey(c.subject, c.predicate, c.object));
+    if (!live) return true;
+    const validUntil = toDate(c.validUntil);
+    if (validUntil) closures.push({ live, validUntil });
+    return false;
+  });
+
+  if (deduped.length === 0 && closures.length === 0) return;
 
   // Effective valid-from instant. validFrom is date-only, so "today" resolves to
   // midnight, hours BEFORE facts recorded earlier the same day, which would make
@@ -550,12 +610,23 @@ async function writeFacts(
           subject: facts.subject,
           predicate: facts.predicate,
           object: facts.object,
+          objectIsEntity: facts.objectIsEntity,
           sourceQuote: facts.sourceQuote,
           validAt: facts.validAt,
           similarity: sql<number>`1 - (${facts.embedding} <=> ${vec}::vector)`,
         })
         .from(facts)
-        .where(and(tenant, isLiveFact, isNotNull(facts.embedding)))
+        // Subject-scoped: "priya has shoe budget" is never a duplicate of,
+        // nor a rival to, "user has shoe budget", and other subjects' rows
+        // would only crowd the real neighbours out of the top-N.
+        .where(
+          and(
+            tenant,
+            isLiveFact,
+            isNotNull(facts.embedding),
+            eq(facts.subject, candidate.subject),
+          ),
+        )
         .orderBy(sql`${facts.embedding} <=> ${vec}::vector`)
         .limit(NEIGHBOUR_SCAN);
       return { candidate, emb, neighbours };
@@ -564,13 +635,18 @@ async function writeFacts(
 
   // Same-predicate conflicts are a lexical match, not a vector one, so they get
   // their own indexed lookup, a fact stating a different object for the same
-  // predicate must be judged even when its embedding is far away.
+  // predicate must be judged even when its embedding is far away. Likewise a
+  // candidate that says something ENDED (carries a validUntil) is judged
+  // against every live fact on the same subject and object, whatever the
+  // verb: "retired novablast 5" must reach "owns novablast 5" even though the
+  // embeddings are far apart.
   const samePredicateLive = await db
     .select({
       id: facts.id,
       subject: facts.subject,
       predicate: facts.predicate,
       object: facts.object,
+      objectIsEntity: facts.objectIsEntity,
       sourceQuote: facts.sourceQuote,
       validAt: facts.validAt,
     })
@@ -583,9 +659,18 @@ async function writeFacts(
           ...deduped.map((c) =>
             and(eq(facts.subject, c.subject), eq(facts.predicate, c.predicate)),
           ),
+          ...deduped
+            .filter((c) => c.validUntil !== null)
+            .map((c) =>
+              and(eq(facts.subject, c.subject), eq(facts.object, c.object)),
+            ),
         ),
       ),
     );
+  // Every neighbour list is subject-scoped, so "ends" is just: the candidate
+  // carries a validUntil and names the same object.
+  const endsRelation = (c: FactCandidate, f: { object: string }) =>
+    c.validUntil !== null && f.object === c.object;
 
   // Drop near-duplicates by embedding similarity, against live facts and
   // against earlier candidates in this batch (paraphrase pairs like "wants
@@ -608,11 +693,11 @@ async function writeFacts(
       ...samePredicateLive.filter(
         (f) =>
           f.subject === candidate.subject &&
-          f.predicate === candidate.predicate,
+          (f.predicate === candidate.predicate || endsRelation(candidate, f)),
       ),
     ]);
   }
-  if (survivors.length === 0) return;
+  if (survivors.length === 0 && closures.length === 0) return;
 
   // Step 4, collect (survivor ↔ conflicting live fact) pairs, then resolve all
   // contradictions in ONE batched LLM call. A live fact conflicts when it states
@@ -621,11 +706,17 @@ async function writeFacts(
   // dedup threshold), which catches predicate rewordings like "works at" vs
   // "is employed by". Historical candidates (validUntil already past) never
   // supersede anything, they are inserted as history without judging.
-  const conflictRefs: { survivorIndex: number; oldId: string }[] = [];
+  const conflictRefs: {
+    survivorIndex: number;
+    old: LiveNeighbour;
+    ends: boolean;
+  }[] = [];
   const pairs: ContradictionPair[] = [];
   survivors.forEach(({ c }, si) => {
+    // A candidate whose validUntil is already past is history: it never
+    // supersedes a different fact, except the one it explicitly ENDS ("sold
+    // honda civic, until last week" versus the live "drives honda civic").
     const historical = c.validUntil !== null && new Date(c.validUntil) <= now;
-    if (historical) return;
     // Low-confidence facts are stored but never trusted to invalidate an
     // existing fact, they skip contradiction judging entirely.
     if (c.confidence < settings.retrievalMinConfidence) return;
@@ -636,13 +727,20 @@ async function writeFacts(
       if (judgedIds.has(f.id)) continue;
       const samePredicateConflict =
         f.predicate === c.predicate && f.object !== c.object;
+      // The candidate says this relationship ENDED, under a different verb
+      // ("retired novablast 5" against the live "owns novablast 5").
+      const endedConflict = f.predicate !== c.predicate && endsRelation(c, f);
+      if (historical && !endedConflict) continue;
+      // Same object means the two facts agree on the thing itself ("lives in
+      // chennai" / "works from chennai"), a paraphrase can't contradict it.
       const bandConflict =
         !samePredicateConflict &&
+        f.object !== c.object &&
         f.similarity !== undefined &&
         inContradictionBand(f.similarity, settings);
-      if (!samePredicateConflict && !bandConflict) continue;
+      if (!samePredicateConflict && !bandConflict && !endedConflict) continue;
       judgedIds.add(f.id);
-      conflictRefs.push({ survivorIndex: si, oldId: f.id });
+      conflictRefs.push({ survivorIndex: si, old: f, ends: endedConflict });
       pairs.push({
         subject: c.subject,
         oldPredicate: f.predicate,
@@ -664,6 +762,17 @@ async function writeFacts(
     ...ref,
     verdict: verdicts[k] ?? 'neither',
   }));
+  if (process.env['EXTRACT_DEBUG'] && judged.length > 0) {
+    console.error(
+      '[judge]\n' +
+        judged
+          .map(
+            (j, k) =>
+              `  ${j.verdict}: OLD "${pairs[k]?.subject} ${j.old.predicate} ${j.old.object}" vs NEW "${pairs[k]?.subject} ${pairs[k]?.newPredicate} ${pairs[k]?.newObject}"`,
+          )
+          .join('\n'),
+    );
+  }
 
   // A survivor superseded by ANY existing fact ('new') is discarded entirely,
   // including its own 'old' verdicts. Otherwise it could invalidate an old fact
@@ -672,18 +781,28 @@ async function writeFacts(
     judged.filter((j) => j.verdict === 'new').map((j) => j.survivorIndex),
   );
 
+  // An 'old' verdict on an ENDED pair is a closure (the fact stopped being
+  // true in the world, at the date the user gave), the same outcome as an
+  // exact restatement with a validUntil; every other 'old' is a belief change.
   const invalidationsBySurvivor = new Map<number, string[]>();
-  for (const { verdict, survivorIndex, oldId } of judged) {
+  for (const { verdict, survivorIndex, old, ends } of judged) {
     if (verdict !== 'old' || supersededSurvivors.has(survivorIndex)) continue;
+    const validUntil = ends
+      ? toDate(survivors[survivorIndex]?.c.validUntil ?? null)
+      : null;
+    if (validUntil) {
+      closures.push({ live: old, validUntil });
+      continue;
+    }
     const list = invalidationsBySurvivor.get(survivorIndex) ?? [];
-    list.push(oldId);
+    list.push(old.id);
     invalidationsBySurvivor.set(survivorIndex, list);
   }
 
   const staged = survivors
     .map((s, si) => ({ ...s, si }))
     .filter(({ si }) => !supersededSurvivors.has(si));
-  if (staged.length === 0) return;
+  if (staged.length === 0 && closures.length === 0) return;
 
   // Step 5, apply atomically, serialized per tenant via an advisory lock so
   // concurrent episode jobs can't interleave their invalidate/insert. The
@@ -725,6 +844,8 @@ async function writeFacts(
         !appearedExact.has(factKey(c.subject, c.predicate, c.object)) &&
         !appearedAnchored.has(`${c.subject}|${c.predicate}|${anchorFor(c)}`),
     );
+
+    await closeFacts(tx, tenant, closures, now);
     if (finalStaged.length === 0) return;
 
     // Only apply invalidations belonging to survivors that are actually inserted.
@@ -756,10 +877,18 @@ async function writeFacts(
       );
 
     if (invalidatedIds.size > 0) {
-      await tx
+      const invalidated = await tx
         .update(facts)
         .set({ invalidAt: now, updatedAt: now })
-        .where(inArray(facts.id, [...invalidatedIds]));
+        .where(inArray(facts.id, [...invalidatedIds]))
+        .returning({
+          subject: facts.subject,
+          object: facts.object,
+          objectIsEntity: facts.objectIsEntity,
+        });
+      // A superseded user→entity link ends the entity's own facts the same
+      // way a closure does, if nothing else still links the user to it.
+      await endOrphanedEntityFacts(tx, tenant, invalidated, now, now);
     }
 
     const toInsert: NewFactRow[] = finalStaged.map(({ c, emb }) => ({
@@ -778,6 +907,97 @@ async function writeFacts(
     }));
     await tx.insert(facts).values(toInsert).onConflictDoNothing();
   });
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * End the valid time of live facts the user said stopped being true. When a
+ * closed fact was the user's last live link to an entity, the entity has left
+ * the user's world, so the facts anchored on it (its mileage, its condition)
+ * end at the same instant; otherwise a walk from "user" could no longer reach
+ * them but retrieval would still surface them as current.
+ */
+async function closeFacts(
+  tx: Tx,
+  tenant: ReturnType<typeof and>,
+  closures: Closure[],
+  now: Date,
+): Promise<void> {
+  // One update per distinct end date (nearly always one).
+  const byDate = new Map<number, Closure[]>();
+  for (const c of closures) {
+    const list = byDate.get(c.validUntil.getTime()) ?? [];
+    list.push(c);
+    byDate.set(c.validUntil.getTime(), list);
+  }
+  for (const [ms, list] of byDate) {
+    const validUntil = new Date(ms);
+    await tx
+      .update(facts)
+      .set({ validUntil, updatedAt: now })
+      .where(
+        inArray(
+          facts.id,
+          list.map((c) => c.live.id),
+        ),
+      );
+    await endOrphanedEntityFacts(
+      tx,
+      tenant,
+      list.map((c) => c.live),
+      validUntil,
+      now,
+    );
+  }
+}
+
+/**
+ * For each user→entity link in `ended`, if the user has no live link left to
+ * that entity, end the entity's own facts at `validUntil`. Two queries for the
+ * whole batch, not three per row.
+ */
+async function endOrphanedEntityFacts(
+  tx: Tx,
+  tenant: ReturnType<typeof and>,
+  ended: { subject: string; object: string; objectIsEntity: boolean }[],
+  validUntil: Date,
+  now: Date,
+): Promise<void> {
+  const candidates = [
+    ...new Set(
+      ended
+        .filter((f) => f.objectIsEntity && f.subject === 'user')
+        .map((f) => f.object),
+    ),
+  ];
+  if (candidates.length === 0) return;
+  const stillLinked = await tx
+    .selectDistinct({ object: facts.object })
+    .from(facts)
+    .where(
+      and(
+        tenant,
+        isLiveFact,
+        eq(facts.subject, 'user'),
+        eq(facts.objectIsEntity, true),
+        inArray(facts.object, candidates),
+      ),
+    );
+  const linked = new Set(stillLinked.map((r) => r.object));
+  const orphans = candidates.filter((c) => !linked.has(c));
+  if (orphans.length === 0) return;
+  await tx
+    .update(facts)
+    .set({ validUntil, updatedAt: now })
+    .where(
+      and(
+        tenant,
+        isLiveFact,
+        inArray(facts.subject, orphans),
+        or(isNull(facts.validUntil), gt(facts.validUntil, validUntil)),
+      ),
+    );
 }
 
 // ── Sweep job ───────────────────────────────────────────────────────────────────
@@ -1085,14 +1305,16 @@ export async function querySemanticFacts(
 export async function listEntities(
   dataset: string,
   projectId: string,
+  limit?: number,
 ): Promise<SemanticEntity[]> {
-  const rows = await db
+  const query = db
     .select({ id: entities.id, name: entities.name, type: entities.type })
     .from(entities)
     .where(
       and(eq(entities.dataset, dataset), eq(entities.projectId, projectId)),
     )
     .orderBy(desc(entities.updatedAt));
+  const rows = limit === undefined ? await query : await query.limit(limit);
   return rows.map((r) => ({
     entityId: r.id,
     name: r.name,

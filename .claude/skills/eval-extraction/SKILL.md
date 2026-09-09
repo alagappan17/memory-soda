@@ -31,4 +31,7 @@ Add a fixture whenever a real-world transcript exposed a bad extraction; keep
 them in the docs example world (cars, Netflix, sci-fi) so they double as doc
 material. Never commit fixtures containing real user data.
 
+`EXTRACT_DEBUG=1` prints the raw model output to stderr, for telling a prompt
+problem from an `assembleGraph` one.
+
 Report the diff summary, not the raw JSON.

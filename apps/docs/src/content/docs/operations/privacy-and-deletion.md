@@ -208,7 +208,7 @@ never be stored, filter before calling `addMessage`.
 ## The extraction prompt as a control
 
 Extraction is deliberately narrow, it discards task chatter, assistant
-explanations, and anything whose subject is not the user. That reduces incidental
+explanations, and anything not about the user's own world. That reduces incidental
 retention, but it is a **quality heuristic, not a privacy control**. It is an LLM
 following instructions; do not rely on it to suppress a category of data.
 

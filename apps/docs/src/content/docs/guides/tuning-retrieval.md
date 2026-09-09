@@ -104,12 +104,12 @@ and distinct entities collapse into one **irreversibly**. Check the
 
 ## When tuning won't help
 
-|                                             |                                                                                                                               |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Facts about a second subject in one dataset | One subject per dataset, only `user`-role statements are kept, [why](/concepts/semantic-memory/#every-fact-is-about-the-user) |
-| Memory lagging behind the conversation      | Inherent to deferred extraction; `end()` or a lower `autoEpisodeIntervalMs` moves it                                          |
-| Anchor ranks being arbitrary                | A known bug, not a setting                                                                                                    |
-| Facts accumulating forever                  | There is no forgetting or consolidation pass                                                                                  |
+|                                             |                                                                                                                                                                 |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Facts about a second subject in one dataset | One subject per dataset, only `user`-role statements about that subject's world are kept, [why](/concepts/semantic-memory/#every-fact-is-about-the-users-world) |
+| Memory lagging behind the conversation      | Inherent to deferred extraction; `end()` or a lower `autoEpisodeIntervalMs` moves it                                                                            |
+| Anchor ranks being arbitrary                | A known bug, not a setting                                                                                                                                      |
+| Facts accumulating forever                  | There is no forgetting or consolidation pass                                                                                                                    |
 
 ## Next
 

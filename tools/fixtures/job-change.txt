@@ -1,0 +1,5 @@
+user: I work at Netflix as a backend engineer, been there three years. My car budget is under $30k, and separately I'd spend about $800 on a new TV.
+assistant: Got it. Are you thinking about a change on the job side?
+user: Yes. I accepted an offer from Acme, I start there on March 1 and leave Netflix the week before. My coach Ravi says the commute will be shorter.
+assistant: Congratulations. Acme's office is downtown, so that tracks. Anything else changing?
+user: I sold my Honda Civic last week, the Corolla Hybrid arrives in September.

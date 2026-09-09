@@ -1,0 +1,6 @@
+user: I drive a Honda Civic which I bought on March 17, 2024. It's done about 120,000 km and still runs fine, but I want a second car for weekend trips.
+assistant: A 2024 Civic with 120,000 km is holding up well. The Civic has a 1.5L turbo engine and about 32 mpg combined. What matters most in the second car: space, fuel economy, or comfort?
+user: I get lower back pain on drives longer than two hours, so something with good seats. Mostly highway driving.
+assistant: For long highway drives with back pain, look at cars with adjustable lumbar support. The Toyota Corolla Hybrid has excellent seats and 50 mpg.
+user: What about the Corolla Hybrid or the Camry?
+assistant: The Corolla Hybrid is the more economical pick; the Camry is roomier. Both have strong seats. Do you have a budget in mind?

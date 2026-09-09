@@ -77,8 +77,9 @@ await memory.endThread(threadId); // extract now rather than on the timer
 A workaround for the absent write API, and it costs three LLM calls. But it is
 the only way to _add_ knowledge.
 
-> Phrase corrections **as the user speaking about themselves**. Extraction
-> discards anything whose subject is not the user.
+> Phrase corrections **as the user speaking about their own world**. Extraction
+> discards anything whose subject is not the user or something the user is
+> linked to.
 
 ## Building a "forget this" feature
 

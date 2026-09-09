@@ -106,6 +106,7 @@ explicitly**. Most facts are open-ended, and invented bounds are worse than none
 | "I've used Arch since 2019"   | `2019-01-01` | `null`                                                 |
 | "I'm on a cut until December" | now          | that December                                          |
 | "I used to work at Google"    | now          | _past_, inserted as history, never supersedes anything |
+| "I sold the Civic last week"  | _unchanged_  | last week, the live `owns honda civic` row is closed   |
 
 ### Same-day coercion
 
@@ -146,8 +147,9 @@ still on file.
 
 Note what this is not: restating the exact same fact (same subject, predicate
 and object) never reaches contradiction judging at all, it is dropped as a
-duplicate before that step runs. Only a genuinely different statement, a
-different object for the same predicate, gets judged.
+duplicate before that step runs, or, if it carries a `validUntil`, closes the
+live row. Only a genuinely different statement, a different object for the
+same predicate, gets judged.
 
 ## Next
 

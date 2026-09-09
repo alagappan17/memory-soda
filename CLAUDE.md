@@ -44,6 +44,9 @@ tests — keep logic in `apps/api/src/lib` so it is testable without DB or Gemin
   plus a re-embed, not an env tweak.
 - No API key is seeded on first boot; the dashboard creates keys.
 - `apps/api/tsconfig.app.json` excludes `src/test`; the harness uses `import.meta`.
+- Never `.default([])` a field in a `generateStructured` zod schema: the default
+  leaks into Gemini's response schema and the model emits `[]` for it (seen:
+  10 facts via raw REST, 3 via the SDK). Make arrays required.
 
 ## Vocabulary and invariants
 
@@ -54,6 +57,11 @@ tests — keep logic in `apps/api/src/lib` so it is testable without DB or Gemin
   `invalidAt` = when we stopped believing it. Contradictions set `invalidAt`,
   never delete. Same-day `validFrom` is coerced to "now".
 - Facts about entities are anchored on the entity; facts about the user on `user`.
+  A subject is `user` or an entity the user is linked to (their car, their
+  sister); `assembleGraph` enforces it. Extraction is shown known entities +
+  recent facts so names and predicates stay consistent across episodes.
+- An ended relationship is the same triple with `validUntil` → the live row is
+  closed (and the entity's own facts with it, if that was the last user link).
 - Retrieval = vector + entity-anchor + full-text, fused by rank; thresholds live
   in project settings (`packages/types/src/lib/project-settings.ts`).
 - Routes under `/v1` (API key) and `/dashboard/projects/:projectId/v1`

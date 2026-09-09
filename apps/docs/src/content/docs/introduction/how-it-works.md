@@ -76,6 +76,7 @@ car-shopping conversation it emits roughly four facts, not forty:
 | `user finds too big suvs`                                          | `toyota corolla hybrid gets 50 mpg` (the assistant said it)    |
 | `user does city commuting`                                         | `user wants a hybrid` (fragment of a fuller fact)              |
 | `user wants a family car that is hybrid, easy to park, under $30k` | a `corola hybrid` entity (typo, folded into the canonical one) |
+| `honda civic has mileage about 120,000 km` (anchored on the car)   | `honda civic has a 1.5l turbo engine` (the assistant said it)  |
 
 ## The read path
 
